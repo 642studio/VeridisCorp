@@ -156,6 +156,8 @@ export function applyCommand(
       break;
   }
   order.revision += 1;
-  order.events.push({ sequence: order.revision, actor, command });
+  // La hora real es la única lectura no determinista de esta función, a propósito: es solo para
+  // mostrarla en la UI, no para ninguna decisión del motor.
+  order.events.push({ sequence: order.revision, actor, command, occurredAt: new Date().toISOString() });
   return order;
 }

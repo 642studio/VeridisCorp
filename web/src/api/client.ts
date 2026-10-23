@@ -20,6 +20,10 @@ export class ApiError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 
+// Una sola vez: si varias peticiones en vuelo reciben 401 a la vez, solo la primera dispara
+// la recarga (igual que [CAMBIAR_TOKEN]), evitando varios reload() superpuestos.
+let sessionExpiredHandled = false;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const response = await fetch(BASE + path, {
@@ -32,7 +36,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 401) clearToken();
+    if (response.status === 401) {
+      clearToken();
+      if (!sessionExpiredHandled) { sessionExpiredHandled = true; window.location.reload(); }
+    }
     throw new ApiError(response.status, (body && typeof body.error === 'string' && body.error) || 'Error inesperado del servidor');
   }
   return body as T;

@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { useOrganization } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { AgentDetailPanel } from '../components/AgentDetailPanel';
+import { SessionExpired } from '../components/SessionExpired';
 import type { AgentSummary, Department, OrganizationResponse } from '../api/types';
 
-// Los únicos perfiles del catálogo que runtime/ ejecuta de verdad hoy (worker/reviewer
-// en src/runtime/contracts.ts). Mantener sincronizado si ese contrato cambia.
-const REAL_EXECUTION_IDS = new Set(['content', 'review']);
+// content y review además corren en el pipeline de contenido de runtime/ (src/runtime/service.ts),
+// separado de oficina/. Todo el resto del catálogo solo corre vía oficina/.
+const RUNTIME_PIPELINE_IDS = new Set(['content', 'review']);
 
 function matchesSearch(agent: AgentSummary, term: string): boolean {
   const q = term.toLowerCase();
@@ -40,7 +41,7 @@ export function OrgChart() {
   const grouped = useMemo(() => (query.data ? groupData(query.data) : null), [query.data]);
 
   if (query.isLoading) return <p className="muted">Cargando organigrama…</p>;
-  if (query.error instanceof ApiError && query.error.status === 401) return <p className="error">Sesión inválida o vencida.</p>;
+  if (query.error instanceof ApiError && query.error.status === 401) return <SessionExpired />;
   if (query.error) return <p className="error">No se pudo cargar: {(query.error as Error).message}</p>;
   if (!query.data || !grouped) return null;
 
@@ -109,7 +110,8 @@ export function OrgChart() {
         onChange={(event) => setSearch(event.target.value)}
       />
       <p className="muted">
-        {data.agents.length} perfiles de catálogo · {REAL_EXECUTION_IDS.size} conectados a una ejecución real hoy (marcados abajo)
+        {data.agents.length} perfiles de catálogo · todos ejecutan con IA real vía oficina/
+        · content y review además corren en el pipeline de contenido de runtime/ (marcados abajo)
       </p>
       {topLevel.map((dept) => renderDepartment(dept, 0))}
       <AgentDetailPanel agentId={selected} onClose={() => setSelected(null)} />
@@ -118,13 +120,13 @@ export function OrgChart() {
 }
 
 function AgentRow({ agent, role, onSelect }: { agent: AgentSummary; role?: string; onSelect: (id: string) => void }) {
-  const isReal = REAL_EXECUTION_IDS.has(agent.id);
+  const inRuntimePipeline = RUNTIME_PIPELINE_IDS.has(agent.id);
   return (
     <li className="org-agent" onClick={() => onSelect(agent.id)}>
       <span className="org-agent__id">{agent.id}</span>
       <span>{agent.name}</span>
       {role && <span className="org-agent__role">{role}</span>}
-      {isReal && <span className="org-agent__real" title="Conectado a una ejecución real en runtime/">en ejecución real</span>}
+      {inRuntimePipeline && <span className="org-agent__real" title="También corre en el pipeline de contenido de runtime/">también en runtime/</span>}
       <span className="org-agent__caps muted">{agent.capabilities.join(', ')}</span>
     </li>
   );

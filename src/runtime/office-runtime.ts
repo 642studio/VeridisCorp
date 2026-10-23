@@ -85,7 +85,8 @@ export class OfficeRuntime {
   const pendingQuestion = snapshot.tasks.flatMap((t) => t.interrupts ?? [])
    .map((i) => i.value as { question?: string } | undefined).find((v) => v?.question)?.question ?? null;
   return { order: state.order, turns: state.turns, rejectedDecisions: state.rejectedDecisions, lastError: state.lastError,
-   modelCalls: state.modelCalls, interrupted: snapshot.next.length > 0, pendingQuestion };
+   modelCalls: state.modelCalls, interrupted: snapshot.next.length > 0, pendingQuestion,
+   limits: { maxTurns: this.options.maxTurns ?? 100, maxRejectedDecisions: this.options.maxRejectedDecisions ?? 3, maxQuestions: this.options.maxQuestions ?? 5 } };
  }
  async start(token: string, raw: unknown) {
   const input = StartInput.parse(raw);

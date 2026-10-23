@@ -18,6 +18,7 @@ test('LangGraph coordina apoyo, contexto entre agentes, corrección y cierre', a
   assert.match(audit.submission!.summary, /research/);
   assert(output.order.events.some((e) => e.command.type === 'request_support'));
   assert.equal(output.rejectedDecisions, 0);
+  assert(output.order.events.every((e) => typeof e.occurredAt === 'string' && !Number.isNaN(Date.parse(e.occurredAt))));
 });
 
 test('el checkpoint permite continuar con un grafo nuevo sin repetir investigación completada', async () => {

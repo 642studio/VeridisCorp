@@ -5,6 +5,7 @@
   font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
 }
 * { box-sizing: border-box; }
+html, body, #root { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); }
 button, input, textarea, table { font-family: inherit; font-size: 13px; color: inherit; }
 h1, h2, h3 { font-family: inherit; letter-spacing: 0.04em; }
@@ -13,11 +14,14 @@ pre { font-family: inherit; }
 .muted { color: var(--muted); font-size: 12px; }
 .error { color: var(--danger); font-size: 12px; }
 
-/* ---- shell layout ---- */
-.shell { display: flex; min-height: 100vh; }
+/* ---- shell layout ----
+   .shell ocupa exactamente el viewport (no min-height): así .shell__content es el único que
+   se desplaza y la barra lateral y la topbar se quedan siempre visibles, sin necesitar
+   position: sticky (que no sirve de nada si el contenedor no tiene una altura fija). */
+.shell { display: flex; height: 100vh; }
 .shell__sidebar {
   width: 220px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; padding: 20px 0;
+  display: flex; flex-direction: column; padding: 20px 0; overflow-y: auto;
 }
 .shell__brand { padding: 0 18px 20px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .shell__brand > span:first-child { font-weight: 700; letter-spacing: 0.08em; font-size: 15px; }
@@ -30,13 +34,13 @@ pre { font-family: inherit; }
 .shell__nav-item:hover { color: var(--text); background: var(--panel-raised); }
 .shell__nav-item--active { color: var(--accent); border-left-color: var(--accent); background: var(--panel-raised); }
 .shell__sidebar-footer { padding: 12px 18px 0; border-top: 1px solid var(--border); margin-top: 12px; }
-.shell__main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.shell__main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .shell__topbar {
   display: flex; justify-content: space-between; align-items: center; padding: 12px 24px;
-  border-bottom: 1px solid var(--border); background: var(--panel);
+  border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0;
 }
 .breadcrumb { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
-.shell__content { flex: 1; padding: 24px; overflow: auto; max-width: 1100px; }
+.shell__content { flex: 1; padding: 24px; overflow-y: auto; max-width: 1100px; min-height: 0; }
 
 .badge { font-size: 11px; letter-spacing: 0.05em; border: 1px solid var(--border-bright); padding: 3px 10px; text-transform: uppercase; }
 .badge--ok { color: var(--done); border-color: var(--done); }
@@ -154,6 +158,21 @@ pre { font-family: inherit; }
 .org-agent__role { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); padding: 0 6px; text-transform: uppercase; }
 .org-agent__real { font-size: 10px; color: var(--done); border: 1px solid var(--done); padding: 0 6px; text-transform: uppercase; }
 .org-agent__caps { flex-basis: 100%; }
+.org-agent--block { display: block; cursor: default; }
+.org-agent--block:hover { background: none; }
+.org-agent__row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+
+/* ---- resultado de tareas / expediente ---- */
+.task-result { margin: 10px 0 2px; padding-left: 6px; border-left: 2px solid var(--border-bright); }
+.task-result .artifact-text { font-size: 12px; max-height: 260px; overflow: auto; }
+.order-result { background: var(--panel); border: 1px solid var(--done); padding: 14px; margin: 12px 0; }
+.order-result .panel-title { color: var(--done); }
+.task-evidence { list-style: none; padding: 0; margin: 8px 0 0; }
+.task-evidence__item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.task-evidence__item:last-child { border-bottom: none; }
+.task-evidence__reference { display: block; color: var(--muted); font-size: 11px; word-break: break-all; margin: 2px 0; }
+.task-assessment { list-style: none; padding: 0; margin: 4px 0 0; }
+.task-assessment__item { padding: 4px 0; }
 
 /* ---- office orders ---- */
 .office-orders__start { border: 1px solid var(--border); background: var(--panel); padding: 14px; margin-bottom: 20px; }

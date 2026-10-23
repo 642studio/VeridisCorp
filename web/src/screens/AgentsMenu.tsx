@@ -2,8 +2,11 @@ import { useMemo, useState } from 'react';
 import { useOrganization } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { AgentDetailPanel } from '../components/AgentDetailPanel';
+import { SessionExpired } from '../components/SessionExpired';
 
-const REAL_EXECUTION_IDS = new Set(['content', 'review']);
+// content y review además corren en el pipeline de contenido de runtime/ (src/runtime/service.ts),
+// separado de oficina/. Todo el resto del catálogo solo corre vía oficina/ — ver RUNTIME_PIPELINE_IDS.
+const RUNTIME_PIPELINE_IDS = new Set(['content', 'review']);
 
 export function AgentsMenu() {
   const query = useOrganization();
@@ -20,7 +23,7 @@ export function AgentsMenu() {
   }, [query.data, search]);
 
   if (query.isLoading) return <p className="muted">Cargando agentes…</p>;
-  if (query.error instanceof ApiError && query.error.status === 401) return <p className="error">Sesión inválida o vencida.</p>;
+  if (query.error instanceof ApiError && query.error.status === 401) return <SessionExpired />;
   if (query.error) return <p className="error">No se pudo cargar: {(query.error as Error).message}</p>;
   if (!query.data) return null;
 
@@ -32,7 +35,10 @@ export function AgentsMenu() {
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
-      <p className="muted">{agents.length} de {query.data.agents.length} perfiles</p>
+      <p className="muted">
+        {agents.length} de {query.data.agents.length} perfiles · todos ejecutan con IA real vía oficina/
+        · content y review además corren en el pipeline de contenido de runtime/
+      </p>
       <table className="agents-table">
         <thead>
           <tr>
@@ -52,7 +58,7 @@ export function AgentsMenu() {
               <td className="muted">{agent.organization?.departmentId ?? '—'}</td>
               <td className="muted">{agent.organization?.level ?? '—'}</td>
               <td className="muted">{agent.capabilities.slice(0, 3).join(', ')}{agent.capabilities.length > 3 ? '…' : ''}</td>
-              <td>{REAL_EXECUTION_IDS.has(agent.id) && <span className="tag tag--real">EN EJECUCIÓN REAL</span>}</td>
+              <td>{RUNTIME_PIPELINE_IDS.has(agent.id) && <span className="tag tag--real" title="También corre en el pipeline de contenido de runtime/">EN RUNTIME/</span>}</td>
             </tr>
           ))}
         </tbody>

@@ -245,6 +245,7 @@ export interface OfficeEventRow {
   sequence: number;
   actor: OfficeActor;
   command: { type: string } & Record<string, unknown>;
+  occurredAt?: string;
 }
 
 export interface OfficeWorkOrder {
@@ -270,6 +271,12 @@ export interface OfficeModelCall {
   model: string;
 }
 
+export interface OfficeWorkflowLimits {
+  maxTurns: number;
+  maxRejectedDecisions: number;
+  maxQuestions: number;
+}
+
 export interface OfficeOrderDetail {
   id: string;
   order: OfficeWorkOrder;
@@ -279,4 +286,5 @@ export interface OfficeOrderDetail {
   modelCalls: OfficeModelCall[];
   interrupted: boolean;
   pendingQuestion: string | null;
+  limits: OfficeWorkflowLimits;
 }

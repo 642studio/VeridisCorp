@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRunsList } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { StatusPill } from '../components/StatusPill';
+import { SessionExpired } from '../components/SessionExpired';
 import type { RunStatus } from '../api/types';
 
 const ATTENTION_FILTER: RunStatus[] = ['awaiting_approval', 'failed', 'outcome_unknown'];
@@ -42,15 +43,6 @@ export function RunsList({ onSelect }: { onSelect: (id: string) => void }) {
           Cargar más
         </button>
       )}
-    </div>
-  );
-}
-
-function SessionExpired() {
-  return (
-    <div className="session-expired">
-      <p>La sesión no es válida o venció.</p>
-      <button type="button" className="button button--primary" onClick={() => window.location.reload()}>Volver a entrar</button>
     </div>
   );
 }

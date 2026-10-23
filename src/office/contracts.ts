@@ -93,6 +93,8 @@ export const OfficeEvent = z.object({
   sequence: z.number().int().positive(),
   actor: Actor,
   command: OfficeCommand,
+  // Opcional: los checkpoints ya persistidos antes de este campo no lo traen.
+  occurredAt: z.iso.datetime({ offset: true }).optional(),
 });
 
 export const WorkOrder = z.object({
