@@ -1,7 +1,62 @@
 import { z } from 'zod';
+import { HumanMessage, SystemMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';
+import type { AgentDefinition } from './contracts.js';
 import { CoordinatorDecision, WorkerReply, ReviewReply, DepartmentReply, type OfficeIntelligence } from './runtime-contracts.js';
-import { loadModelRouter, type ModelRouter, type ModelRequest } from './models.js';
-import { createStructuredInvoker, type StructuredInvoker } from './model-providers.js';
+import { loadModelRouter, type ModelRouter, type ModelRequest, type ResolvedProfile } from './models.js';
+import { createStructuredInvoker, createProfileModel, type StructuredInvoker } from './model-providers.js';
+import { toolsFor, groundedWebSearch, braveSearch } from './tools.js';
+
+// Investigación real, acotada por allowedTools (agents/<id>/config.json): sin herramientas
+// permitidas no se toca el modelo. Cualquier falla (sin credencial, cuota, red, proveedor sin
+// tool-calling, etc.) se trata como "no hubo investigación", nunca como un error que tumbe o
+// pause execute(). Orden de preferencia: Brave (BRAVE_API_KEY, índice propio) → Google Search
+// real (perfil 'search-google', GEMINI_API_KEY) → Wikipedia sin credenciales.
+const MAX_TOOL_ROUNDS = 3;
+async function gatherResearch(
+  router: ModelRouter, profile: ResolvedProfile, env: NodeJS.ProcessEnv,
+  agent: AgentDefinition, objective: string, taskTitle: string,
+): Promise<{ tool: string; query: string; output: string }[]> {
+  const tools = toolsFor(agent.allowedTools);
+  if (!tools.length) return [];
+  const question = `Objetivo del expediente: ${objective}\nTarea asignada: ${taskTitle}`;
+  try {
+    const results = await braveSearch(env, taskTitle);
+    if (results.length) return [{ tool: 'web.search', query: taskTitle, output: JSON.stringify(results) }];
+  } catch {
+    // Sin BRAVE_API_KEY, sin crédito o sin resultados: seguimos con la siguiente fuente.
+  }
+  try {
+    const grounded = await groundedWebSearch(router.profile('search-google'), env, question);
+    return [{ tool: 'web.search', query: taskTitle, output: JSON.stringify(grounded) }];
+  } catch {
+    // Gemini no configurado, sin crédito o sin resultados: seguimos con el respaldo gratuito.
+  }
+  const model = createProfileModel(profile, env).bindTools?.(tools);
+  if (!model) return [];
+  const messages: BaseMessage[] = [
+    new SystemMessage('Puedes llamar herramientas reales de investigación antes de responder. '
+      + 'Usa como máximo 3 llamadas en total y solo si realmente aportan al encargo. '
+      + 'Si no hace falta investigar, no llames ninguna.'),
+    new HumanMessage(question),
+  ];
+  const calls: { tool: string; query: string; output: string }[] = [];
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const response = await model.invoke(messages, { signal: AbortSignal.timeout(profile.timeoutMs) });
+    messages.push(response);
+    const toolCalls = response.tool_calls ?? [];
+    if (!toolCalls.length) break;
+    for (const call of toolCalls) {
+      const tool = tools.find((t) => t.name === call.name);
+      const args = (call.args ?? {}) as Record<string, unknown>;
+      let output: string;
+      try { output = tool ? await tool.invoke(args as never) : 'Herramienta no disponible.'; }
+      catch (error) { output = 'La herramienta falló: ' + (error instanceof Error ? error.message : 'error desconocido'); }
+      calls.push({ tool: call.name, query: typeof args.query === 'string' ? args.query : '', output });
+      messages.push(new ToolMessage({ tool_call_id: call.id ?? call.name, content: output }));
+    }
+  }
+  return calls;
+}
 
 const boundaries = `Formas parte de VeridisCorp, el ecosistema empresarial de agentes de 642 Studio sobre el motor V.E.R.I.D.I.S. Responde en español.
 Trabajas con propuestas y con la información proporcionada. Actualmente no tienes herramientas externas.
@@ -67,6 +122,9 @@ Los pasos son limitados: usa pocas tareas concretas y evita trabajo redundante.`
       return result.decision;
     },
     async execute(context) {
+      const selection = router.select({ stage: 'execute', agentId: context.agent.id, capability: context.task.capability });
+      const research = await gatherResearch(router, router.profile(selection.profileId), env, context.agent, context.objective, context.task.title)
+        .catch(() => []);
       const result = await invoke({ stage: 'execute', agentId: context.agent.id, capability: context.task.capability },
         workerSchema, 'office_worker', `Eres ${context.agent.name}.
 ${context.agent.instructions || ''}
@@ -75,7 +133,12 @@ Entrega un result con evidencias de lo que realmente puedas sustentar, o support
 Los borradores se referencian como proposal:// seguido de un identificador, pero esa referencia es solo una etiqueta, no el contenido:
 el texto completo y verificable del entregable debe ir en el campo summary de esa evidencia, nunca solo una descripción de lo que contendría.
 Un revisor independiente no puede confirmar un criterio sobre contenido que no esté presente de forma literal en la evidencia.
-Si la tarea requiere consultar herramientas ausentes, pide apoyo o información; no inventes su ejecución.`, context);
+Si la tarea requiere consultar herramientas ausentes, pide apoyo o información; no inventes su ejecución.
+El contexto puede incluir "research": resultados reales de herramientas ya ejecutadas por el motor, no por ti.
+Si "research" trae resultados, cualquier evidencia tipo "source" debe usar como reference la URL exacta de uno de
+esos resultados y su summary debe basarse en su snippet real, nunca en información que no esté ahí.
+Si "research" está vacío o no trajo resultados útiles, no reportes haber investigado ni inventes fuentes.`,
+        { ...context, research });
       return result.reply;
     },
     review: (context) => invoke({ stage: 'review', agentId: context.agent.id, capability: context.task.capability },

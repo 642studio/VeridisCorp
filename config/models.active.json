@@ -53,6 +53,14 @@
       "timeoutMs": 120000,
       "maxRetries": 0,
       "structuredOutputMethod": "jsonSchema"
+    },
+    "search-google": {
+      "provider": "google",
+      "modelEnv": "GEMINI_MODEL",
+      "apiKeyEnv": "GEMINI_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 30000,
+      "maxRetries": 0
     }
   },
   "stages": {

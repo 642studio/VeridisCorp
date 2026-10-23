@@ -174,6 +174,7 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
     OPENAI_MODEL: 'gpt-5.4-mini-2026-03-17', OPENAI_COMPLEX_MODEL: 'gpt-5.4-2026-03-05',
     DEEPSEEK_MODEL: 'deepseek-flash', DEEPSEEK_REASONING_MODEL: 'deepseek-v4-pro',
     OLLAMA_MODEL: 'huihui_ai/qwen3-coder-abliterated:30b', OLLAMA_API_KEY: 'ollama',
+    GEMINI_MODEL: 'gemini-3.8-flash',
   });
   assert.equal(router.select({ agentId: 'content', stage: 'execute', capability: 'content.draft' }).model, 'deepseek-flash');
   assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).model, 'gpt-5.4-mini-2026-03-17');

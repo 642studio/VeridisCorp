@@ -57,7 +57,7 @@ Las dependencias son acíclicas. Una tarea bloqueada no se resuelve a sí misma 
 
 Una aceptación necesita referenciar evidencias existentes. Esta comprobación valida la estructura del argumento; **no demuestra que una fuente sea verdadera ni que un informe sea correcto**. El adaptador de revisión propone una evaluación semántica con IA, pendiente de validar. La comprobación por herramientas llegará con los especialistas. El revisor tampoco convierte los datos recibidos en instrucciones ejecutables.
 
-El núcleo no autentica identidades. El futuro transporte deberá obtener `Actor` de un contexto autenticado y resolver el expediente por workspace autorizado. Nunca se aceptará el rol o la identidad que un LLM escriba en su respuesta como prueba de autoridad. `allowedTools` es un catálogo declarativo; el futuro ejecutor deberá comprobar permisos, recursos autorizados y argumentos en cada llamada.
+El núcleo no autentica identidades. El futuro transporte deberá obtener `Actor` de un contexto autenticado y resolver el expediente por workspace autorizado. Nunca se aceptará el rol o la identidad que un LLM escriba en su respuesta como prueba de autoridad. `allowedTools` es el catálogo de permisos por agente. Desde `src/office/tools.ts` existe un primer ejecutor real bajo el id `web.search`, que `execute()` solo invoca si el agente lo tiene en su `allowedTools` (el agente `research` ya lo declara). Internamente prueba dos fuentes en orden: primero Google Search real vía el perfil `search-google` (Gemini + `GEMINI_API_KEY`, grounding nativo con citas exactas por fragmento), y si eso falla por cualquier motivo —sin credencial, sin facturación habilitada en el proyecto de Google Cloud (la key de esta sesión está así: `googleSearch` da 429 aunque el modelo responde bien sin esa herramienta), cuota agotada, red— cae a Wikipedia en español sin credenciales. Ambas rutas están verificadas en vivo. La comprobación de permiso hoy es solo el id de la herramienta contra `allowedTools`; no hay todavía alcance por recurso, cuota ni auditoría propia por llamada (las citas quedan en la evidencia que el especialista redacta, no en un registro aparte). Herramientas que escriben o tienen efectos irreversibles (una VM, una publicación) seguirán requiriendo esa capa de permisos más fina y, probablemente, aprobación humana antes de ejecutar.
 
 ## Estados y límites
 
@@ -65,7 +65,7 @@ Las tareas pasan de `pending` a `running`, luego a `in_review` y `completed`. Pu
 
 El núcleo limita tareas, pasos de coordinación y correcciones por tarea. Cuando se agotan los pasos, rechaza nuevos avances y permite al coordinador pausar con un motivo. La planificación y los reintentos del modelo necesitarán límites adicionales de tiempo, tokens y dinero. Un registro de comandos no sustituye esas mediciones.
 
-La pausa aún no tiene un comando para continuar o cambiar presupuestos. No hay cancelación, reasignación, mensajería general, hallazgos independientes, herramientas externas ni recuperación automática de tareas fallidas. La delegación departamental sí está implementada como decisión `delegate` del coordinador. Las demás funciones se añadirán con casos concretos y reglas explícitas.
+La pausa aún no tiene un comando para continuar o cambiar presupuestos. No hay cancelación, reasignación, mensajería general, hallazgos independientes ni recuperación automática de tareas fallidas. Existe una sola herramienta externa real (`web.search`, de solo lectura, ver más abajo); el resto de herramientas externas sigue pendiente. La delegación departamental sí está implementada como decisión `delegate` del coordinador. Las demás funciones se añadirán con casos concretos y reglas explícitas.
 
 ## Integración con LangGraph implementada
 
@@ -79,7 +79,7 @@ Los especialistas reciben copias de su tarea, objetivo, respuestas humanas y ent
 
 `test/office-workflow.test.ts` verifica apoyo, corrección, cierre, continuación con un grafo nuevo tras fallo, preguntas humanas, decisiones inválidas, límites, aislamiento por copias y cambios de versión. La prueba local usa `MemorySaver`: **no prueba persistencia tras terminar el proceso**. `test/office-postgres.test.ts` contiene la verificación PostgreSQL optativa, sin ejecutar aquí por falta de una base de pruebas. Los errores del proveedor o respuestas inválidas de especialistas dejan el nodo pendiente y requieren continuación explícita. Reintentar puede repetir una llamada de pago; no se garantiza ejecución exactamente una vez.
 
-La salida final es el expediente con sus entregables, evaluaciones y eventos. No existe todavía una etapa adicional de síntesis narrativa para la oficina. No hay ejecución real de herramientas; los agentes solo preparan propuestas con la información recibida. Las referencias `proposal://` identifican contenido propuesto, no archivos creados.
+La salida final es el expediente con sus entregables, evaluaciones y eventos. No existe todavía una etapa adicional de síntesis narrativa para la oficina. Más allá de `web.search` (solo lectura, verificado con el agente `research`), los agentes preparan propuestas con la información recibida sin ejecutar nada más. Las referencias `proposal://` identifican contenido propuesto, no archivos creados.
 
 ## Persistencia y distribución: diseño pendiente
 
