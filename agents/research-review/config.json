@@ -1,0 +1,16 @@
+{
+  "id": "research-review",
+  "name": "Veridis_VerificacionFuentes",
+  "version": "2.1.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "VerificacionFuentes",
+    "departmentId": "intelligence",
+    "level": "reviewer",
+    "reportsToId": "research-lead"
+  },
+  "knowledge": []
+}

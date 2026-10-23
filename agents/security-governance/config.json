@@ -1,0 +1,17 @@
+{
+  "id": "security-governance",
+  "name": "Veridis_security_governance",
+  "version": "2.2.0",
+  "capabilities": [
+    "security.governance",
+    "security.access"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Identidades y gobierno de seguridad",
+    "departmentId": "cybersecurity",
+    "level": "specialist",
+    "reportsToId": "ciso"
+  },
+  "knowledge": []
+}

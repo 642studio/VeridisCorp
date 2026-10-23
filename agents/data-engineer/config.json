@@ -1,0 +1,16 @@
+{
+  "id": "data-engineer",
+  "name": "Veridis_Datos",
+  "version": "2.2.0",
+  "capabilities": [
+    "data.design"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Datos",
+    "departmentId": "data",
+    "level": "specialist",
+    "reportsToId": "data-lead"
+  },
+  "knowledge": []
+}

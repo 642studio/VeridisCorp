@@ -1,0 +1,17 @@
+{
+  "id": "project-planner",
+  "name": "Veridis_Planificacion",
+  "version": "2.1.0",
+  "capabilities": [
+    "projects.schedule",
+    "projects.integrate"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Planificacion",
+    "departmentId": "projects",
+    "level": "specialist",
+    "reportsToId": "pm"
+  },
+  "knowledge": []
+}

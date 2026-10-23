@@ -1,0 +1,16 @@
+{
+  "id": "workforce",
+  "name": "Veridis_workforce",
+  "version": "2.2.0",
+  "capabilities": [
+    "people.capacity"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Capacidad y coordinación de personal",
+    "departmentId": "people",
+    "level": "specialist",
+    "reportsToId": "hr"
+  },
+  "knowledge": []
+}

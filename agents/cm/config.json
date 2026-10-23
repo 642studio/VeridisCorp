@@ -1,0 +1,17 @@
+{
+  "id": "cm",
+  "name": "Veridis_CommunityManager",
+  "version": "2.1.0",
+  "capabilities": [
+    "community.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "CommunityManager",
+    "departmentId": "marketing",
+    "level": "manager",
+    "reportsToId": "cmo"
+  },
+  "knowledge": []
+}

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "defaultProfile": "routine",
+  "profiles": {
+    "routine": { "provider": "openai", "modelEnv": "VERIDIS_MODEL_ROUTINE", "apiKeyEnv": "OPENAI_API_KEY", "maxOutputTokens": 3000 },
+    "reasoning": { "provider": "anthropic", "modelEnv": "VERIDIS_MODEL_REASONING", "apiKeyEnv": "ANTHROPIC_API_KEY", "maxOutputTokens": 6000 },
+    "research": { "provider": "google", "modelEnv": "VERIDIS_MODEL_RESEARCH", "apiKeyEnv": "GOOGLE_API_KEY", "maxOutputTokens": 4000 },
+    "code": { "provider": "openai", "modelEnv": "VERIDIS_MODEL_CODE", "apiKeyEnv": "OPENAI_API_KEY", "maxOutputTokens": 6000 }
+  },
+  "stages": { "coordinate": "reasoning", "review": "reasoning" },
+  "agents": {
+    "ceo": { "coordinate": "reasoning" },
+    "cto": { "coordinate": "reasoning" },
+    "cfo": { "coordinate": "reasoning" },
+    "pm": { "coordinate": "reasoning" },
+    "hr": { "coordinate": "reasoning" },
+    "cmo": { "coordinate": "reasoning" },
+    "coo": { "coordinate": "reasoning" },
+    "research-lead": { "coordinate": "research" },
+    "quality-lead": { "coordinate": "reasoning" },
+    "cm": { "coordinate": "routine" },
+    "development": { "execute": "code" },
+    "research": { "execute": "research" },
+    "operations": { "execute": "routine" }
+  },
+  "rules": [
+    { "stage": "execute", "capability": "finance.budget", "profile": "reasoning" },
+    { "stage": "execute", "agentId": "development", "capability": "software.design", "profile": "reasoning" },
+    { "stage": "execute", "agentId": "development", "capability": "software.document", "profile": "routine" },
+    { "stage": "execute", "agentId": "research", "capability": "news.summarize", "profile": "routine" },
+    { "stage": "execute", "agentId": "network", "capability": "network.audit", "profile": "reasoning" },
+    { "stage": "execute", "capability": "content.draft", "profile": "routine" }
+  ]
+}

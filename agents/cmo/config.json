@@ -1,0 +1,17 @@
+{
+  "id": "cmo",
+  "name": "Veridis_DireccionMarketing",
+  "version": "2.2.0",
+  "capabilities": [
+    "marketing.strategy",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "DireccionMarketing",
+    "departmentId": "marketing",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

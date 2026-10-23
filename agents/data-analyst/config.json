@@ -1,0 +1,16 @@
+{
+  "id": "data-analyst",
+  "name": "Veridis_data_analyst",
+  "version": "2.2.0",
+  "capabilities": [
+    "data.analyze"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Analítica de negocio",
+    "departmentId": "data",
+    "level": "specialist",
+    "reportsToId": "data-lead"
+  },
+  "knowledge": []
+}

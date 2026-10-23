@@ -1,0 +1,16 @@
+{
+  "id": "finance-accounting",
+  "name": "Veridis_finance_accounting",
+  "version": "2.2.0",
+  "capabilities": [
+    "finance.reconcile"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Control contable",
+    "departmentId": "finance",
+    "level": "specialist",
+    "reportsToId": "cfo"
+  },
+  "knowledge": []
+}

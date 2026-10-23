@@ -1,0 +1,16 @@
+{
+  "id": "creative-strategy",
+  "name": "Veridis_creative_strategy",
+  "version": "2.2.0",
+  "capabilities": [
+    "marketing.creative"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Estrategia creativa",
+    "departmentId": "marketing",
+    "level": "specialist",
+    "reportsToId": "cmo"
+  },
+  "knowledge": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "market-research",
+  "name": "Veridis_market_research",
+  "version": "2.2.0",
+  "capabilities": [
+    "research.market"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Investigación de mercado y competencia",
+    "departmentId": "intelligence",
+    "level": "specialist",
+    "reportsToId": "research-lead"
+  },
+  "knowledge": []
+}

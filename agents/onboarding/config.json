@@ -1,0 +1,16 @@
+{
+  "id": "onboarding",
+  "name": "Veridis_Incorporacion",
+  "version": "2.1.0",
+  "capabilities": [
+    "people.onboarding"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Incorporacion",
+    "departmentId": "people",
+    "level": "specialist",
+    "reportsToId": "hr"
+  },
+  "knowledge": []
+}

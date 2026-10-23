@@ -1,0 +1,16 @@
+{
+  "id": "security-audit",
+  "name": "Veridis_security_audit",
+  "version": "2.2.0",
+  "capabilities": [
+    "security.audit"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Auditoría y vulnerabilidades",
+    "departmentId": "cybersecurity",
+    "level": "specialist",
+    "reportsToId": "ciso"
+  },
+  "knowledge": []
+}

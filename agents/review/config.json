@@ -1,0 +1,16 @@
+{
+  "id": "review",
+  "name": "Veridis_RevisionGeneral",
+  "version": "2.1.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "RevisionGeneral",
+    "departmentId": "quality",
+    "level": "reviewer",
+    "reportsToId": "quality-lead"
+  },
+  "knowledge": []
+}

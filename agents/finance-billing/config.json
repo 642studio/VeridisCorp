@@ -1,0 +1,16 @@
+{
+  "id": "finance-billing",
+  "name": "Veridis_Facturacion",
+  "version": "2.1.0",
+  "capabilities": [
+    "finance.billing"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Facturacion",
+    "departmentId": "finance",
+    "level": "specialist",
+    "reportsToId": "cfo"
+  },
+  "knowledge": []
+}

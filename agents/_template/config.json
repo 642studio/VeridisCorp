@@ -1,0 +1,14 @@
+{
+  "id": "new-agent",
+  "name": "Veridis_NuevoAgente",
+  "version": "0.1.0",
+  "capabilities": ["new-agent.work"],
+  "allowedTools": [],
+  "organization": {
+    "title": "Puesto por definir",
+    "departmentId": "technology",
+    "level": "specialist",
+    "reportsToId": "cto"
+  },
+  "knowledge": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "process-improvement",
+  "name": "Veridis_process_improvement",
+  "version": "2.2.0",
+  "capabilities": [
+    "operations.improve"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Mejora de procesos",
+    "departmentId": "operations",
+    "level": "specialist",
+    "reportsToId": "coo"
+  },
+  "knowledge": []
+}

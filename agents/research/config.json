@@ -1,0 +1,17 @@
+{
+  "id": "research",
+  "name": "Veridis_Investigacion",
+  "version": "2.1.0",
+  "capabilities": [
+    "news.research",
+    "news.summarize"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Investigacion",
+    "departmentId": "intelligence",
+    "level": "specialist",
+    "reportsToId": "research-lead"
+  },
+  "knowledge": []
+}

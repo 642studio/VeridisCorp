@@ -1,0 +1,17 @@
+{
+  "id": "hr",
+  "name": "Veridis_RecursosHumanos",
+  "version": "2.2.0",
+  "capabilities": [
+    "people.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "RecursosHumanos",
+    "departmentId": "people",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

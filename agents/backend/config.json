@@ -1,0 +1,16 @@
+{
+  "id": "backend",
+  "name": "Veridis_backend",
+  "version": "2.2.0",
+  "capabilities": [
+    "software.backend"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Ingeniería backend",
+    "departmentId": "software",
+    "level": "specialist",
+    "reportsToId": "software-lead"
+  },
+  "knowledge": []
+}

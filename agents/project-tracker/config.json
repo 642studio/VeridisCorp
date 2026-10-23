@@ -1,0 +1,17 @@
+{
+  "id": "project-tracker",
+  "name": "Veridis_Seguimiento",
+  "version": "2.1.0",
+  "capabilities": [
+    "projects.track",
+    "projects.risks"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Seguimiento",
+    "departmentId": "projects",
+    "level": "specialist",
+    "reportsToId": "pm"
+  },
+  "knowledge": []
+}

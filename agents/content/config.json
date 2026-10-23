@@ -1,0 +1,16 @@
+{
+  "id": "content",
+  "name": "Veridis_Contenido",
+  "version": "2.1.0",
+  "capabilities": [
+    "content.draft"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Contenido",
+    "departmentId": "marketing",
+    "level": "specialist",
+    "reportsToId": "cm"
+  },
+  "knowledge": []
+}

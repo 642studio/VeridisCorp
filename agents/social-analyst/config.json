@@ -1,0 +1,16 @@
+{
+  "id": "social-analyst",
+  "name": "Veridis_AnaliticaSocial",
+  "version": "2.1.0",
+  "capabilities": [
+    "social.analyze"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "AnaliticaSocial",
+    "departmentId": "marketing",
+    "level": "specialist",
+    "reportsToId": "cm"
+  },
+  "knowledge": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "continuity",
+  "name": "Veridis_continuity",
+  "version": "2.2.0",
+  "capabilities": [
+    "infrastructure.recovery"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Continuidad y recuperación",
+    "departmentId": "infrastructure",
+    "level": "specialist",
+    "reportsToId": "infrastructure-lead"
+  },
+  "knowledge": []
+}

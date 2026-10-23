@@ -1,0 +1,16 @@
+{
+  "id": "knowledge-curator",
+  "name": "Veridis_knowledge_curator",
+  "version": "2.2.0",
+  "capabilities": [
+    "research.knowledge"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Gestión de conocimiento",
+    "departmentId": "intelligence",
+    "level": "specialist",
+    "reportsToId": "research-lead"
+  },
+  "knowledge": []
+}

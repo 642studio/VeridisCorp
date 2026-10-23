@@ -1,0 +1,16 @@
+{
+  "id": "automation",
+  "name": "Veridis_automation",
+  "version": "2.2.0",
+  "capabilities": [
+    "automation.design"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Integraciones y automatización",
+    "departmentId": "data",
+    "level": "specialist",
+    "reportsToId": "data-lead"
+  },
+  "knowledge": []
+}

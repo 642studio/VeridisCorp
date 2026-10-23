@@ -1,0 +1,17 @@
+{
+  "id": "coo",
+  "name": "Veridis_COO",
+  "version": "2.2.0",
+  "capabilities": [
+    "operations.strategy",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "COO",
+    "departmentId": "operations",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

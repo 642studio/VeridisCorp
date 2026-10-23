@@ -1,0 +1,17 @@
+{
+  "id": "finance-budget",
+  "name": "Veridis_Presupuestos",
+  "version": "2.1.0",
+  "capabilities": [
+    "finance.budget",
+    "finance.costs"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Presupuestos",
+    "departmentId": "finance",
+    "level": "specialist",
+    "reportsToId": "cfo"
+  },
+  "knowledge": []
+}

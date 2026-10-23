@@ -1,0 +1,17 @@
+{
+  "id": "pm",
+  "name": "Veridis_ProjectManager",
+  "version": "2.2.0",
+  "capabilities": [
+    "projects.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "ProjectManager",
+    "departmentId": "projects",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

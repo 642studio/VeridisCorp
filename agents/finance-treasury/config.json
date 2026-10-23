@@ -1,0 +1,16 @@
+{
+  "id": "finance-treasury",
+  "name": "Veridis_Tesoreria",
+  "version": "2.1.0",
+  "capabilities": [
+    "finance.cashflow"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Tesoreria",
+    "departmentId": "finance",
+    "level": "specialist",
+    "reportsToId": "cfo"
+  },
+  "knowledge": []
+}

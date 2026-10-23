@@ -1,0 +1,17 @@
+{
+  "id": "ceo",
+  "name": "Veridis_CEO",
+  "version": "2.1.0",
+  "capabilities": [
+    "company.strategy",
+    "company.prioritize",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "CEO",
+    "departmentId": "executive",
+    "level": "executive"
+  },
+  "knowledge": []
+}

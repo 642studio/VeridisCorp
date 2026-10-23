@@ -1,0 +1,17 @@
+{
+  "id": "cfo",
+  "name": "Veridis_CFO",
+  "version": "2.2.0",
+  "capabilities": [
+    "finance.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "CFO",
+    "departmentId": "finance",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

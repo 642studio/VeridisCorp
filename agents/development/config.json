@@ -1,0 +1,18 @@
+{
+  "id": "development",
+  "name": "Veridis_Desarrollo",
+  "version": "2.2.0",
+  "capabilities": [
+    "software.design",
+    "software.implement",
+    "software.document"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Desarrollo",
+    "departmentId": "software",
+    "level": "specialist",
+    "reportsToId": "software-lead"
+  },
+  "knowledge": []
+}

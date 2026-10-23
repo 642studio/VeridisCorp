@@ -1,0 +1,16 @@
+{
+  "id": "campaigns",
+  "name": "Veridis_campaigns",
+  "version": "2.2.0",
+  "capabilities": [
+    "marketing.campaigns"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Campañas y adquisición",
+    "departmentId": "marketing",
+    "level": "specialist",
+    "reportsToId": "cmo"
+  },
+  "knowledge": []
+}

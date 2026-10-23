@@ -1,0 +1,16 @@
+{
+  "id": "recruiting",
+  "name": "Veridis_Reclutamiento",
+  "version": "2.1.0",
+  "capabilities": [
+    "people.job-profile"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Reclutamiento",
+    "departmentId": "people",
+    "level": "specialist",
+    "reportsToId": "hr"
+  },
+  "knowledge": []
+}

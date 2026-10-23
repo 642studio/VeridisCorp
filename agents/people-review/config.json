@@ -1,0 +1,16 @@
+{
+  "id": "people-review",
+  "name": "Veridis_RevisionRH",
+  "version": "2.1.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "RevisionRH",
+    "departmentId": "people",
+    "level": "reviewer",
+    "reportsToId": "hr"
+  },
+  "knowledge": []
+}

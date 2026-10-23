@@ -1,0 +1,16 @@
+{
+  "id": "security-appsec",
+  "name": "Veridis_security_appsec",
+  "version": "2.2.0",
+  "capabilities": [
+    "security.appsec"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Seguridad de aplicaciones",
+    "departmentId": "cybersecurity",
+    "level": "specialist",
+    "reportsToId": "ciso"
+  },
+  "knowledge": []
+}

@@ -1,0 +1,54 @@
+{
+  "name": "veridiscorp",
+  "version": "0.1.0",
+  "description": "VeridisCorp: ecosistema empresarial de agentes de 642 Studio con LangGraph",
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "demo": "tsx src/cli.ts demo",
+    "demo:office": "tsx src/cli.ts office-demo",
+    "office:demo": "tsx src/office/cli.ts demo",
+    "office:run": "tsx src/office/cli.ts run",
+    "office:resume": "tsx src/office/cli.ts resume",
+    "office:answer": "tsx src/office/cli.ts answer",
+    "office:status": "tsx src/office/cli.ts status",
+    "office:models": "tsx src/office/cli.ts models",
+    "office:organization": "tsx src/office/cli.ts organization",
+    "office:company-demo": "tsx src/office/cli.ts company-demo",
+    "db:setup": "tsx src/cli.ts setup",
+    "run": "tsx src/cli.ts run",
+    "resume": "tsx src/cli.ts resume",
+    "status": "tsx src/cli.ts status",
+    "runtime:db": "tsx src/runtime/cli.ts migrate",
+    "runtime:serve": "tsx src/runtime/cli.ts serve",
+    "runtime:provision": "tsx src/runtime/cli.ts provision",
+    "test:postgres": "node scripts/test-postgres.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@langchain/anthropic": "^1.6.0",
+    "@langchain/core": "^1.3.0",
+    "@langchain/google": "^0.2.12",
+    "@langchain/langgraph": "^1.5.2",
+    "@langchain/langgraph-checkpoint-postgres": "^1.1.2",
+    "@langchain/openai": "^1.7.0",
+    "ajv": "^8.20.0",
+    "dotenv": "^18.0.9",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}

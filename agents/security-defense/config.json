@@ -1,0 +1,17 @@
+{
+  "id": "security-defense",
+  "name": "Veridis_security_defense",
+  "version": "2.2.0",
+  "capabilities": [
+    "security.defense",
+    "security.incident"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Defensa y respuesta a incidentes",
+    "departmentId": "cybersecurity",
+    "level": "specialist",
+    "reportsToId": "ciso"
+  },
+  "knowledge": []
+}

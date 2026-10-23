@@ -1,0 +1,16 @@
+{
+  "id": "procurement",
+  "name": "Veridis_procurement",
+  "version": "2.2.0",
+  "capabilities": [
+    "operations.procurement"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Compras y proveedores",
+    "departmentId": "operations",
+    "level": "specialist",
+    "reportsToId": "coo"
+  },
+  "knowledge": []
+}

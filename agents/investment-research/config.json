@@ -1,0 +1,16 @@
+{
+  "id": "investment-research",
+  "name": "Veridis_investment_research",
+  "version": "2.2.0",
+  "capabilities": [
+    "finance.investment-research"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Investigación de inversiones",
+    "departmentId": "finance",
+    "level": "specialist",
+    "reportsToId": "cfo"
+  },
+  "knowledge": []
+}

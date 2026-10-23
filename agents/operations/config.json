@@ -1,0 +1,17 @@
+{
+  "id": "operations",
+  "name": "Veridis_Operaciones",
+  "version": "2.1.0",
+  "capabilities": [
+    "operations.plan",
+    "operations.procedure"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Operaciones",
+    "departmentId": "operations",
+    "level": "specialist",
+    "reportsToId": "coo"
+  },
+  "knowledge": []
+}

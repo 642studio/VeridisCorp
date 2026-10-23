@@ -1,0 +1,16 @@
+{
+  "id": "finance-review",
+  "name": "Veridis_RevisionFinanciera",
+  "version": "2.1.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "RevisionFinanciera",
+    "departmentId": "finance",
+    "level": "reviewer",
+    "reportsToId": "cfo"
+  },
+  "knowledge": []
+}

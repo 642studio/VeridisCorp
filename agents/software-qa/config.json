@@ -1,0 +1,16 @@
+{
+  "id": "software-qa",
+  "name": "Veridis_QA",
+  "version": "2.2.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "QA",
+    "departmentId": "software",
+    "level": "reviewer",
+    "reportsToId": "software-lead"
+  },
+  "knowledge": []
+}

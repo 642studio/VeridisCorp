@@ -1,0 +1,17 @@
+{
+  "id": "quality-lead",
+  "name": "Veridis_DireccionCalidad",
+  "version": "2.1.0",
+  "capabilities": [
+    "quality.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "DireccionCalidad",
+    "departmentId": "quality",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

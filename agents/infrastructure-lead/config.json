@@ -1,0 +1,17 @@
+{
+  "id": "infrastructure-lead",
+  "name": "Veridis_infrastructure_lead",
+  "version": "2.2.0",
+  "capabilities": [
+    "infrastructure.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Dirección de infraestructura",
+    "departmentId": "infrastructure",
+    "level": "head",
+    "reportsToId": "cto"
+  },
+  "knowledge": []
+}

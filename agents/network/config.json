@@ -1,0 +1,16 @@
+{
+  "id": "network",
+  "name": "Veridis_Infraestructura",
+  "version": "2.2.0",
+  "capabilities": [
+    "network.audit"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Infraestructura",
+    "departmentId": "infrastructure",
+    "level": "specialist",
+    "reportsToId": "infrastructure-lead"
+  },
+  "knowledge": []
+}

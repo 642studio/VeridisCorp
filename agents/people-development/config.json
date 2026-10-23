@@ -1,0 +1,16 @@
+{
+  "id": "people-development",
+  "name": "Veridis_people_development",
+  "version": "2.2.0",
+  "capabilities": [
+    "people.development"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Desarrollo y formación",
+    "departmentId": "people",
+    "level": "specialist",
+    "reportsToId": "hr"
+  },
+  "knowledge": []
+}

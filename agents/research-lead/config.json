@@ -1,0 +1,17 @@
+{
+  "id": "research-lead",
+  "name": "Veridis_DireccionInvestigacion",
+  "version": "2.2.0",
+  "capabilities": [
+    "research.plan",
+    "department.plan"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "DireccionInvestigacion",
+    "departmentId": "intelligence",
+    "level": "head",
+    "reportsToId": "ceo"
+  },
+  "knowledge": []
+}

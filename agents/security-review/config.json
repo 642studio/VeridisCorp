@@ -1,0 +1,16 @@
+{
+  "id": "security-review",
+  "name": "Veridis_security_review",
+  "version": "2.2.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Revisión de seguridad",
+    "departmentId": "cybersecurity",
+    "level": "reviewer",
+    "reportsToId": "ciso"
+  },
+  "knowledge": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "marketing-review",
+  "name": "Veridis_RevisionMarketing",
+  "version": "2.1.0",
+  "capabilities": [
+    "work.review"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "RevisionMarketing",
+    "departmentId": "marketing",
+    "level": "reviewer",
+    "reportsToId": "cmo"
+  },
+  "knowledge": []
+}

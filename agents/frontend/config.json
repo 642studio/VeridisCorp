@@ -1,0 +1,16 @@
+{
+  "id": "frontend",
+  "name": "Veridis_frontend",
+  "version": "2.2.0",
+  "capabilities": [
+    "software.frontend"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Ingeniería frontend",
+    "departmentId": "software",
+    "level": "specialist",
+    "reportsToId": "software-lead"
+  },
+  "knowledge": []
+}

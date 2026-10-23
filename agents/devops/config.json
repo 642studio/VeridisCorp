@@ -1,0 +1,17 @@
+{
+  "id": "devops",
+  "name": "Veridis_devops",
+  "version": "2.2.0",
+  "capabilities": [
+    "infrastructure.delivery",
+    "infrastructure.observe"
+  ],
+  "allowedTools": [],
+  "organization": {
+    "title": "Despliegues y observabilidad",
+    "departmentId": "infrastructure",
+    "level": "specialist",
+    "reportsToId": "infrastructure-lead"
+  },
+  "knowledge": []
+}
