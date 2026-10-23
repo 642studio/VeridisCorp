@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage } from 'node:http';
 import { ZodError } from 'zod';
 import { ContentRuntime } from './service.js';
+import type { OfficeRuntime } from './office-runtime.js';
 import { RuntimeError } from './contracts.js';
 
 async function body(req: IncomingMessage): Promise<unknown> {
@@ -13,7 +14,7 @@ async function body(req: IncomingMessage): Promise<unknown> {
  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
  catch { throw new RuntimeError(400, 'JSON inválido'); }
 }
-export function createRuntimeServer(runtime: ContentRuntime) {
+export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRuntime) {
  const server = createServer(async (req, res) => {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
@@ -37,6 +38,17 @@ export function createRuntimeServer(runtime: ContentRuntime) {
     result = await runtime.organization(token);
    } else if (req.method === 'GET' && /^\/agents\/[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}$/.test(path)) {
     result = await runtime.agent(token, path.slice('/agents/'.length));
+   } else if (office && req.method === 'POST' && path === '/office/orders') {
+    result = await office.start(token, await body(req));
+   } else if (office && req.method === 'GET' && path === '/office/orders') {
+    result = await office.list(token);
+   } else if (office && /^\/office\/orders\/([0-9a-f-]{36})(?:\/(advance|answer))?$/.test(path)) {
+    const officeMatch = /^\/office\/orders\/([0-9a-f-]{36})(?:\/(advance|answer))?$/.exec(path)!;
+    const id = officeMatch[1]!; const action = officeMatch[2];
+    if (req.method === 'GET' && !action) result = await office.get(token, id);
+    else if (req.method === 'POST' && action === 'advance') result = await office.advance(token, id);
+    else if (req.method === 'POST' && action === 'answer') result = await office.answer(token, id, await body(req));
+    else throw new RuntimeError(405, 'Método no disponible');
    } else {
     const match = /^\/runs\/([0-9a-f-]{36})(?:\/(advance|revise|approve|execute|reconcile|regenerate))?$/.exec(path);
     if (!match) throw new RuntimeError(404, 'Ruta no disponible');

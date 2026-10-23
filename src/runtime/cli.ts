@@ -4,9 +4,11 @@ import { Pool } from 'pg';
 import { z } from 'zod';
 import { migrate, provisionSession } from './database.js';
 import { ContentRuntime } from './service.js';
+import { OfficeRuntime } from './office-runtime.js';
 import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
 import { Defaults } from './contracts.js';
+import { createOfficeIntelligence } from '../office/intelligence.js';
 import { AccessScope, Principal, Operation } from '../governance/contracts.js';
 
 async function main() {
@@ -28,7 +30,18 @@ async function main() {
   const runtime = new ContentRuntime(pool, realModelGateway(), httpDeliveryConnector(process.env.VERIDIS_DELIVERY_URL), {
    modelReservationMicros, ...(Object.keys(budgetOverrides).length ? { budget: { ...Defaults, ...budgetOverrides } } : {}),
   });
-  const server = createRuntimeServer(runtime);
+  // office/ ejecuta de verdad solo si se habilita explícitamente: reabre una ruta que
+  // office:run/resume/answer tenían suspendida, y una sola invocación puede disparar varias
+  // llamadas reales (no tiene presupuesto en dólares propio, solo el tope de turnos).
+  let office: OfficeRuntime | undefined;
+  if (process.env.VERIDIS_OFFICE_ENABLED === 'true') {
+   office = new OfficeRuntime(pool, createOfficeIntelligence(), {
+    maxTurns: z.coerce.number().int().positive().max(100).parse(process.env.VERIDIS_OFFICE_MAX_TURNS ?? '5'),
+    maxRejectedDecisions: 3, maxQuestions: 2,
+   });
+   await office.setup();
+  }
+  const server = createRuntimeServer(runtime, office);
   server.listen(z.coerce.number().int().min(1024).max(65535).parse(process.env.PORT ?? 3000), '127.0.0.1', () => process.stderr.write('API gobernada escuchando en loopback.\n'));
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(() => { void pool.end(); }));
   return;

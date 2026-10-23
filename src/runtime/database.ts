@@ -52,6 +52,15 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.audit (
  occurred_at timestamptz NOT NULL DEFAULT clock_timestamp(), data jsonb NOT NULL
 );
 CREATE INDEX IF NOT EXISTS runtime_audit_run ON veridis_runtime_v1.audit(run_id, sequence);
+-- Solo índice para listar: el estado real del expediente de office/ vive en el checkpoint de
+-- LangGraph (tablas propias de PostgresSaver), no aquí. status/updated_at son una copia de
+-- lectura rápida que esta capa actualiza después de cada invocación real del grafo.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_orders (
+ id uuid PRIMARY KEY, scope_key text NOT NULL, thread_id text NOT NULL UNIQUE,
+ objective text NOT NULL, status text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS runtime_office_orders_scope ON veridis_runtime_v1.office_orders(scope_key, created_at DESC);
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

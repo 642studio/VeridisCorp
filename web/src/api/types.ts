@@ -186,3 +186,97 @@ export interface AgentDetail extends AgentSummary {
   context: string;
   knowledge: AgentKnowledge[];
 }
+
+// Tipos que reflejan src/office/contracts.ts y runtime/office-runtime.ts.
+
+export type OfficeOrderStatus = 'active' | 'paused' | 'completed';
+export type OfficeTaskStatus = 'pending' | 'running' | 'blocked' | 'in_review' | 'completed' | 'failed';
+
+export interface OfficeOrderSummary {
+  id: string;
+  objective: string;
+  status: OfficeOrderStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OfficeOrdersListResponse {
+  orders: OfficeOrderSummary[];
+}
+
+export interface OfficeCriterion {
+  id: string;
+  description: string;
+}
+
+export interface OfficeEvidence {
+  id: string;
+  kind: 'source' | 'artifact' | 'observation';
+  reference: string;
+  summary: string;
+}
+
+export interface OfficeAssessment {
+  criterionId: string;
+  accepted: boolean;
+  evidenceIds: string[];
+  explanation: string;
+}
+
+export interface OfficeTask {
+  id: string;
+  title: string;
+  assignedAgentId: string;
+  capability: string;
+  dependsOn: string[];
+  criteria: OfficeCriterion[];
+  departmentId?: string;
+  accountableAgentId?: string;
+  status: OfficeTaskStatus;
+  revisions: number;
+  blocker?: string;
+  submission?: { summary: string; evidence: OfficeEvidence[] };
+  assessments?: OfficeAssessment[];
+}
+
+export type OfficeActor = { role: 'coordinator' } | { role: 'agent'; agentId: string };
+
+export interface OfficeEventRow {
+  sequence: number;
+  actor: OfficeActor;
+  command: { type: string } & Record<string, unknown>;
+}
+
+export interface OfficeWorkOrder {
+  id: string;
+  workspaceId: string;
+  objective: string;
+  criteria: OfficeCriterion[];
+  status: OfficeOrderStatus;
+  limits: { maxTasks: number; maxSteps: number; maxRevisionsPerTask: number };
+  revision: number;
+  tasks: OfficeTask[];
+  events: OfficeEventRow[];
+  assessments?: OfficeAssessment[];
+  pauseReason?: string;
+}
+
+export interface OfficeModelCall {
+  stage: string;
+  agentId: string;
+  capability: string;
+  profileId: string;
+  provider: string;
+  model: string;
+}
+
+export interface OfficeOrderDetail {
+  id: string;
+  order: OfficeWorkOrder;
+  turns: number;
+  rejectedDecisions: number;
+  lastError: string | null;
+  modelCalls: OfficeModelCall[];
+  interrupted: boolean;
+  pendingQuestion: string | null;
+}

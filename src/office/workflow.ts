@@ -53,6 +53,20 @@ export function createOfficeWorkflow(
   // como decisión rechazada y se reintenta. Cualquier otra cosa (p. ej. que el proceso muera a
   // mitad de una llamada) debe seguir propagándose para que la recuperación por checkpoint actúe.
   const isMalformedModelOutput = (error: unknown) => error instanceof OutputParserException || error instanceof ZodError;
+  // Un especialista (no el coordinador) puede fallar la forma por una respuesta suelta del
+  // modelo; reintentar aquí mismo, dentro del nodo, resuelve la mayoría de esos casos sin gastar
+  // un turno del coordinador en un problema que no es suyo. maxAttempts incluye el primer intento.
+  const withRetries = async <T>(attempt: () => Promise<T>, maxAttempts: number): Promise<{ value: T; attempts: number }> => {
+    for (let attempts = 1; ; attempts++) {
+      try {
+        return { value: await attempt(), attempts };
+      } catch (error) {
+        if (attempts >= maxAttempts || !isMalformedModelOutput(error)) throw error;
+      }
+    }
+  };
+  const recordedCallsTimes = (state: typeof OfficeState.State, selection: ModelSelection | undefined, times: number) =>
+    selection ? [...state.modelCalls, ...Array.from({ length: times }, () => selection)] : state.modelCalls;
   const getTask = (state: typeof OfficeState.State, taskId: string) => {
     const task = state.order.tasks.find((t) => t.id === taskId);
     if (!task) throw new Error('Tarea inexistente');
@@ -161,19 +175,24 @@ export function createOfficeWorkflow(
       const task = getTask(state, decision.taskId);
       const selection = intelligence.selectModel?.({ stage: 'execute', agentId: task.assignedAgentId, capability: task.capability });
       try {
-        const reply = WorkerReply.parse(await intelligence.execute(specialistContext(state, task, task.assignedAgentId)));
+        const { value: reply, attempts } = await withRetries(async () =>
+          WorkerReply.parse(await intelligence.execute(specialistContext(state, task, task.assignedAgentId))), 2);
         const command = reply.type === 'result'
           ? { type: 'submit_result' as const, taskId: task.id, submission: reply.submission }
           : { type: 'request_support' as const, taskId: task.id, capability: reply.capability, question: reply.question };
-        return { order: applyCommand(state.order, { role: 'agent', agentId: task.assignedAgentId }, command, registry), modelCalls: recordedCalls(state, selection), lastError: null };
+        return { order: applyCommand(state.order, { role: 'agent', agentId: task.assignedAgentId }, command, registry), modelCalls: recordedCallsTimes(state, selection, attempts), lastError: null };
       } catch (error) {
-        // Una respuesta del especialista que no se pueda interpretar no debe tumbar la ejecución;
-        // se trata como una decisión rechazada y vuelve al coordinador con el motivo.
+        // Una respuesta del especialista que no se pueda interpretar, aun tras reintentar, deja la
+        // tarea en 'running' sin entrega: el coordinador no tiene ninguna decisión legal para
+        // retomarla (dispatch exige 'pending'), así que devolverle el turno solo gastaría intentos
+        // de rechazo en un callejón sin salida. Se pausa aquí mismo con un motivo específico.
         if (!isMalformedModelOutput(error)) throw error;
         const rejectedDecisions = state.rejectedDecisions + 1;
         const lastError = error instanceof Error ? error.message : 'El especialista no devolvió una respuesta con la forma esperada';
-        return { order: rejectedDecisions >= maxRejected ? pause(state.order, 'Demasiadas decisiones rechazadas') : state.order,
-          rejectedDecisions, lastError, modelCalls: recordedCalls(state, selection) };
+        return {
+          order: pause(state.order, `El especialista no completó la tarea "${task.id}" tras varios intentos: ${lastError}`),
+          rejectedDecisions, lastError, modelCalls: recordedCallsTimes(state, selection, 2),
+        };
       }
     })
     .addNode('review', async (state) => {
@@ -183,15 +202,17 @@ export function createOfficeWorkflow(
       const task = getTask(state, decision.taskId);
       const selection = intelligence.selectModel?.({ stage: 'review', agentId: decision.reviewerId, capability: task.capability });
       try {
-        const reply = ReviewReply.parse(await intelligence.review(specialistContext(state, task, decision.reviewerId)));
+        const { value: reply, attempts } = await withRetries(async () =>
+          ReviewReply.parse(await intelligence.review(specialistContext(state, task, decision.reviewerId))), 2);
         return { order: applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
           type: 'review_task', taskId: task.id, assessments: reply.assessments,
-        }, registry), modelCalls: recordedCalls(state, selection), lastError: null };
+        }, registry), modelCalls: recordedCallsTimes(state, selection, attempts), lastError: null };
       } catch (error) {
+        if (!isMalformedModelOutput(error)) throw error;
         const rejectedDecisions = state.rejectedDecisions + 1;
         const lastError = error instanceof Error ? error.message : 'El revisor no devolvió una evaluación con la forma esperada';
         return { order: rejectedDecisions >= maxRejected ? pause(state.order, 'Demasiadas decisiones rechazadas') : state.order,
-          rejectedDecisions, lastError, modelCalls: recordedCalls(state, selection) };
+          rejectedDecisions, lastError, modelCalls: recordedCallsTimes(state, selection, 2) };
       }
     })
     .addNode('human', (state) => {

@@ -150,6 +150,47 @@ test('una entrega sin evidencias no se registra como resultado válido', async (
   assert.equal(result.order.status, 'paused');
   assert.equal(result.order.tasks[0]!.status, 'running');
   assert.equal(result.order.tasks[0]!.submission, undefined);
+  // La tarea queda 'running' sin entrega: 'dispatch' exige 'pending', así que el coordinador
+  // nunca tendría una decisión legal para reintentarla. Por eso execute() pausa directamente
+  // (no rebota a coordinate) y el motivo nombra la tarea afectada.
+  assert.equal(result.rejectedDecisions, 1);
+  assert.match(result.order.pauseReason!, /audit/);
+});
+
+test('execute() reintenta internamente una entrega mal formada antes de rendirse', async () => {
+  const saver = new MemorySaver();
+  const demo = createDemoOfficeIntelligence();
+  let attempts = 0;
+  const intelligence: OfficeIntelligence = {
+    ...demo,
+    async execute(context) {
+      attempts += 1;
+      if (attempts === 1) return { type: 'result', submission: { summary: 'Inventado', evidence: [] } };
+      return demo.execute(context);
+    },
+  };
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, saver);
+  const result = await graph.invoke({ order: createDemoOrder() }, config('office-execute-retry'));
+  assert.equal(result.order.status, 'completed');
+  assert.equal(result.rejectedDecisions, 0);
+  assert.equal(result.lastError, null);
+});
+
+test('execute() se rinde tras dos intentos mal formados seguidos, sin un tercero', async () => {
+  const saver = new MemorySaver();
+  const demo = createDemoOfficeIntelligence();
+  let attempts = 0;
+  const intelligence: OfficeIntelligence = {
+    ...demo,
+    async execute() {
+      attempts += 1;
+      return { type: 'result', submission: { summary: 'Inventado', evidence: [] } };
+    },
+  };
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, saver);
+  const result = await graph.invoke({ order: createDemoOrder() }, config('office-execute-giveup'));
+  assert.equal(result.order.status, 'paused');
+  assert.equal(attempts, 2);
 });
 
 test('reserva los pasos de inicio y entrega antes de asignar trabajo', async () => {

@@ -155,6 +155,14 @@ pre { font-family: inherit; }
 .org-agent__real { font-size: 10px; color: var(--done); border: 1px solid var(--done); padding: 0 6px; text-transform: uppercase; }
 .org-agent__caps { flex-basis: 100%; }
 
+/* ---- office orders ---- */
+.office-orders__start { border: 1px solid var(--border); background: var(--panel); padding: 14px; margin-bottom: 20px; }
+.office-orders__start textarea {
+  width: 100%; background: #000; color: var(--text); border: 1px solid var(--border-bright);
+  padding: 8px; margin: 10px 0; resize: vertical;
+}
+.office-agents-involved { border: 1px solid var(--border); background: var(--panel); padding: 14px; margin: 16px 0; }
+
 /* ---- agents menu ---- */
 .agents-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
 .agents-table th { text-align: left; color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-bright); padding: 6px 8px; }

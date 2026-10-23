@@ -1,6 +1,6 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { RunDetailResponse, RunStatus } from './types';
+import type { OfficeOrderDetail, RunDetailResponse, RunStatus } from './types';
 
 export function useRunsList(status?: RunStatus[]) {
   return useInfiniteQuery({
@@ -52,3 +52,40 @@ export const useApprove = () =>
 export const useExecute = () => useRunAction((id: string) => api.execute(id));
 export const useReconcile = () => useRunAction((id: string) => api.reconcile(id));
 export const useRegenerate = () => useRunAction((id: string) => api.regenerate(id));
+
+export function useOfficeOrders() {
+  return useQuery({ queryKey: ['office-orders'], queryFn: () => api.listOfficeOrders(), refetchInterval: 8000 });
+}
+
+export function useOfficeOrder(id: string | null) {
+  return useQuery({
+    queryKey: ['office-order', id],
+    queryFn: () => api.getOfficeOrder(id!),
+    enabled: id !== null,
+  });
+}
+
+export function useStartOfficeOrder() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (objective: string) => api.startOfficeOrder(objective),
+    onSuccess: (data) => {
+      client.setQueryData(['office-order', data.id], data);
+      void client.invalidateQueries({ queryKey: ['office-orders'] });
+    },
+  });
+}
+
+function useOfficeOrderAction<A extends unknown[]>(fn: (id: string, ...args: A) => Promise<OfficeOrderDetail>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, args }: { id: string; args: A }) => fn(id, ...args),
+    onSuccess: (data, { id }) => {
+      client.setQueryData(['office-order', id], data);
+      void client.invalidateQueries({ queryKey: ['office-orders'] });
+    },
+  });
+}
+
+export const useAdvanceOfficeOrder = () => useOfficeOrderAction((id: string) => api.advanceOfficeOrder(id));
+export const useAnswerOfficeOrder = () => useOfficeOrderAction((id: string, answer: string) => api.answerOfficeOrder(id, answer));

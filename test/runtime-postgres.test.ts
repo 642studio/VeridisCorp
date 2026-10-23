@@ -7,11 +7,38 @@ import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { ContentRuntime } from '../src/runtime/service.js';
+import { OfficeRuntime } from '../src/runtime/office-runtime.js';
 import { createRuntimeServer } from '../src/runtime/http.js';
 import { migrate, provisionSession, scopeKey, tokenHash } from '../src/runtime/database.js';
 import { executor, orchestrator, reviewer, worker, Defaults } from '../src/runtime/contracts.js';
 import type { AccessScope, Principal } from '../src/governance/contracts.js';
 import type { ModelGateway, DeliveryConnector } from '../src/runtime/providers.js';
+import type { OfficeIntelligence } from '../src/office/runtime-contracts.js';
+
+// Determinista, sin IA real: crea una tarea, la despacha, la revisa y cierra el expediente.
+function officeTestIntelligence(): OfficeIntelligence {
+ return {
+  async coordinate({ order }) {
+   const task = order.tasks[0];
+   if (!task) return { type: 'command', command: { type: 'add_task', task: {
+    id: 'task-1', title: 'Prueba', assignedAgentId: 'content', capability: 'content.draft',
+    dependsOn: [], criteria: [{ id: 'c1', description: 'Responde al objetivo' }],
+   } } };
+   if (task.status === 'pending') return { type: 'dispatch', taskId: task.id };
+   if (task.status === 'in_review') return { type: 'review', taskId: task.id, reviewerId: 'review' };
+   if (task.status === 'completed') return { type: 'command', command: { type: 'close_order', assessments: [
+    { criterionId: 'delivery', accepted: true, evidenceIds: task.submission!.evidence.map((e) => e.id), explanation: 'Completo' },
+   ] } };
+   return { type: 'command', command: { type: 'pause_order', reason: 'Estado inesperado en la prueba' } };
+  },
+  async execute() {
+   return { type: 'result', submission: { summary: 'Entrega de prueba', evidence: [{ id: 'ev1', kind: 'artifact', reference: 'test://1', summary: 'Prueba' }] } };
+  },
+  async review({ task }) {
+   return { assessments: task.criteria.map((c) => ({ criterionId: c.id, accepted: true, evidenceIds: task.submission!.evidence.map((e) => e.id), explanation: 'OK' })) };
+  },
+ };
+}
 
 const connectionString = process.env.VERIDIS_TEST_DATABASE_URL;
 const model: ModelGateway = {
@@ -298,6 +325,53 @@ test('ruta vertical autenticada y persistente sobre PostgreSQL real', { skip: !c
     if (active.child.exitCode === null && !active.child.killed) { const exit = once(active.child, 'exit'); active.child.kill('SIGKILL'); await exit; }
     await close(target);
    }
+  });
+ } finally { await close(server); await pool.end(); }
+});
+
+test('office/ real sobre HTTP: crear, avanzar y listar un expediente con varios agentes', { skip: !connectionString, timeout: 30000 }, async (t) => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const office = new OfficeRuntime(pool, officeTestIntelligence(), { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2 });
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ const scope: AccessScope = { workspaceId: randomUUID(), companyId: '642', divisionId: 'studio', clientId: randomUUID(), projectId: 'office-pilot' };
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['draft.create', 'data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  await t.test('un expediente sin autorización sobre office-pilot se rechaza', async () => {
+   const otherScope = { ...scope, clientId: 'otro-cliente' };
+   const otherToken = await provisionSession(pool, { principal: { kind: 'human', id: randomUUID() }, scope: otherScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [] });
+   assert.equal((await request(base, otherToken, '/office/orders', { objective: 'Sin permiso' })).status, 403);
+  });
+  await t.test('crea, avanza solo y cierra el expediente con varios agentes reales por la ruta HTTP', async () => {
+   const started = await request(base, token, '/office/orders', { objective: 'Preparar una prueba con varios agentes' });
+   assert.equal(started.status, 200, JSON.stringify(started.data));
+   assert.equal(started.data.order.status, 'completed');
+   assert.equal(started.data.order.tasks[0].assignedAgentId, 'content');
+   assert.equal(started.data.order.tasks[0].status, 'completed');
+   assert(started.data.order.events.some((e: any) => e.actor.agentId === 'review' || e.command?.type === 'review_task'));
+   const id = started.data.id;
+   const got = await request(base, token, `/office/orders/${id}`);
+   assert.equal(got.status, 200); assert.equal(got.data.order.status, 'completed');
+   const listed = await request(base, token, '/office/orders');
+   assert.equal(listed.status, 200);
+   assert(listed.data.orders.some((o: any) => o.id === id && o.status === 'completed'));
+   const otherToken2 = await provisionSession(pool, { principal: { kind: 'human', id: randomUUID() }, scope: { ...scope, clientId: 'otro-cliente' }, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+    { principal: { kind: 'human', id: randomUUID() }, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+   ] });
+   assert.equal((await request(base, otherToken2, `/office/orders/${id}`)).status, 404);
+  });
+  await t.test('avanzar un expediente que ya terminó no reclama trabajo nuevo', async () => {
+   const started = await request(base, token, '/office/orders', { objective: 'Expediente ya cerrado' });
+   const id = started.data.id;
+   const advanced = await request(base, token, `/office/orders/${id}/advance`, {});
+   assert.equal(advanced.status, 200); assert.equal(advanced.data.order.status, 'completed');
   });
  } finally { await close(server); await pool.end(); }
 });

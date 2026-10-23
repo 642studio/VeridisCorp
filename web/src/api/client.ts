@@ -1,4 +1,7 @@
-import type { AgentDetail, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus } from './types';
+import type {
+  AgentDetail, OfficeOrderDetail, OfficeOrdersListResponse, OrganizationResponse,
+  RunDetailResponse, RunsListResponse, RunStatus,
+} from './types';
 
 const TOKEN_KEY = 'veridis_runtime_token';
 const BASE = import.meta.env.VITE_RUNTIME_API_BASE ?? '/api';
@@ -69,5 +72,20 @@ export const api = {
   },
   getAgent(id: string) {
     return request<AgentDetail>(`/agents/${encodeURIComponent(id)}`);
+  },
+  startOfficeOrder(objective: string) {
+    return request<OfficeOrderDetail>('/office/orders', { method: 'POST', body: JSON.stringify({ objective }) });
+  },
+  listOfficeOrders() {
+    return request<OfficeOrdersListResponse>('/office/orders');
+  },
+  getOfficeOrder(id: string) {
+    return request<OfficeOrderDetail>(`/office/orders/${id}`);
+  },
+  advanceOfficeOrder(id: string) {
+    return request<OfficeOrderDetail>(`/office/orders/${id}/advance`, { method: 'POST', body: '{}' });
+  },
+  answerOfficeOrder(id: string, answer: string) {
+    return request<OfficeOrderDetail>(`/office/orders/${id}/answer`, { method: 'POST', body: JSON.stringify({ answer }) });
   },
 };

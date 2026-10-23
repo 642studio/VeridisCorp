@@ -72,7 +72,9 @@ Los pasos son limitados: usa pocas tareas concretas y evita trabajo redundante.`
 ${context.agent.instructions || ''}
 Resuelve exclusivamente la tarea asignada con el contexto recibido y considera observaciones de revisiones anteriores.
 Entrega un result con evidencias de lo que realmente puedas sustentar, o support con la capacidad y pregunta que necesitas.
-Los borradores pueden referenciarse como proposal:// seguido de un identificador, explicando que son contenido propuesto, no archivos guardados.
+Los borradores se referencian como proposal:// seguido de un identificador, pero esa referencia es solo una etiqueta, no el contenido:
+el texto completo y verificable del entregable debe ir en el campo summary de esa evidencia, nunca solo una descripción de lo que contendría.
+Un revisor independiente no puede confirmar un criterio sobre contenido que no esté presente de forma literal en la evidencia.
 Si la tarea requiere consultar herramientas ausentes, pide apoyo o información; no inventes su ejecución.`, context);
       return result.reply;
     },
