@@ -16,8 +16,13 @@ const ProfileFields = {
   maxOutputTokens: z.number().int().min(64).max(64000).default(4000),
   timeoutMs: z.number().int().min(1000).max(300000).default(60000),
   maxRetries: z.number().int().min(0).max(3).default(2),
+  structuredOutputMethod: z.enum(['jsonMode', 'jsonSchema', 'functionCalling']).optional(),
+  thinkingMode: z.enum(['enabled', 'disabled']).optional(),
+  reasoningEffort: z.enum(['none', 'low', 'medium', 'high']).optional(),
 };
-const profileRefinement = (profile: { provider: string; baseURL?: string }) => !profile.baseURL || profile.provider === 'openai';
+const profileRefinement = (profile: { provider: string; baseURL?: string; structuredOutputMethod?: string; thinkingMode?: string; reasoningEffort?: string }) =>
+  ((!profile.baseURL && !profile.structuredOutputMethod && !profile.thinkingMode && !profile.reasoningEffort) || profile.provider === 'openai')
+  && (!profile.thinkingMode || Boolean(profile.baseURL));
 const ConfigProfile = z.object({
   ...ProfileFields,
   model: z.string().trim().min(1).optional(),

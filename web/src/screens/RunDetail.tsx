@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAdvance, useApprove, useExecute, useReconcile, useRevise, useRun } from '../api/hooks';
+import { useAdvance, useApprove, useExecute, useReconcile, useRegenerate, useRevise, useRun } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { StatusPill } from '../components/StatusPill';
 import { Stepper } from '../components/Stepper';
@@ -17,6 +17,7 @@ export function RunDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const approve = useApprove();
   const execute = useExecute();
   const reconcile = useReconcile();
+  const regenerate = useRegenerate();
   // Solo para mostrar el mensaje exacto del servidor ante un 409/403; el servidor
   // sigue siendo la única fuente de verdad sobre si la acción era válida.
   const [lastError, setLastError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export function RunDetail({ id, onBack }: { id: string; onBack: () => void }) {
   if (query.error) return <p className="error">No se pudo cargar: {(query.error as Error).message}</p>;
   if (!query.data) return null;
 
-  const { run, artifacts, audit } = query.data;
+  const { run, artifacts, audit, approvals = [] } = query.data;
   const latestArtifact = artifacts.at(-1);
   const report = (promise: Promise<unknown>) =>
     promise.catch((error: unknown) => setLastError(error instanceof Error ? error.message : 'Error inesperado'));
@@ -58,8 +59,11 @@ export function RunDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ApprovalPanel
             run={run}
             artifacts={artifacts}
+            approvals={approvals}
             pending={approve.isPending}
             onDecide={(decision, reason) => report(approve.mutateAsync({ id, args: [run.version, decision, reason] }))}
+            regenerating={regenerate.isPending}
+            onRegenerate={() => report(regenerate.mutateAsync({ id, args: [] }))}
           />
           <ArtifactVersions artifacts={artifacts} />
         </div>

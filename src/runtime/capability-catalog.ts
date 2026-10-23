@@ -3,7 +3,14 @@ import { z } from 'zod';
 import { CapabilityCatalog } from '../governance/capabilities.js';
 import { CapabilityDefinition } from '../governance/enterprise-contracts.js';
 import { Content, Review } from './contracts.js';
-const GenerateInput = z.object({ brief: z.string().trim().min(1).max(8000) }).strict();
+const GenerateInput = z.object({
+ brief: z.string().trim().min(1).max(8000),
+ // Solo presentes al regenerar tras un rechazo humano explícito (ver ContentRuntime.regenerate).
+ // La relación entre ambos (feedback exige text) se valida en service.ts, no aquí: este esquema
+ // solo describe la forma para Ajv/JSON Schema, que no puede expresar esa dependencia.
+ text: Content.shape.text.optional().describe('Versión anterior rechazada por el aprobador humano.'),
+ feedback: z.string().trim().min(1).max(4000).optional().describe('Motivo exacto del rechazo; la nueva versión debe resolverlo.'),
+}).strict();
 const ReviewInput = GenerateInput.extend({ text: Content.shape.text }).strict();
 const schema = (value: z.ZodObject) => {
  const { $schema: _draft, ...definition } = z.toJSONSchema(value, { target: 'draft-7' });

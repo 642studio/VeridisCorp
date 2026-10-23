@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useOrganization } from '../api/hooks';
 import { ApiError } from '../api/client';
+import { AgentDetailPanel } from '../components/AgentDetailPanel';
 import type { AgentSummary, Department, OrganizationResponse } from '../api/types';
 
 // Los únicos perfiles del catálogo que runtime/ ejecuta de verdad hoy (worker/reviewer
@@ -34,6 +35,7 @@ export function OrgChart() {
   const [search, setSearch] = useState('');
   // Ids cuyo estado por defecto (abierto en el nivel superior, cerrado más abajo) el usuario invirtió.
   const [toggledIds, setToggledIds] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<string | null>(null);
 
   const grouped = useMemo(() => (query.data ? groupData(query.data) : null), [query.data]);
 
@@ -80,8 +82,8 @@ export function OrgChart() {
           <div className="org-dept__body">
             <p className="muted">{dept.mission}</p>
             <ul className="org-agents">
-              {head && <AgentRow agent={head} role="responsable" />}
-              {members.map((agent) => <AgentRow key={agent.id} agent={agent} />)}
+              {head && <AgentRow agent={head} role="responsable" onSelect={setSelected} />}
+              {members.map((agent) => <AgentRow key={agent.id} agent={agent} onSelect={setSelected} />)}
             </ul>
             {children.map((child) => renderDepartment(child, depth + 1))}
           </div>
@@ -110,14 +112,15 @@ export function OrgChart() {
         {data.agents.length} perfiles de catálogo · {REAL_EXECUTION_IDS.size} conectados a una ejecución real hoy (marcados abajo)
       </p>
       {topLevel.map((dept) => renderDepartment(dept, 0))}
+      <AgentDetailPanel agentId={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
 
-function AgentRow({ agent, role }: { agent: AgentSummary; role?: string }) {
+function AgentRow({ agent, role, onSelect }: { agent: AgentSummary; role?: string; onSelect: (id: string) => void }) {
   const isReal = REAL_EXECUTION_IDS.has(agent.id);
   return (
-    <li className="org-agent">
+    <li className="org-agent" onClick={() => onSelect(agent.id)}>
       <span className="org-agent__id">{agent.id}</span>
       <span>{agent.name}</span>
       {role && <span className="org-agent__role">{role}</span>}

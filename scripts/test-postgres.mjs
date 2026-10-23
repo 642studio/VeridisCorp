@@ -19,7 +19,8 @@ try {
  run('pg_ctl', ['-D', join(root, 'data'), '-l', join(root, 'postgres.log'), '-o', `-h 127.0.0.1 -p ${port} -k ${root}`, '-w', 'start']);
  started = true;
  const connection = `postgresql://${encodeURIComponent(process.env.USER ?? '')}@127.0.0.1:${port}/postgres`;
- const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', 'test/*.test.ts'], {
+ const live = process.argv.includes('--live-models');
+ const result = spawnSync(process.execPath, live ? ['--import', 'tsx', 'scripts/live-model-smoke.ts'] : ['--import', 'tsx', '--test', 'test/*.test.ts'], {
   stdio: 'inherit', env: { ...process.env, VERIDIS_TEST_DATABASE_URL: connection },
  });
  process.exitCode = result.status ?? 1;

@@ -23,7 +23,10 @@
     "runtime:db": "tsx src/runtime/cli.ts migrate",
     "runtime:serve": "tsx src/runtime/cli.ts serve",
     "runtime:provision": "tsx src/runtime/cli.ts provision",
-    "test:postgres": "node scripts/test-postgres.mjs"
+    "runtime:local-delivery": "node scripts/local-delivery-receiver.mjs",
+    "test:postgres": "node scripts/test-postgres.mjs",
+    "runtime:smoke:live": "node scripts/test-postgres.mjs --live-models",
+    "office:smoke:live": "tsx scripts/live-office-smoke.ts"
   },
   "keywords": [],
   "author": "",

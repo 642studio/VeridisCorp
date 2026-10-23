@@ -6,6 +6,7 @@ import { migrate, provisionSession } from './database.js';
 import { ContentRuntime } from './service.js';
 import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
+import { Defaults } from './contracts.js';
 import { AccessScope, Principal, Operation } from '../governance/contracts.js';
 
 async function main() {
@@ -16,7 +17,17 @@ async function main() {
   if (!process.env.VERIDIS_DELIVERY_URL) throw new Error('Falta VERIDIS_DELIVERY_URL');
   // Reserva configurada por el operador para la tarifa y límites del modelo. No hay tarifa implícita verificada.
   const modelReservationMicros = z.coerce.number().int().positive().parse(process.env.VERIDIS_MODEL_RESERVATION_MICROS);
-  const runtime = new ContentRuntime(pool, realModelGateway(), httpDeliveryConnector(process.env.VERIDIS_DELIVERY_URL), { modelReservationMicros });
+  // Los límites por defecto (Defaults) son conservadores a propósito; un operador puede ampliarlos
+  // explícitamente por entorno (por ejemplo, para pruebas interactivas), nunca implícitamente.
+  const budgetOverrides = {
+   ...(process.env.VERIDIS_MAX_DURATION_MS ? { maxDurationMs: z.coerce.number().int().positive().parse(process.env.VERIDIS_MAX_DURATION_MS) } : {}),
+   ...(process.env.VERIDIS_MAX_MODEL_CALLS ? { maxModelCalls: z.coerce.number().int().positive().parse(process.env.VERIDIS_MAX_MODEL_CALLS) } : {}),
+   ...(process.env.VERIDIS_MAX_COST_MICROS ? { maxCostMicros: z.coerce.number().int().positive().parse(process.env.VERIDIS_MAX_COST_MICROS) } : {}),
+   ...(process.env.VERIDIS_MAX_TOOL_CALLS ? { maxToolCalls: z.coerce.number().int().nonnegative().parse(process.env.VERIDIS_MAX_TOOL_CALLS) } : {}),
+  };
+  const runtime = new ContentRuntime(pool, realModelGateway(), httpDeliveryConnector(process.env.VERIDIS_DELIVERY_URL), {
+   modelReservationMicros, ...(Object.keys(budgetOverrides).length ? { budget: { ...Defaults, ...budgetOverrides } } : {}),
+  });
   const server = createRuntimeServer(runtime);
   server.listen(z.coerce.number().int().min(1024).max(65535).parse(process.env.PORT ?? 3000), '127.0.0.1', () => process.stderr.write('API gobernada escuchando en loopback.\n'));
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(() => { void pool.end(); }));

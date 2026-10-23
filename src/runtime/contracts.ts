@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AccessScope, ActionRequest, ExecutionBudget } from '../governance/contracts.js';
 import { Id } from '../office/contracts.js';
-export const Content = z.object({ text: z.string().trim().min(1).max(12000) }).strict();
+export const Content = z.object({ text: z.string().trim().min(1).max(12000).describe('Únicamente el entregable solicitado en el brief. Sin prefacios, explicaciones, introducciones ni envolturas adicionales salvo petición expresa.') }).strict();
 export const Review = z.object({ accepted: z.boolean(), explanation: z.string().trim().min(1).max(4000) }).strict();
 export const StartRequest = z.object({ brief: z.string().trim().min(1).max(8000), approverHumanId: Id }).strict();
 export const Run = z.object({

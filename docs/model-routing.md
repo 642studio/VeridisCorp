@@ -86,3 +86,63 @@ No se probaron respuestas reales de OpenAI, Anthropic, Google o endpoints locale
 - [LangChain: ChatAnthropic](https://docs.langchain.com/oss/javascript/integrations/chat/anthropic)
 - [LangChain: ChatGoogle](https://docs.langchain.com/oss/javascript/integrations/chat/google)
 - [OpenAI: salidas estructuradas](https://developers.openai.com/api/docs/guides/structured-outputs)
+
+## Política activa OpenAI y DeepSeek
+
+Configurada el 2026-10-22 en `config/models.active.json`, seleccionada mediante `VERIDIS_MODELS_FILE` en el entorno local. La asignación inicial combina versiones y tipo de tarea; no es un ranking universal de calidad.
+
+| Perfil | Modelo configurado | Uso inicial |
+| --- | --- | --- |
+| routine | deepseek-flash | Borradores, contenido y documentación sencilla; thinking deshabilitado |
+| analysis | deepseek-v4-pro | Investigación, análisis de datos y financiero; thinking habilitado |
+| review | gpt-5.4-mini-2026-03-17 | Revisión habitual y coordinación de proyectos; esfuerzo none |
+| complex | gpt-5.4-2026-03-05 | Dirección, arquitectura, implementación y revisión de mayor riesgo; esfuerzo medium |
+
+Las versiones de OpenAI quedan fijadas por snapshot. DeepSeek expone los nombres anteriores como identificadores del catálogo, por lo que no se presume que sus implementaciones internas sean inmutables. Las actualizaciones deben pasar las evaluaciones antes de cambiar los selectores locales.
+
+Las reglas específicas de capacidad preceden al perfil del agente: Desarrollo implementa con complex y documenta con routine. Las revisiones de inversión, presupuesto, seguridad y diseño técnico usan complex. Los agentes sin excepción explícita heredan la etapa configurada. Esto selecciona modelos; no activa agentes, herramientas ni permisos.
+
+DeepSeek usa el adaptador compatible con OpenAI, con `DEEPSEEK_API_KEY` y su propio endpoint. En el piloto su consumo se etiqueta como deepseek. Se configura JSON Mode y se envía el esquema en el prompt; Ajv y Zod siguen validando la salida localmente. No se confunde JSON válido con cumplimiento semántico. OpenAI utiliza salida estructurada JSON Schema.
+
+### Validación real del piloto
+
+Se verificó acceso al catálogo de los cuatro modelos. Se hicieron dos recorridos breves con DeepSeek Flash para generación y GPT-5.4 Mini para revisión, sobre PostgreSQL temporal y API gobernada. El primer contenido incumplió el formato y fue rechazado. Después de precisar que el campo text debe contener solo el entregable, el segundo recorrido produjo una pieza aceptada y quedó awaiting_approval. No se aprobó ni publicó contenido.
+
+La segunda prueba registró 338 tokens de entrada y 26 de salida en DeepSeek, y 277 de entrada y 57 de salida en OpenAI. Son datos del proveedor de esa ejecución; no un benchmark ni un costo financiero calculado. Los perfiles analysis y complex tienen disponibilidad de catálogo confirmada, pero no se ejecutaron en esta prueba.
+
+Para repetir explícitamente una prueba con consumo real:
+
+```bash
+npm run runtime:smoke:live
+```
+
+Esta orden crea una base temporal, utiliza únicamente un brief sintético y limita la ejecución a dos llamadas de modelo y cero herramientas. No usa la base operativa ni ejecuta publicaciones. Las pruebas habituales `npm run test:postgres` conservan sus modelos simulados y no consumen saldo de proveedores.
+
+Referencias oficiales consultadas: [GPT-5.4 Mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [GPT-5.4](https://developers.openai.com/api/docs/models/gpt-5.4), [modelos DeepSeek](https://api-docs.deepseek.com/quick_start/pricing/), [JSON Output de DeepSeek](https://api-docs.deepseek.com/guides/json_mode/).
+
+## Perfil local de código con Ollama
+
+Se añadió `local-code` a la política activa para `huihui_ai/qwen3-coder-abliterated:30b`. Se comprobó que Ollama responde en `127.0.0.1:11434` y que el modelo instalado tiene 30.5B parámetros y cuantización Q4_K_M.
+
+- Implementación de `development`, `backend` y `frontend`: local-code.
+- Diseño de arquitectura: complex, conservando GPT-5.4.
+- Documentación sencilla: routine, conservando DeepSeek Flash.
+- Revisiones: mantienen review o complex según la capacidad, con independencia del autor.
+
+El perfil utiliza `http://127.0.0.1:11434/v1`, JSON Schema, cero reintentos y timeout de 120 segundos. `OLLAMA_MODEL` conserva el nombre exacto del modelo. `OLLAMA_API_KEY=ollama` es un valor de compatibilidad del SDK, no una credencial de OpenAI; el servidor local lo ignora según la [documentación oficial de Ollama](https://docs.ollama.com/api/openai-compatibility). Nunca se envía una clave real de otro proveedor a ese endpoint.
+
+Se realizó una prueba de integración del adaptador local con el mismo selector y cliente de salidas estructuradas de VeridisCorp. Generó `function sumar(a, b) { return a + b; }` y una explicación en JSON validado por Zod, en 14.477 segundos. No se ejecutó el código generado ni se utilizaron proveedores externos. Es una prueba pequeña de compatibilidad, no una evaluación de calidad en proyectos completos.
+
+La política prepara los encargos de código del motor de oficina; el pipeline HTTP actual sigue siendo de contenido y no constituye todavía una ruta de desarrollo de software. La ejecución de código generado necesita un entorno aislado separado. La disponibilidad del portátil no modifica los permisos ni habilita una sustitución automática por modelos cloud. Si el runtime se despliega en Linux, 127.0.0.1 apunta a esa máquina: habrá que instalar el modelo allí o configurar explícitamente una conexión autorizada antes de activar ese perfil en el servidor.
+
+## Validación en vivo de la oficina con varios agentes reales
+
+Fecha: 2026-10-23. `npm run office:smoke:live` (`scripts/live-office-smoke.ts`) corre el escenario `company-demo` con `createOfficeIntelligence()` real en vez de la simulación — MemorySaver, sin PostgreSQL, acotado por `VERIDIS_OFFICE_SMOKE_MAX_TURNS` (sin tope de dólares propio; a diferencia de `runtime/`, `office/` solo limita por turnos y decisiones rechazadas). Nunca corre en `npm test`.
+
+La primera corrida real encontró y corrigió tres fallas reales que la simulación nunca hubiera revelado:
+
+1. **OpenAI rechaza uniones discriminadas en modo `jsonSchema` estricto.** `CoordinatorDecision` y `WorkerReply` son `z.discriminatedUnion`; el modo nativo de salida estructurada de OpenAI no admite `oneOf` anidado en una propiedad. Se cambió `structuredOutputMethod` de los perfiles `review` y `complex` a `functionCalling` en `config/models.active.json`, que no tiene esa restricción.
+2. **El modelo anida mal `delegate`/`dispatch`/`review`/`ask_user` dentro de `command`.** Con `functionCalling` el modelo deja de tener el esquema forzado estrictamente y repitió este error real varias veces. `src/office/intelligence.ts` ahora corrige ese anidado concreto antes de validar (nunca acepta una forma que el esquema no aceptaría igual) y el prompt del coordinador explica la distinción explícitamente.
+3. **Una respuesta real con forma inválida tumbaba toda la ejecución.** Los nodos `coordinate`, `execute`, `review` y `delegate` en `src/office/workflow.ts` no atrapaban errores de `intelligence.*()`; una salida real que no se pudiera parsear crasheaba `graph.invoke()` entero en vez de tratarse como una decisión rechazada (el mismo límite de `maxRejectedDecisions` que ya aplicaba a violaciones de reglas de negocio). Se corrigió, distinguiendo por tipo de error: solo `ZodError` o `OutputParserException` de LangChain se tratan como forma inválida y se reintentan; cualquier otro error (p. ej. el proceso muriendo a mitad de una llamada) sigue propagándose sin tocarlo, para no interferir con la recuperación por checkpoint.
+
+Con las tres correcciones, una corrida real completó un ciclo delegate → dispatch → execute → review dos veces (dos tareas `completed` con revisión real), toleró un fallo de forma real de un especialista sin caerse, y terminó con el CEO pidiendo información al humano (`ask_user`) de forma coherente al quedar bloqueado — una interrupción real, no un error. Participaron cinco agentes reales distintos con llamadas efectivas: `ceo`, `pm`, `project-planner`, `project-tracker`, `review`. No se verificó el camino completo de `ask_user` → `Command({resume})` con IA real en esta corrida (sí está cubierto con proveedor simulado en `test/office-workflow.test.ts`).

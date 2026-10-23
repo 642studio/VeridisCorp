@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "defaultProfile": "openai",
+  "profiles": {
+    "openai": {
+      "provider": "openai",
+      "modelEnv": "OPENAI_MODEL",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 30000,
+      "maxRetries": 0
+    },
+    "deepseek": {
+      "provider": "openai",
+      "baseURL": "https://api.deepseek.com",
+      "modelEnv": "DEEPSEEK_MODEL",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 30000,
+      "maxRetries": 0
+    }
+  },
+  "stages": { "coordinate": "openai", "execute": "deepseek", "review": "openai" },
+  "agents": {
+    "content": { "execute": "deepseek" },
+    "review": { "review": "openai" }
+  },
+  "rules": []
+}

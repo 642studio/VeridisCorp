@@ -35,8 +35,10 @@ export function createRuntimeServer(runtime: ContentRuntime) {
     });
    } else if (req.method === 'GET' && path === '/organization') {
     result = await runtime.organization(token);
+   } else if (req.method === 'GET' && /^\/agents\/[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}$/.test(path)) {
+    result = await runtime.agent(token, path.slice('/agents/'.length));
    } else {
-    const match = /^\/runs\/([0-9a-f-]{36})(?:\/(advance|revise|approve|execute|reconcile))?$/.exec(path);
+    const match = /^\/runs\/([0-9a-f-]{36})(?:\/(advance|revise|approve|execute|reconcile|regenerate))?$/.exec(path);
     if (!match) throw new RuntimeError(404, 'Ruta no disponible');
     const id = match[1]!; const action = match[2];
     if (req.method === 'GET' && !action) result = await runtime.get(token, id);
@@ -47,6 +49,7 @@ export function createRuntimeServer(runtime: ContentRuntime) {
       case 'approve': result = await runtime.approve(token, id, await body(req)); break;
       case 'execute': result = await runtime.execute(token, id); break;
       case 'reconcile': result = await runtime.reconcile(token, id); break;
+      case 'regenerate': result = await runtime.regenerate(token, id); break;
       default: throw new RuntimeError(404, 'Ruta no disponible');
      }
     } else throw new RuntimeError(405, 'Método no disponible');

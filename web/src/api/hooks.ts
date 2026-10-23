@@ -17,6 +17,15 @@ export function useOrganization() {
   return useQuery({ queryKey: ['organization'], queryFn: () => api.getOrganization(), staleTime: 5 * 60 * 1000 });
 }
 
+export function useAgent(id: string | null) {
+  return useQuery({
+    queryKey: ['agent', id],
+    queryFn: () => api.getAgent(id!),
+    enabled: id !== null,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useRun(id: string) {
   return useQuery({
     queryKey: ['run', id],
@@ -39,6 +48,7 @@ function useRunAction<A extends unknown[]>(fn: (id: string, ...args: A) => Promi
 export const useAdvance = () => useRunAction((id: string) => api.advance(id));
 export const useRevise = () => useRunAction((id: string, text: string) => api.revise(id, text));
 export const useApprove = () =>
-  useRunAction((id: string, version: number, decision: 'approved' | 'rejected', reason: string) => api.approve(id, version, decision, reason));
+  useRunAction((id: string, version: number, decision: 'approved' | 'rejected', reason: string | undefined) => api.approve(id, version, decision, reason));
 export const useExecute = () => useRunAction((id: string) => api.execute(id));
 export const useReconcile = () => useRunAction((id: string) => api.reconcile(id));
+export const useRegenerate = () => useRunAction((id: string) => api.regenerate(id));

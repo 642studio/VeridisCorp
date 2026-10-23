@@ -1,4 +1,4 @@
-import type { OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus } from './types';
+import type { AgentDetail, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus } from './types';
 
 const TOKEN_KEY = 'veridis_runtime_token';
 const BASE = import.meta.env.VITE_RUNTIME_API_BASE ?? '/api';
@@ -52,7 +52,7 @@ export const api = {
   revise(id: string, text: string) {
     return request<RunDetailResponse>(`/runs/${id}/revise`, { method: 'POST', body: JSON.stringify({ text }) });
   },
-  approve(id: string, version: number, decision: 'approved' | 'rejected', reason: string) {
+  approve(id: string, version: number, decision: 'approved' | 'rejected', reason: string | undefined) {
     return request<RunDetailResponse>(`/runs/${id}/approve`, { method: 'POST', body: JSON.stringify({ version, decision, reason }) });
   },
   execute(id: string) {
@@ -61,7 +61,13 @@ export const api = {
   reconcile(id: string) {
     return request<RunDetailResponse>(`/runs/${id}/reconcile`, { method: 'POST', body: '{}' });
   },
+  regenerate(id: string) {
+    return request<RunDetailResponse>(`/runs/${id}/regenerate`, { method: 'POST', body: '{}' });
+  },
   getOrganization() {
     return request<OrganizationResponse>('/organization');
+  },
+  getAgent(id: string) {
+    return request<AgentDetail>(`/agents/${encodeURIComponent(id)}`);
   },
 };

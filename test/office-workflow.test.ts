@@ -144,10 +144,12 @@ test('una entrega sin evidencias no se registra como resultado válido', async (
   };
   const graph = createOfficeWorkflow(intelligence, officeRegistry, saver);
   const cfg = config('office-evidence');
-  await assert.rejects(graph.invoke({ order: createDemoOrder() }, cfg));
-  const snapshot = await graph.getState(cfg);
-  assert.equal(snapshot.values.order.tasks[0]!.status, 'running');
-  assert.equal(snapshot.values.order.tasks[0]!.submission, undefined);
+  // Una entrega con forma inválida (Zod la rechaza) ya no tumba la ejecución: se trata como
+  // una decisión rechazada y, al repetirse siempre igual, termina pausando el expediente.
+  const result = await graph.invoke({ order: createDemoOrder() }, cfg);
+  assert.equal(result.order.status, 'paused');
+  assert.equal(result.order.tasks[0]!.status, 'running');
+  assert.equal(result.order.tasks[0]!.submission, undefined);
 });
 
 test('reserva los pasos de inicio y entrega antes de asignar trabajo', async () => {

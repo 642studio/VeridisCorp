@@ -17,7 +17,9 @@ type Tx = PoolClient;
 type Auth = { principal: Principal; scope: AccessScope };
 const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 const RetryInput = z.object({ text: Content.shape.text }).strict();
-const ApprovalInput = z.object({ version: z.number().int().positive(), decision: z.enum(['approved', 'rejected', 'revoked']), reason: z.string().trim().min(1).max(4000) }).strict();
+// Rechazar exige explicar por qué (regenerar/revisar depende de ese motivo); aprobar no.
+const ApprovalInput = z.object({ version: z.number().int().positive(), decision: z.enum(['approved', 'rejected', 'revoked']), reason: z.string().trim().min(1).max(4000).optional() })
+ .strict().refine((v) => v.decision !== 'rejected' || Boolean(v.reason), 'Rechazar requiere indicar un motivo');
 const RUN_STATUSES = Run.shape.status.options;
 const ListRunsQuery = z.object({
  status: z.array(Run.shape.status).min(1).max(RUN_STATUSES.length).optional(),
@@ -124,7 +126,8 @@ export class ContentRuntime {
    const artifacts = await tx.query('SELECT version,content,content_hash,data FROM veridis_runtime_v1.artifacts WHERE run_id=$1 ORDER BY version', [id]);
    const attempts = await tx.query('SELECT data FROM veridis_runtime_v1.attempts WHERE run_id=$1 ORDER BY id', [id]);
    const audit = await tx.query('SELECT sequence,occurred_at,data FROM veridis_runtime_v1.audit WHERE run_id=$1 ORDER BY sequence', [id]);
-   return { run, artifacts: artifacts.rows, attempts: attempts.rows.map((r) => r.data), audit: audit.rows };
+   const approvals = await tx.query('SELECT version,data FROM veridis_runtime_v1.approvals WHERE run_id=$1 ORDER BY version', [id]);
+   return { run, artifacts: artifacts.rows, attempts: attempts.rows.map((r) => r.data), audit: audit.rows, approvals: approvals.rows };
   });
  }
  async list(token: string, raw: unknown) {
@@ -154,6 +157,17 @@ export class ContentRuntime {
    await this.permit(tx, auth, null, 'data.read');
    if (!officeRegistry.organization) throw new RuntimeError(404, 'No hay organigrama configurado');
    return { organization: officeRegistry.organization.snapshot(), agents: officeRegistry.list().map(agentSummary) };
+  });
+ }
+ // Perfil completo de un solo agente, incluidas sus instrucciones (system prompt) y contexto.
+ // Solo lectura: no hay todavía una vía autorizada para modificar prompts desde aquí
+ // (ver docs/runtime-pilot.md sobre por qué la edición queda para después).
+ async agent(token: string, id: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   try { return officeRegistry.get(id); }
+   catch { throw new RuntimeError(404, 'Agente no encontrado en el catálogo'); }
   });
  }
  private reserve(run: Run, kind: 'model' | 'tool') {
@@ -186,7 +200,7 @@ export class ContentRuntime {
    })]);
   } finally { clearTimeout(timer!); }
  }
- private async runModel(token: string, id: string, stage: 'generate' | 'review') {
+ private async runModel(token: string, id: string, stage: 'generate' | 'review', options: { regenerate?: boolean } = {}) {
   const agent = stage === 'generate' ? worker : reviewer;
   const capability = stage === 'generate' ? 'content.draft' : 'work.review';
   if (!pilotCapabilities.candidates(capability, 1).some((b) => b.agentId === agent.id)) throw new RuntimeError(403, 'Capacidad no habilitada');
@@ -198,12 +212,20 @@ export class ContentRuntime {
    const grants = await this.grants(tx, auth.scope);
    const delegated = authorizeDelegation({ context: this.context(auth, id, orchestrator), assigneeAgentId: agent.id, capability }, grants, (agentId) => officeRegistry.get(agentId), new Date());
    if (!delegated.allowed) throw new RuntimeError(403, 'Delegación no autorizada');
-   const expected = stage === 'generate' ? 'queued' : 'awaiting_review';
+   // Regenerar parte de una versión rechazada por un humano, no de un expediente recién creado.
+   const expected = stage === 'generate' ? (options.regenerate ? 'awaiting_approval' : 'queued') : 'awaiting_review';
    const active = stage === 'generate' ? 'generating' : 'reviewing';
    if (run.status === active && run.leaseUntil && Date.parse(run.leaseUntil) <= Date.now()) {
     await tx.query("UPDATE veridis_runtime_v1.attempts SET data=data || $2::jsonb WHERE id=$1", [run.activeAttemptId, { outcome: 'unknown', finishedAt: new Date().toISOString() }]);
    } else if (run.status !== expected && !(run.status === 'failed' && (stage === 'generate' ? run.version === 0 : run.version > 0 && run.review === null))) {
     throw new RuntimeError(409, 'Etapa no disponible o ya en ejecución');
+   }
+   let feedback: { text: string; reason: string } | null = null;
+   if (options.regenerate) {
+    const approvalRow = await tx.query('SELECT data FROM veridis_runtime_v1.approvals WHERE run_id=$1 AND version=$2 FOR UPDATE', [id, run.version]);
+    if (approvalRow.rows[0]?.data?.status !== 'rejected') throw new RuntimeError(409, 'Solo se puede regenerar una versión rechazada');
+    const artifactRow = await tx.query('SELECT content FROM veridis_runtime_v1.artifacts WHERE run_id=$1 AND version=$2', [id, run.version]);
+    feedback = { text: artifactRow.rows[0].content, reason: approvalRow.rows[0].data.reason ?? '' };
    }
    const reservationMicros = this.reserve(run, 'model'); const attemptId = randomUUID();
    const rows = stage === 'review' ? await tx.query('SELECT content FROM veridis_runtime_v1.artifacts WHERE run_id=$1 AND version=$2', [id, run.version]) : null;
@@ -215,8 +237,9 @@ export class ContentRuntime {
     ...info, stage, startedAt: new Date().toISOString(), outcome: 'pending', inputTokens: null, outputTokens: null,
     costMicros: null, costStatus: 'unknown', reservationMicros, currency: run.budget.currency,
    }]);
-   await this.audit(tx, { ...auth, principal: agent }, id, 'model.reserved', { attemptId, reservationMicros, stage });
-   return { run, auth, attemptId, data: { brief: run.brief, ...(rows ? { text: rows.rows[0].content as string } : {}) } };
+   await this.audit(tx, { ...auth, principal: agent }, id, 'model.reserved', { attemptId, reservationMicros, stage, regenerate: Boolean(options.regenerate) });
+   return { run, auth, attemptId, regenerate: Boolean(options.regenerate),
+    data: { brief: run.brief, ...(rows ? { text: rows.rows[0].content as string } : {}), ...(feedback ? { text: feedback.text, feedback: feedback.reason } : {}) } };
   });
   let result: ModelResult | undefined; let failed = false;
   try {
@@ -246,9 +269,16 @@ export class ContentRuntime {
     }
    }
    await this.save(tx, run);
-   await this.audit(tx, { ...claim.auth, principal: agent }, id, failed ? 'model.failed' : 'model.completed', { attemptId: claim.attemptId, version: run.version });
+   await this.audit(tx, { ...claim.auth, principal: agent }, id, failed ? 'model.failed' : 'model.completed', { attemptId: claim.attemptId, version: run.version, regenerate: claim.regenerate });
   });
   if (failed) throw new RuntimeError(502, 'Falló el modelo; intento y reserva registrados');
+ }
+ // Regenera la versión rechazada: una sola llamada real de generación que recibe el texto
+ // anterior y el motivo exacto del rechazo humano. El humano sigue decidiendo cuándo gastarla
+ // (lo dispara un clic explícito en la UI, nunca automáticamente al rechazar).
+ async regenerate(token: string, id: string) {
+  await this.runModel(token, id, 'generate', { regenerate: true });
+  return this.get(token, id);
  }
  async advance(token: string, id: string) {
   // El grafo usa solo referencias. La sesión no entra en su estado ni en checkpoints.

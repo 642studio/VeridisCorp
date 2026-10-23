@@ -116,11 +116,24 @@ export interface AuditRow {
   data: { principal: Principal; event: string } & Record<string, unknown>;
 }
 
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'revoked';
+
+export interface ApprovalRow {
+  version: number;
+  data: {
+    status: ApprovalStatus;
+    reason?: string;
+    decidedAt?: string;
+    approver: Principal;
+  };
+}
+
 export interface RunDetailResponse {
   run: Run;
   artifacts: ArtifactRow[];
   attempts: AttemptRow[];
   audit: AuditRow[];
+  approvals: ApprovalRow[];
 }
 
 export type AgentLevel = 'executive' | 'head' | 'manager' | 'specialist' | 'reviewer';
@@ -158,4 +171,18 @@ export interface OrganizationDefinition {
 export interface OrganizationResponse {
   organization: OrganizationDefinition;
   agents: AgentSummary[];
+}
+
+export interface AgentKnowledge {
+  id: string;
+  title: string;
+  reference: string;
+  content: string;
+  sha256: string;
+}
+
+export interface AgentDetail extends AgentSummary {
+  instructions: string;
+  context: string;
+  knowledge: AgentKnowledge[];
 }

@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "defaultProfile": "routine",
+  "profiles": {
+    "routine": {
+      "provider": "openai",
+      "baseURL": "https://api.deepseek.com",
+      "modelEnv": "DEEPSEEK_MODEL",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 30000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonMode",
+      "thinkingMode": "disabled"
+    },
+    "analysis": {
+      "provider": "openai",
+      "baseURL": "https://api.deepseek.com",
+      "modelEnv": "DEEPSEEK_REASONING_MODEL",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "maxOutputTokens": 6000,
+      "timeoutMs": 120000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonMode",
+      "thinkingMode": "enabled"
+    },
+    "review": {
+      "provider": "openai",
+      "modelEnv": "OPENAI_MODEL",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 30000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "functionCalling",
+      "reasoningEffort": "none"
+    },
+    "complex": {
+      "provider": "openai",
+      "modelEnv": "OPENAI_COMPLEX_MODEL",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxOutputTokens": 6000,
+      "timeoutMs": 120000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "functionCalling",
+      "reasoningEffort": "medium"
+    },
+    "local-code": {
+      "provider": "openai",
+      "baseURL": "http://127.0.0.1:11434/v1",
+      "modelEnv": "OLLAMA_MODEL",
+      "apiKeyEnv": "OLLAMA_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 120000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonSchema"
+    }
+  },
+  "stages": {
+    "coordinate": "complex",
+    "execute": "routine",
+    "review": "review"
+  },
+  "agents": {
+    "ceo": {
+      "coordinate": "complex"
+    },
+    "cto": {
+      "coordinate": "complex"
+    },
+    "cfo": {
+      "coordinate": "complex"
+    },
+    "cmo": {
+      "coordinate": "complex"
+    },
+    "coo": {
+      "coordinate": "review"
+    },
+    "pm": {
+      "coordinate": "review"
+    },
+    "hr": {
+      "coordinate": "review"
+    },
+    "cm": {
+      "coordinate": "routine"
+    },
+    "research-lead": {
+      "coordinate": "analysis"
+    },
+    "quality-lead": {
+      "coordinate": "complex"
+    },
+    "ciso": {
+      "coordinate": "complex"
+    },
+    "software-lead": {
+      "coordinate": "complex"
+    },
+    "infrastructure-lead": {
+      "coordinate": "complex"
+    },
+    "data-lead": {
+      "coordinate": "analysis"
+    },
+    "content": {
+      "execute": "routine"
+    },
+    "review": {
+      "review": "review"
+    },
+    "development": {
+      "execute": "local-code"
+    },
+    "backend": {
+      "execute": "local-code"
+    },
+    "frontend": {
+      "execute": "local-code"
+    },
+    "security-appsec": {
+      "execute": "complex"
+    },
+    "security-review": {
+      "review": "complex"
+    },
+    "finance-review": {
+      "review": "complex"
+    },
+    "investment-research": {
+      "execute": "analysis"
+    },
+    "data-analyst": {
+      "execute": "analysis"
+    },
+    "finance-budget": {
+      "execute": "analysis"
+    }
+  },
+  "rules": [
+    {
+      "stage": "execute",
+      "capability": "software.design",
+      "profile": "complex"
+    },
+    {
+      "stage": "execute",
+      "capability": "software.implement",
+      "profile": "local-code"
+    },
+    {
+      "stage": "execute",
+      "capability": "software.backend",
+      "profile": "local-code"
+    },
+    {
+      "stage": "execute",
+      "capability": "software.frontend",
+      "profile": "local-code"
+    },
+    {
+      "stage": "execute",
+      "capability": "software.document",
+      "profile": "routine"
+    },
+    {
+      "stage": "execute",
+      "capability": "finance.investment-research",
+      "profile": "analysis"
+    },
+    {
+      "stage": "execute",
+      "capability": "finance.budget",
+      "profile": "analysis"
+    },
+    {
+      "stage": "execute",
+      "capability": "data.analyze",
+      "profile": "analysis"
+    },
+    {
+      "stage": "execute",
+      "capability": "research.market",
+      "profile": "analysis"
+    },
+    {
+      "stage": "execute",
+      "capability": "security.audit",
+      "profile": "complex"
+    },
+    {
+      "stage": "execute",
+      "capability": "security.appsec",
+      "profile": "complex"
+    },
+    {
+      "stage": "execute",
+      "capability": "security.incident",
+      "profile": "complex"
+    },
+    {
+      "stage": "review",
+      "capability": "finance.investment-research",
+      "profile": "complex"
+    },
+    {
+      "stage": "review",
+      "capability": "finance.budget",
+      "profile": "complex"
+    },
+    {
+      "stage": "review",
+      "capability": "security.audit",
+      "profile": "complex"
+    },
+    {
+      "stage": "review",
+      "capability": "security.appsec",
+      "profile": "complex"
+    },
+    {
+      "stage": "review",
+      "capability": "security.incident",
+      "profile": "complex"
+    },
+    {
+      "stage": "review",
+      "capability": "software.design",
+      "profile": "complex"
+    },
+    {
+      "stage": "execute",
+      "agentId": "development",
+      "capability": "software.document",
+      "profile": "routine"
+    }
+  ]
+}

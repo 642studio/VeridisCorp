@@ -80,7 +80,10 @@ export function applyCommand(
       owner(task);
       registry.requireCapability(task.assignedAgentId, task.capability);
       assert(task.status === 'pending', 'La tarea no está pendiente');
-      assert(task.dependsOn.every((id) => taskById(id).status === 'completed'), 'Dependencias pendientes');
+      // Nombrar la tarea y su estado concreto ayuda al coordinador (humano o modelo) a corregirse:
+      // "Dependencias pendientes" a secas no distingue "falta revisarla" de "aún no se asignó".
+      const blocking = task.dependsOn.map((id) => taskById(id)).find((d) => d.status !== 'completed');
+      assert(!blocking, `Dependencias pendientes: ${blocking?.id} está en estado '${blocking?.status}'; revísala o complétala antes de despachar esta`);
       task.status = 'running';
       break;
     }

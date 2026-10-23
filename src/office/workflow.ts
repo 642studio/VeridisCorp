@@ -1,4 +1,6 @@
 import { Annotation, StateGraph, START, END, interrupt, type BaseCheckpointSaver } from '@langchain/langgraph';
+import { OutputParserException } from '@langchain/core/output_parsers';
+import { ZodError } from 'zod';
 import { WorkOrder, type WorkTask } from './contracts.js';
 import { applyCommand } from './engine.js';
 import { AgentRegistry } from './registry.js';
@@ -47,6 +49,10 @@ export function createOfficeWorkflow(
   const pause = (order: WorkOrder, reason: string) => applyCommand(order, { role: 'coordinator' }, {
     type: 'pause_order', reason,
   }, registry);
+  // Solo una respuesta del modelo con forma equivocada (no una excepción cualquiera) se trata
+  // como decisión rechazada y se reintenta. Cualquier otra cosa (p. ej. que el proceso muera a
+  // mitad de una llamada) debe seguir propagándose para que la recuperación por checkpoint actúe.
+  const isMalformedModelOutput = (error: unknown) => error instanceof OutputParserException || error instanceof ZodError;
   const getTask = (state: typeof OfficeState.State, taskId: string) => {
     const task = state.order.tasks.find((t) => t.id === taskId);
     if (!task) throw new Error('Tarea inexistente');
@@ -72,12 +78,27 @@ export function createOfficeWorkflow(
       const { events, ...order } = state.order;
       const executive = registry.organization?.executive();
       const selection = intelligence.selectModel?.({ stage: 'coordinate', agentId: executive?.id || 'coordinator', capability: executive ? 'company.strategy' : 'office.coordinate' });
-      const decision = await intelligence.coordinate(structuredClone({
-        order, recentEvents: events.slice(-12), agents: registry.list().map(agentSummary),
-        exchanges: state.exchanges, lastError: state.lastError,
-        ...(executive ? { coordinator: executive, organization: registry.organization!.snapshot() } : {}),
-      }));
-      return { decision, turns: state.turns + 1, route: 'coordinate' as const, modelCalls: recordedCalls(state, selection) };
+      try {
+        const decision = await intelligence.coordinate(structuredClone({
+          order, recentEvents: events.slice(-12), agents: registry.list().map(agentSummary),
+          exchanges: state.exchanges, lastError: state.lastError,
+          ...(executive ? { coordinator: executive, organization: registry.organization!.snapshot() } : {}),
+        }));
+        return { decision, turns: state.turns + 1, route: 'coordinate' as const, modelCalls: recordedCalls(state, selection), lastError: null };
+      } catch (error) {
+        // Una respuesta del modelo que ni siquiera tiene la forma esperada (no solo una regla de
+        // negocio inválida) no debe tumbar la ejecución: se trata igual que una decisión rechazada,
+        // con lastError para que el propio modelo se corrija en el siguiente turno. Cualquier otro
+        // error (p. ej. el proceso muere a mitad de la llamada) sigue propagándose sin tocarlo.
+        if (!isMalformedModelOutput(error)) throw error;
+        const rejectedDecisions = state.rejectedDecisions + 1;
+        const lastError = error instanceof Error ? error.message : 'El modelo no devolvió una decisión con la forma esperada';
+        const turns = state.turns + 1;
+        if (rejectedDecisions >= maxRejected || turns >= maxTurns) {
+          return { order: pause(state.order, 'Demasiadas decisiones rechazadas'), rejectedDecisions, lastError, turns, route: 'end' as const, modelCalls: recordedCalls(state, selection) };
+        }
+        return { rejectedDecisions, lastError, turns, route: 'coordinate' as const, modelCalls: recordedCalls(state, selection) };
+      }
     })
     .addNode('validate_decision', (state) => {
       assertVersion(state);
@@ -139,11 +160,21 @@ export function createOfficeWorkflow(
       if (decision.type !== 'dispatch') throw new Error('No hay asignación para ejecutar');
       const task = getTask(state, decision.taskId);
       const selection = intelligence.selectModel?.({ stage: 'execute', agentId: task.assignedAgentId, capability: task.capability });
-      const reply = WorkerReply.parse(await intelligence.execute(specialistContext(state, task, task.assignedAgentId)));
-      const command = reply.type === 'result'
-        ? { type: 'submit_result' as const, taskId: task.id, submission: reply.submission }
-        : { type: 'request_support' as const, taskId: task.id, capability: reply.capability, question: reply.question };
-      return { order: applyCommand(state.order, { role: 'agent', agentId: task.assignedAgentId }, command, registry), modelCalls: recordedCalls(state, selection) };
+      try {
+        const reply = WorkerReply.parse(await intelligence.execute(specialistContext(state, task, task.assignedAgentId)));
+        const command = reply.type === 'result'
+          ? { type: 'submit_result' as const, taskId: task.id, submission: reply.submission }
+          : { type: 'request_support' as const, taskId: task.id, capability: reply.capability, question: reply.question };
+        return { order: applyCommand(state.order, { role: 'agent', agentId: task.assignedAgentId }, command, registry), modelCalls: recordedCalls(state, selection), lastError: null };
+      } catch (error) {
+        // Una respuesta del especialista que no se pueda interpretar no debe tumbar la ejecución;
+        // se trata como una decisión rechazada y vuelve al coordinador con el motivo.
+        if (!isMalformedModelOutput(error)) throw error;
+        const rejectedDecisions = state.rejectedDecisions + 1;
+        const lastError = error instanceof Error ? error.message : 'El especialista no devolvió una respuesta con la forma esperada';
+        return { order: rejectedDecisions >= maxRejected ? pause(state.order, 'Demasiadas decisiones rechazadas') : state.order,
+          rejectedDecisions, lastError, modelCalls: recordedCalls(state, selection) };
+      }
     })
     .addNode('review', async (state) => {
       assertVersion(state);
@@ -151,10 +182,17 @@ export function createOfficeWorkflow(
       if (decision.type !== 'review') throw new Error('No hay revisión asignada');
       const task = getTask(state, decision.taskId);
       const selection = intelligence.selectModel?.({ stage: 'review', agentId: decision.reviewerId, capability: task.capability });
-      const reply = ReviewReply.parse(await intelligence.review(specialistContext(state, task, decision.reviewerId)));
-      return { order: applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
-        type: 'review_task', taskId: task.id, assessments: reply.assessments,
-      }, registry), modelCalls: recordedCalls(state, selection) };
+      try {
+        const reply = ReviewReply.parse(await intelligence.review(specialistContext(state, task, decision.reviewerId)));
+        return { order: applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
+          type: 'review_task', taskId: task.id, assessments: reply.assessments,
+        }, registry), modelCalls: recordedCalls(state, selection), lastError: null };
+      } catch (error) {
+        const rejectedDecisions = state.rejectedDecisions + 1;
+        const lastError = error instanceof Error ? error.message : 'El revisor no devolvió una evaluación con la forma esperada';
+        return { order: rejectedDecisions >= maxRejected ? pause(state.order, 'Demasiadas decisiones rechazadas') : state.order,
+          rejectedDecisions, lastError, modelCalls: recordedCalls(state, selection) };
+      }
     })
     .addNode('human', (state) => {
       assertVersion(state);
@@ -173,14 +211,14 @@ export function createOfficeWorkflow(
       const team = registry.organization.team(decision.managerId);
       const ids = new Set(team.map((member) => member.id));
       const selection = intelligence.selectModel?.({ stage: 'coordinate', agentId: decision.managerId, capability: 'department.plan' });
-      const raw = await intelligence.delegate(structuredClone({
-        objective: state.order.objective, request: decision.request,
-        manager: registry.get(decision.managerId), team: team.map(agentSummary),
-        existingTasks: state.order.tasks.filter((task) => ids.has(task.assignedAgentId)),
-        dependencies: state.order.tasks.filter((task) => decision.dependsOn.includes(task.id)),
-        exchanges: state.exchanges,
-      }));
       try {
+        const raw = await intelligence.delegate(structuredClone({
+          objective: state.order.objective, request: decision.request,
+          manager: registry.get(decision.managerId), team: team.map(agentSummary),
+          existingTasks: state.order.tasks.filter((task) => ids.has(task.assignedAgentId)),
+          dependencies: state.order.tasks.filter((task) => decision.dependsOn.includes(task.id)),
+          exchanges: state.exchanges,
+        }));
         const reply = DepartmentReply.parse(raw);
         if (state.order.revision + reply.tasks.length > state.order.limits.maxSteps) {
           return { order: pause(state.order, 'Pasos insuficientes para registrar el plan del departamento'), modelCalls: recordedCalls(state, selection) };

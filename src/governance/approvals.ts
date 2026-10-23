@@ -37,19 +37,20 @@ export function requestApproval(input: {
 }
 export function decideApproval(
   recordInput: ApprovalRecord, actionInput: ActionRequest, context: ExecutionContext,
-  decision: 'approved' | 'rejected' | 'revoked', reason: string, grants: PermissionGrant[], now: Date,
+  decision: 'approved' | 'rejected' | 'revoked', reason: string | undefined, grants: PermissionGrant[], now: Date,
 ): ApprovalRecord {
   const action = currentAction(actionInput, now);
   const record = boundApproval(recordInput, action, now);
   if (context.principal.kind !== 'human' || !samePrincipal(context.principal, record.approver)) throw new Error('Solo el aprobador humano designado puede decidir');
   if (!['approved', 'rejected', 'revoked'].includes(decision)) throw new Error('Decisión inválida');
   if (decision === 'revoked' ? record.status !== 'approved' : record.status !== 'pending') throw new Error('Transición de aprobación inválida');
+  if (decision === 'rejected' && !reason) throw new Error('Rechazar requiere indicar un motivo');
   const authorization = authorize(context, 'approval.decide', action.resource, grants, now);
   if (!authorization.allowed) throw new Error(authorization.reason);
   // Aprobar exige también autoridad sobre el tipo de acción concreta.
   const authority = authorize(context, action.operation, action.resource, grants, now);
   if (!authority.allowed) throw new Error(authority.reason);
-  return ApprovalRecord.parse({ ...record, status: decision, decidedAt: now.toISOString(), reason });
+  return ApprovalRecord.parse({ ...record, status: decision, decidedAt: now.toISOString(), ...(reason ? { reason } : {}) });
 }
 
 // Política conservadora del servicio: un agente no puede rebajar la sensibilidad de su solicitud.

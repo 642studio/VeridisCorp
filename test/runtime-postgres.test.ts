@@ -96,6 +96,48 @@ test('ruta vertical autenticada y persistente sobre PostgreSQL real', { skip: !c
    const history = await pool.query('SELECT data FROM veridis_runtime_v1.approvals WHERE run_id=$1 AND version=1', [id]);
    assert.equal(history.rows[0].data.status, 'revoked');
   });
+  await t.test('rechazar una versión queda visible y bloquea volver a decidirla, sin cambiar la etapa del expediente', async () => {
+   const id = await start(); await advance(id);
+   const rejected = await request(base, owner.token, `/runs/${id}/approve`, { version: 1, decision: 'rejected', reason: 'Falta precisión en el encargo' });
+   assert.equal(rejected.status, 200, JSON.stringify(rejected.data));
+   assert.equal(rejected.data.run.status, 'awaiting_approval', 'rechazar no cambia la etapa: queda a la espera de una revisión');
+   const approval = rejected.data.approvals.find((a: any) => a.version === 1);
+   assert.equal(approval.data.status, 'rejected');
+   assert.equal(approval.data.reason, 'Falta precisión en el encargo');
+   assert.equal((await approve(id, 1)).status, 409, 'una aprobación ya rechazada no puede decidirse de nuevo');
+   const revised = await request(base, owner.token, `/runs/${id}/revise`, { text: 'Versión corregida tras el rechazo' });
+   assert.equal(revised.data.run.version, 2);
+   // revise() marca la aprobación anterior como 'revoked' (sustituida), sin importar si venía
+   // de un rechazo o una aprobación; el motivo original del rechazo sigue en la auditoría.
+   assert.equal(revised.data.approvals.find((a: any) => a.version === 1).data.status, 'revoked');
+   assert(revised.data.audit.some((a: any) => a.data.event === 'approval.rejected'), 'el rechazo original queda en la auditoría aunque la aprobación se marque revoked');
+  });
+  await t.test('regenera desde una versión rechazada usando el motivo como entrada real del modelo', async () => {
+   const id = await start(); await advance(id);
+   const rejected = await request(base, owner.token, `/runs/${id}/approve`, { version: 1, decision: 'rejected', reason: 'Falta precisión en el encargo' });
+   assert.equal(rejected.data.run.status, 'awaiting_approval');
+   const other = await start(); await advance(other);
+   assert.equal((await request(base, owner.token, `/runs/${other}/regenerate`, {})).status, 409, 'no se puede regenerar una versión que no fue rechazada');
+   const regenerated = await request(base, owner.token, `/runs/${id}/regenerate`, {});
+   assert.equal(regenerated.status, 200, JSON.stringify(regenerated.data));
+   assert.equal(regenerated.data.run.status, 'awaiting_review', 'regenerar solo genera; sigue pendiente de revisión independiente');
+   assert.equal(regenerated.data.run.version, 2, 'regenerar crea una versión nueva, igual que una revisión humana');
+   assert.equal(regenerated.data.artifacts.length, 2);
+   assert.equal(regenerated.data.approvals.find((a: any) => a.version === 1).data.status, 'rejected', 'la versión 1 conserva su rechazo original, no se reescribe');
+   assert.equal(regenerated.data.attempts.filter((a: any) => a.stage === 'generate').length, 2, 'queda registrado el intento original y el de regeneración');
+   assert.equal((await request(base, owner.token, `/runs/${id}/regenerate`, {})).status, 409, 'ya no está awaiting_approval, no puede regenerarse de nuevo');
+   const advanced = await advance(id);
+   assert.equal(advanced.run.status, 'awaiting_approval');
+  });
+  await t.test('aprobar no exige motivo; rechazar sin motivo se rechaza', async () => {
+   const id = await start(); await advance(id);
+   const approved = await request(base, owner.token, `/runs/${id}/approve`, { version: 1, decision: 'approved' });
+   assert.equal(approved.status, 200, JSON.stringify(approved.data));
+   assert.equal(approved.data.run.status, 'approved');
+   assert.equal(approved.data.approvals.find((a: any) => a.version === 1).data.reason, undefined);
+   const other = await start(); await advance(other);
+   assert.equal((await request(base, owner.token, `/runs/${other}/approve`, { version: 1, decision: 'rejected' })).status, 400, 'rechazar sin motivo sigue sin permitirse');
+  });
   await t.test('lista expedientes del ámbito, calcula atención pendiente y pagina con cursor estable', async () => {
    const local = await identity(pool);
    const ids = [await start(local), await start(local), await start(local)];
@@ -133,6 +175,15 @@ test('ruta vertical autenticada y persistente sobre PostgreSQL real', { skip: !c
    await pool.query('UPDATE veridis_runtime_v1.sessions SET revoked=true WHERE token_hash=$1', [tokenHash(revoked.token)]);
    assert.equal((await request(base, revoked.token, '/organization')).status, 401);
    assert.equal((await request(base, 'y'.repeat(43), '/organization')).status, 401);
+  });
+  await t.test('expone el perfil completo de un agente, incluidas sus instrucciones, con la misma sesión', async () => {
+   const local = await identity(pool);
+   const response = await request(base, local.token, '/agents/content');
+   assert.equal(response.status, 200, JSON.stringify(response.data));
+   assert.equal(response.data.id, 'content');
+   assert.ok(typeof response.data.instructions === 'string' && response.data.instructions.length > 0);
+   assert.ok(Array.isArray(response.data.capabilities) && response.data.capabilities.includes('content.draft'));
+   assert.equal((await request(base, local.token, '/agents/no-existe-este-id')).status, 404);
   });
   await t.test('revocar el permiso del ejecutor bloquea la herramienta aun con aprobación humana', async () => {
    const local = await identity(pool); const id = await start(local);

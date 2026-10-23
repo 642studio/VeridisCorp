@@ -107,6 +107,14 @@ test('solo el aprobador humano con permisos puede decidir y revocar', () => {
   assert.throws(() => authorizeAction(context(), action(), [grant(), approverGrant()], approved(), new Date(expiresAt)), /vencida/);
 });
 
+test('aprobar no exige motivo; rechazar sí', () => {
+  const pending = requestApproval({ id: 'approval-2', action: action(), approver: human, expiresAt }, now);
+  const decided = decideApproval(pending, action(), context(human), 'approved', undefined, [approverGrant()], now);
+  assert.equal(decided.status, 'approved');
+  assert.equal(decided.reason, undefined);
+  assert.throws(() => decideApproval(pending, action(), context(human), 'rejected', undefined, [approverGrant()], now), /motivo/);
+});
+
 function humanTask(): HumanTask {
   return { schemaVersion: 1, id: 'human-task', scope, title: 'Revisar diseño', coordinatorAgentId: 'pm',
     assigneeHumanId: 'employee-1', approverHumanId: 'adrian',
