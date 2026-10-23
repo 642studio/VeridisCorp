@@ -29,7 +29,7 @@ function fixture() {
 test('los 56 perfiles se cargan desde sus carpetas con instrucciones y contexto', () => {
   const agents = loadAgentCatalog(projectAgentDirectory());
   assert.equal(agents.length, 56);
-  assert(agents.every((agent) => agent.instructions && agent.context && ['2.1.0', '2.2.0'].includes(agent.version)));
+  assert(agents.every((agent) => agent.instructions && agent.context && ['2.1.0', '2.2.0', '2.3.0'].includes(agent.version)));
   assert(agents.every((agent) => agent.knowledge?.length === 0));
 });
 

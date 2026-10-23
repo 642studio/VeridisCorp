@@ -1,11 +1,13 @@
 {
   "id": "finance-billing",
   "name": "Veridis_Facturacion",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "capabilities": [
     "finance.billing"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "calculator"
+  ],
   "organization": {
     "title": "Facturacion",
     "departmentId": "finance",

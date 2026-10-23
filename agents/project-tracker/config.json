@@ -1,12 +1,14 @@
 {
   "id": "project-tracker",
   "name": "Veridis_Seguimiento",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "capabilities": [
     "projects.track",
     "projects.risks"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "clickup.read"
+  ],
   "organization": {
     "title": "Seguimiento",
     "departmentId": "projects",

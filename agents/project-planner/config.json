@@ -1,12 +1,14 @@
 {
   "id": "project-planner",
   "name": "Veridis_Planificacion",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "capabilities": [
     "projects.schedule",
     "projects.integrate"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "clickup.read"
+  ],
   "organization": {
     "title": "Planificacion",
     "departmentId": "projects",

@@ -1,11 +1,13 @@
 {
   "id": "finance-accounting",
   "name": "Veridis_finance_accounting",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "finance.reconcile"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "calculator"
+  ],
   "organization": {
     "title": "Control contable",
     "departmentId": "finance",

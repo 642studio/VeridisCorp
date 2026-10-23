@@ -1,11 +1,13 @@
 {
   "id": "finance-treasury",
   "name": "Veridis_Tesoreria",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "capabilities": [
     "finance.cashflow"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "calculator"
+  ],
   "organization": {
     "title": "Tesoreria",
     "departmentId": "finance",

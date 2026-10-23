@@ -1,11 +1,13 @@
 {
   "id": "backend",
   "name": "Veridis_backend",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "software.backend"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "code.sandbox"
+  ],
   "organization": {
     "title": "Ingeniería backend",
     "departmentId": "software",

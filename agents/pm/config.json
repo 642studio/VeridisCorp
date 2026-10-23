@@ -1,12 +1,14 @@
 {
   "id": "pm",
   "name": "Veridis_ProjectManager",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "projects.plan",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "clickup.read"
+  ],
   "organization": {
     "title": "ProjectManager",
     "departmentId": "projects",

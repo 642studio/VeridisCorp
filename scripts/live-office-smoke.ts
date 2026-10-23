@@ -12,7 +12,7 @@ async function main() {
  const maxTurns = Number(process.env.VERIDIS_OFFICE_SMOKE_MAX_TURNS ?? 20);
  const threadId = 'live-office-smoke-' + Date.now();
  const config = { configurable: { thread_id: threadId }, recursionLimit: 150 };
- const graph = createOfficeWorkflow(createOfficeIntelligence(), officeRegistry, new MemorySaver(), {
+ const graph = createOfficeWorkflow(createOfficeIntelligence({ registry: officeRegistry }), officeRegistry, new MemorySaver(), {
   maxTurns, maxRejectedDecisions: 4, maxQuestions: 1,
  });
  const stream = await graph.stream({ order: createCompanyDemoOrder() }, { ...config, streamMode: 'updates' });

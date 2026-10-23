@@ -204,9 +204,21 @@ export function createOfficeWorkflow(
       try {
         const { value: reply, attempts } = await withRetries(async () =>
           ReviewReply.parse(await intelligence.review(specialistContext(state, task, decision.reviewerId))), 2);
-        return { order: applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
-          type: 'review_task', taskId: task.id, assessments: reply.assessments,
-        }, registry), modelCalls: recordedCallsTimes(state, selection, attempts), lastError: null };
+        try {
+          const order = applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
+            type: 'review_task', taskId: task.id, assessments: reply.assessments,
+          }, registry);
+          return { order, modelCalls: recordedCallsTimes(state, selection, attempts), lastError: null };
+        } catch (error) {
+          // applyCommand es puro y síncrono: cualquier error aquí es una evaluación con forma
+          // válida pero que no cumple las reglas del motor (p. ej. cita una evidencia que no
+          // existe en la entrega), nunca un fallo de infraestructura. Se trata igual que una
+          // decisión rechazada, con el motivo, en vez de tumbar el nodo.
+          const rejectedDecisions = state.rejectedDecisions + 1;
+          const lastError = error instanceof Error ? error.message : 'La evaluación del revisor no cumple las reglas del motor';
+          return { order: rejectedDecisions >= maxRejected ? pause(state.order, 'Demasiadas decisiones rechazadas') : state.order,
+            rejectedDecisions, lastError, modelCalls: recordedCallsTimes(state, selection, attempts) };
+        }
       } catch (error) {
         if (!isMalformedModelOutput(error)) throw error;
         const rejectedDecisions = state.rejectedDecisions + 1;

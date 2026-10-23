@@ -1,12 +1,14 @@
 {
   "id": "security-governance",
   "name": "Veridis_security_governance",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "security.governance",
     "security.access"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "cve.lookup"
+  ],
   "organization": {
     "title": "Identidades y gobierno de seguridad",
     "departmentId": "cybersecurity",

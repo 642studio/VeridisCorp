@@ -176,6 +176,45 @@ test('execute() reintenta internamente una entrega mal formada antes de rendirse
   assert.equal(result.lastError, null);
 });
 
+test('un revisor que cita una evidencia inexistente se trata como decisión rechazada, no tumba el nodo', async () => {
+  const saver = new MemorySaver();
+  const demo = createDemoOfficeIntelligence();
+  let attempts = 0;
+  const intelligence: OfficeIntelligence = {
+    ...demo,
+    async review(context) {
+      attempts += 1;
+      if (attempts === 1) {
+        return { assessments: context.task.criteria.map((c) => ({
+          criterionId: c.id, accepted: true, evidenceIds: ['id-que-no-existe'], explanation: 'x',
+        })) };
+      }
+      return demo.review(context);
+    },
+  };
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, saver);
+  const result = await graph.invoke({ order: createDemoOrder() }, config('office-review-bad-evidence'));
+  assert.equal(result.order.status, 'completed');
+  assert.equal(attempts > 1, true);
+});
+
+test('un revisor que siempre cita evidencia inexistente pausa en vez de tumbar el proceso', async () => {
+  const saver = new MemorySaver();
+  const demo = createDemoOfficeIntelligence();
+  const intelligence: OfficeIntelligence = {
+    ...demo,
+    async review(context) {
+      return { assessments: context.task.criteria.map((c) => ({
+        criterionId: c.id, accepted: true, evidenceIds: ['id-que-no-existe'], explanation: 'x',
+      })) };
+    },
+  };
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, saver, { maxRejectedDecisions: 2 });
+  const result = await graph.invoke({ order: createDemoOrder() }, config('office-review-bad-evidence-giveup'));
+  assert.equal(result.order.status, 'paused');
+  assert.match(result.lastError!, /[Ee]videncia/);
+});
+
 test('execute() se rinde tras dos intentos mal formados seguidos, sin un tercero', async () => {
   const saver = new MemorySaver();
   const demo = createDemoOfficeIntelligence();

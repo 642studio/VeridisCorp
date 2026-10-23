@@ -1,11 +1,13 @@
 {
   "id": "data-analyst",
   "name": "Veridis_data_analyst",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "data.analyze"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "calculator"
+  ],
   "organization": {
     "title": "Analítica de negocio",
     "departmentId": "data",

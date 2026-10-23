@@ -1,11 +1,13 @@
 {
   "id": "knowledge-curator",
   "name": "Veridis_knowledge_curator",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "research.knowledge"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "web.search"
+  ],
   "organization": {
     "title": "Gestión de conocimiento",
     "departmentId": "intelligence",

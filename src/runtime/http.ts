@@ -68,6 +68,9 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
    }
    res.writeHead(200); res.end(JSON.stringify(result));
   } catch (error) {
+   if (!(error instanceof RuntimeError) && !(error instanceof ZodError)) {
+    process.stderr.write(`Error inesperado en ${req.method} ${req.url}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+   }
    const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1];
    if (token) await runtime.recordRejected(token, error instanceof RuntimeError ? String(error.status) : error instanceof ZodError ? 'invalid_contract' : 'invalid_transition');
    res.writeHead(error instanceof RuntimeError ? error.status : error instanceof ZodError ? 400 : 409);

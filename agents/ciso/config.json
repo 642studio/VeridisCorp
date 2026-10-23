@@ -1,12 +1,14 @@
 {
   "id": "ciso",
   "name": "Veridis_ciso",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "security.plan",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "cve.lookup"
+  ],
   "organization": {
     "title": "Dirección de ciberseguridad",
     "departmentId": "cybersecurity",

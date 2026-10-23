@@ -9,6 +9,7 @@ import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
 import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
+import { officeRegistry } from '../office/registry.js';
 import { AccessScope, Principal, Operation } from '../governance/contracts.js';
 
 async function main() {
@@ -35,7 +36,7 @@ async function main() {
   // llamadas reales (no tiene presupuesto en dólares propio, solo el tope de turnos).
   let office: OfficeRuntime | undefined;
   if (process.env.VERIDIS_OFFICE_ENABLED === 'true') {
-   office = new OfficeRuntime(pool, createOfficeIntelligence(), {
+   office = new OfficeRuntime(pool, createOfficeIntelligence({ registry: officeRegistry }), {
     maxTurns: z.coerce.number().int().positive().max(100).parse(process.env.VERIDIS_OFFICE_MAX_TURNS ?? '5'),
     maxRejectedDecisions: 3, maxQuestions: 2,
    });

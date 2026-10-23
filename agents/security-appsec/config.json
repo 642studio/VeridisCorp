@@ -1,11 +1,13 @@
 {
   "id": "security-appsec",
   "name": "Veridis_security_appsec",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "security.appsec"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "cve.lookup"
+  ],
   "organization": {
     "title": "Seguridad de aplicaciones",
     "departmentId": "cybersecurity",

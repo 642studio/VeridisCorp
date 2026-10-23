@@ -1,12 +1,14 @@
 {
   "id": "security-defense",
   "name": "Veridis_security_defense",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "security.defense",
     "security.incident"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "cve.lookup"
+  ],
   "organization": {
     "title": "Defensa y respuesta a incidentes",
     "departmentId": "cybersecurity",

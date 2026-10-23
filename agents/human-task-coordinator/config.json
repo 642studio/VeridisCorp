@@ -1,11 +1,13 @@
 {
   "id": "human-task-coordinator",
   "name": "Veridis_human_task_coordinator",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "projects.human-tasks"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "clickup.read"
+  ],
   "organization": {
     "title": "Coordinación de tareas humanas",
     "departmentId": "projects",

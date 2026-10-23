@@ -1,11 +1,13 @@
 {
   "id": "frontend",
   "name": "Veridis_frontend",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "capabilities": [
     "software.frontend"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "code.sandbox"
+  ],
   "organization": {
     "title": "Ingeniería frontend",
     "departmentId": "software",

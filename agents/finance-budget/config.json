@@ -1,12 +1,14 @@
 {
   "id": "finance-budget",
   "name": "Veridis_Presupuestos",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "capabilities": [
     "finance.budget",
     "finance.costs"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "calculator"
+  ],
   "organization": {
     "title": "Presupuestos",
     "departmentId": "finance",
