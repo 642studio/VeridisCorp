@@ -8,6 +8,8 @@
     { "principal": { "kind": "service", "id": "content-orchestrator" }, "operations": ["task.assign"], "resourceType": "agent", "resourceIds": ["content", "review"] },
     { "principal": { "kind": "agent", "id": "content" }, "operations": ["draft.create"], "resourceType": "workflow", "resourceIds": ["content-pilot"] },
     { "principal": { "kind": "agent", "id": "review" }, "operations": ["draft.create"], "resourceType": "workflow", "resourceIds": ["content-pilot"] },
-    { "principal": { "kind": "service", "id": "delivery-executor" }, "operations": ["content.publish", "data.read"], "resourceType": "workflow", "resourceIds": ["content-pilot"] }
+    { "principal": { "kind": "service", "id": "delivery-executor" }, "operations": ["content.publish", "data.read"], "resourceType": "workflow", "resourceIds": ["content-pilot"] },
+    { "principal": { "kind": "human", "id": "example-owner" }, "operations": ["draft.create", "data.read", "data.write"], "resourceType": "workflow", "resourceIds": ["office-pilot"] },
+    { "principal": { "kind": "service", "id": "scheduler" }, "operations": ["draft.create"], "resourceType": "workflow", "resourceIds": ["office-pilot"] }
   ]
 }

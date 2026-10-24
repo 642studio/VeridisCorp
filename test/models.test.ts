@@ -179,13 +179,24 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   assert.equal(router.select({ agentId: 'content', stage: 'execute', capability: 'content.draft' }).model, 'deepseek-flash');
   assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).model, 'gpt-5.4-mini-2026-03-17');
   assert.equal(router.select({ agentId: 'ceo', stage: 'coordinate', capability: 'company.strategy' }).profileId, 'complex');
+  // Coordinación departamental en un perfil más barato que el del CEO, no en el modelo completo.
+  assert.equal(router.select({ agentId: 'cto', stage: 'coordinate', capability: 'technology.strategy' }).profileId, 'analysis');
+  // cmo iba a pilotar Gemini como proveedor distinto, pero su cuota gratis se agotó sin poder
+  // verificarlo en vivo (ver docs/model-routing.md); queda en 'analysis' hasta tener facturación.
+  assert.equal(router.select({ agentId: 'cmo', stage: 'coordinate', capability: 'marketing.strategy' }).profileId, 'analysis');
   assert.equal(router.select({ agentId: 'investment-research', stage: 'execute', capability: 'finance.investment-research' }).model, 'deepseek-v4-pro');
   assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.document' }).profileId, 'routine');
-  assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.implement' }).profileId, 'local-code');
+  // Implementación de código: DeepSeek, no el modelo local — ese queda reservado para seguridad.
+  assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.implement' }).profileId, 'deepseek-code');
   assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'finance.budget' }).profileId, 'complex');
-  assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.design' }).profileId, 'complex');
-  assert.equal(router.profile('local-code').baseURL, 'http://127.0.0.1:11434/v1');
-  assert.equal(router.profile('local-code').apiKeyEnv, 'OLLAMA_API_KEY');
+  assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.design' }).profileId, 'analysis');
+  // El modelo sin censura solo se usa para capacidades de ciberseguridad.
+  assert.equal(router.select({ agentId: 'security-audit', stage: 'execute', capability: 'security.audit' }).profileId, 'uncensored');
+  assert.equal(router.select({ agentId: 'security-defense', stage: 'execute', capability: 'security.defense' }).profileId, 'uncensored');
+  assert.equal(router.select({ agentId: 'security-governance', stage: 'execute', capability: 'security.access' }).profileId, 'uncensored');
+  assert.equal(router.select({ agentId: 'security-review', stage: 'review', capability: 'security.audit' }).profileId, 'uncensored');
+  assert.equal(router.profile('uncensored').baseURL, 'http://127.0.0.1:11434/v1');
+  assert.equal(router.profile('uncensored').apiKeyEnv, 'OLLAMA_API_KEY');
   const profile = router.profile('routine');
   const model = createProfileModel(profile, { DEEPSEEK_API_KEY: 'test-only-placeholder' });
   assert.equal((model as any).modelKwargs.thinking.type, 'disabled');

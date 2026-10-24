@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage } from 'node:http';
 import { ZodError } from 'zod';
 import { ContentRuntime } from './service.js';
 import type { OfficeRuntime } from './office-runtime.js';
+import type { Scheduler } from './scheduler.js';
 import { RuntimeError } from './contracts.js';
 
 async function body(req: IncomingMessage): Promise<unknown> {
@@ -14,7 +15,10 @@ async function body(req: IncomingMessage): Promise<unknown> {
  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
  catch { throw new RuntimeError(400, 'JSON inválido'); }
 }
-export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRuntime) {
+// scheduler puede ser undefined (VERIDIS_SCHEDULER_ENABLED=false): las rutas de abajo siguen
+// funcionando igual (crear/editar/borrar tareas programadas en la base), solo que ningún Cron
+// real las dispara hasta que el proceso arranque con el flag activo.
+export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRuntime, scheduler?: Scheduler) {
  const server = createServer(async (req, res) => {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
@@ -48,6 +52,25 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     if (req.method === 'GET' && !action) result = await office.get(token, id);
     else if (req.method === 'POST' && action === 'advance') result = await office.advance(token, id);
     else if (req.method === 'POST' && action === 'answer') result = await office.answer(token, id, await body(req));
+    else throw new RuntimeError(405, 'Método no disponible');
+   } else if (office && req.method === 'POST' && path === '/office/schedules') {
+    result = await office.createSchedule(token, await body(req));
+    scheduler?.register({ id: (result as { id: string }).id, cron_expression: (result as { cronExpression: string }).cronExpression, timezone: (result as { timezone: string }).timezone });
+   } else if (office && req.method === 'GET' && path === '/office/schedules') {
+    result = await office.listSchedules(token);
+   } else if (office && /^\/office\/schedules\/([0-9a-f-]{36})(?:\/(update|delete|fire))?$/.test(path)) {
+    const scheduleMatch = /^\/office\/schedules\/([0-9a-f-]{36})(?:\/(update|delete|fire))?$/.exec(path)!;
+    const id = scheduleMatch[1]!; const action = scheduleMatch[2];
+    if (req.method === 'GET' && !action) result = await office.getSchedule(token, id);
+    else if (req.method === 'POST' && action === 'update') {
+     result = await office.updateSchedule(token, id, await body(req));
+     const r = result as { enabled: boolean; cronExpression: string; timezone: string };
+     if (r.enabled) scheduler?.register({ id, cron_expression: r.cronExpression, timezone: r.timezone });
+     else scheduler?.unregister(id);
+    } else if (req.method === 'POST' && action === 'delete') {
+     result = await office.deleteSchedule(token, id);
+     scheduler?.unregister(id);
+    } else if (req.method === 'POST' && action === 'fire') result = await office.fireSchedule(token, id);
     else throw new RuntimeError(405, 'Método no disponible');
    } else {
     const match = /^\/runs\/([0-9a-f-]{36})(?:\/(advance|revise|approve|execute|reconcile|regenerate))?$/.exec(path);

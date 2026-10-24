@@ -90,6 +90,44 @@ El servidor escucha solamente en 127.0.0.1. No se despliega ni abre puertos auto
 
 `POST /runs/{id}/regenerate` no es automático: el rechazo humano nunca dispara por sí solo una llamada real al modelo. Un clic explícito separado llama a esta ruta, que exige que la versión actual tenga una aprobación con `status: 'rejected'` (verificado bajo bloqueo de fila, no solo por el estado del expediente) y consume una reserva de presupuesto real, igual que cualquier otra generación. El modelo recibe el texto rechazado y el motivo exacto del rechazo como entrada (`content.draft` ahora acepta `text` y `feedback` opcionales, solo para este caso); produce una versión nueva que vuelve a pasar por revisión independiente antes de poder aprobarse — no se puede aprobar una regeneración sin que el revisor la acepte primero, igual que cualquier otra versión. La aprobación de la versión original permanece `rejected` en su historial; no se reescribe.
 
+## Oficina real: expedientes, chat y tareas programadas
+
+Fecha: 2026-10-23. `office/` deja de ser solo simulación cuando el servidor arranca con `VERIDIS_OFFICE_ENABLED=true`: reabre la ruta que las entradas CLI `office:run/resume/answer` tenían suspendida, con el CEO real coordinando sobre el mismo módulo de gobierno que protege `/runs`. `VERIDIS_OFFICE_MAX_TURNS` (por defecto 5) es el único tope — no hay presupuesto en dólares propio como en el piloto de contenido, así que una sola invocación puede encadenar varias llamadas reales de IA antes de responder.
+
+| Ruta | Uso |
+| --- | --- |
+| POST /office/orders | `{objective}`; crea un expediente y lo hace avanzar hasta que el CEO lo cierre, lo pause o pregunte algo |
+| GET /office/orders | Lista expedientes de oficina del ámbito autorizado |
+| GET /office/orders/{id} | Expediente completo: tareas, eventos, llamadas de modelo reales, preguntas y respuestas ya intercambiadas (`exchanges`) y límites del flujo |
+| POST /office/orders/{id}/advance | Continúa un expediente `active` sin pregunta pendiente |
+| POST /office/orders/{id}/answer | `{answer}`; responde la pregunta pendiente (`ask_user`) y continúa |
+
+Autorización: `draft.create` para crear o avanzar/responder, `data.read` para listar o consultar — siempre sobre `workflow/office-pilot`, igual patrón que `content-pilot`. La vista técnica completa vive en la pantalla OFICINA; la pantalla ASISTENTE (chat con animación de espera y efecto de máquina de escribir) se construye por completo sobre estas mismas rutas — no hay streaming real del backend ni un endpoint propio de chat, solo una sola petición HTTP que bloquea hasta terminar, con el hilo de conversación reconstruido en el navegador a partir de `objective` + `exchanges` + el estado final del expediente.
+
+### Tareas programadas
+
+Cron real (vía `croner`) que dispara expedientes de oficina sin intervención humana, solo tiene efecto si `office/` ya está habilitado. Interruptor propio: `VERIDIS_SCHEDULER_ENABLED=true`, con `VERIDIS_SCHEDULER_MAX_PER_HOUR` (por defecto 10) como límite de tasa por `scope_key`. Un disparo automático se autoriza como el principal de servicio `scheduler` (`{kind:'service', id:'scheduler'}`), aprovisionado igual que `content-orchestrator`/`delivery-executor`: una entrada más en `permissions` al aprovisionar la sesión (ver `config/runtime-session.example.json`), sin mecanismo nuevo.
+
+Controles de seguridad, todos verificados contra PostgreSQL real (`test/scheduler-postgres.test.ts`) y con una prueba de extremo a extremo sin intervención humana:
+
+- **Candado contra solapamiento**: reclamo atómico (`UPDATE ... WHERE current_order_id IS NULL AND enabled RETURNING *`) — es la única fuente de verdad, no una revisión previa separada que podría tener una carrera real.
+- **Apagado automático**: tres fallos consecutivos (`paused` o excepción) apagan la tarea sola; una pregunta pendiente sin resolver (`ask_user`) no cuenta ni a favor ni en contra. Reactivarla no borra su historial.
+- **Límite de tasa**: por `scope_key`, no global; un salto por límite de tasa no cuenta como fallo.
+- **Sin recuperación al reiniciar**: un disparo que debía ocurrir mientras el servidor estaba apagado simplemente no ocurre — comportamiento simple elegido a propósito, documentado para que no se confunda con un bug.
+
+| Ruta | Uso |
+| --- | --- |
+| POST /office/schedules | `{name, objective, cronExpression, timezone}`; crea una tarea activa, valida cron y zona horaria antes de guardar |
+| GET /office/schedules | Lista tareas programadas del ámbito, con `nextRunAt` calculado por el servidor |
+| GET /office/schedules/{id} | Una tarea programada |
+| POST /office/schedules/{id}/update | Campos parciales, incluido `enabled` (pausar/reactivar); cambiar cron o zona horaria revalida ambos juntos |
+| POST /office/schedules/{id}/delete | Borra la tarea; no afecta expedientes ya creados por ella |
+| POST /office/schedules/{id}/fire | Disparo manual para pruebas de operador — pasa por la misma `fireOnce` que usa el Cron real, respeta candado y límite de tasa |
+
+Autorización: `data.write` para crear/editar/borrar, `data.read` para listar/ver, `draft.create` para el disparo manual — mismo recurso `workflow/office-pilot`. La existencia del recurso dentro del ámbito se verifica antes que el permiso de la operación (igual que `GET/POST /office/orders/{id}`): una tarea de otro cliente responde 404, nunca 403, sin importar qué permisos tenga la sesión en general.
+
+La pantalla TAREAS_PROGRAMADAS no expone cron crudo: un selector Diario/Semanal (+ días)/Mensual (+ día del mes) + hora + zona horaria (autodetectada del navegador, editable) se traduce a la expresión cron del lado del cliente antes de enviarla; al editar, la misma pantalla interpreta de vuelta las formas simples que ella misma genera (si una tarea tiene un cron que no coincide con ese patrón — por ejemplo, migrada a mano en la base — el selector vuelve a un valor por defecto razonable en vez de intentar representarlo).
+
 ## Verificación reproducible
 
 ```bash
@@ -100,7 +138,7 @@ npm run test:postgres
 
 `test:postgres` crea un clúster temporal aislado en loopback, ejecuta toda la suite con PostgreSQL real y elimina ese clúster al terminar. No usa `DATABASE_URL` ni cambia instancias existentes. En Linux, configurar `VERIDIS_POSTGRES_BIN` con la carpeta de binarios; en Mac se usa `/opt/homebrew/opt/postgresql@16/bin`. Requiere ejecutar como usuario no root. También puede ejecutarse `npm test` con `VERIDIS_TEST_DATABASE_URL` apuntando a una base exclusiva de pruebas; sin esa variable se omiten las pruebas PostgreSQL.
 
-Casos cubiertos: identidad inválida o revocada, acceso a otro cliente, identidad inyectada, flujo completo, doble ejecución concurrente, nueva versión después de aprobar, permisos del ejecutor revocados, límites antes de llamar, costo desconocido ante fallo, JSON Schema inválido, artefacto alterado, resultado incierto sin confirmación, reinicio real del proceso tras envío, listado con filtro por estado, paginación por cursor y aislamiento por ámbito, organigrama con sesión revocada o inventada, regeneración solo sobre una versión rechazada (nunca sobre una pendiente o ya aprobada), y aprobación sin motivo frente a rechazo sin motivo.
+Casos cubiertos: identidad inválida o revocada, acceso a otro cliente, identidad inyectada, flujo completo, doble ejecución concurrente, nueva versión después de aprobar, permisos del ejecutor revocados, límites antes de llamar, costo desconocido ante fallo, JSON Schema inválido, artefacto alterado, resultado incierto sin confirmación, reinicio real del proceso tras envío, listado con filtro por estado, paginación por cursor y aislamiento por ámbito, organigrama con sesión revocada o inventada, regeneración solo sobre una versión rechazada (nunca sobre una pendiente o ya aprobada), y aprobación sin motivo frente a rechazo sin motivo. `test/runtime-postgres.test.ts` también cubre `/office/orders` y `/office/schedules` completos (crear, listar, editar, disparo manual, 403 por falta de `data.write`, 404 por ámbito ajeno, pausar/reactivar); `test/scheduler-postgres.test.ts` cubre `fireOnce` aislado (candado, límite de tasa, apagado automático) contra PostgreSQL real.
 
 Si `pg_ctl` falla al iniciar el clúster temporal con `postmaster became multithreaded during startup`, es un problema de locale del shell (no del código): ejecutar con `LC_ALL=C LANG=C npm run test:postgres`.
 

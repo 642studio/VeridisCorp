@@ -61,6 +61,24 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_orders (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS runtime_office_orders_scope ON veridis_runtime_v1.office_orders(scope_key, created_at DESC);
+-- Marca qué expedientes nació de un disparo automático, no de un humano. Sin referencia a
+-- scheduled_tasks(id): esta columna solo sirve para mostrar/filtrar, igual que el resto de
+-- punteros entre tablas de este archivo (runs/tasks es la excepción, no la regla).
+ALTER TABLE veridis_runtime_v1.office_orders ADD COLUMN IF NOT EXISTS created_by_schedule_id uuid NULL;
+-- scope completo (no solo scope_key): a diferencia de office_orders, el scheduler necesita
+-- reconstruir el AccessScope real para poder disparar sin que haya una sesión humana detrás
+-- (mismo patrón que veridis_runtime_v1.sessions).
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.scheduled_tasks (
+ id uuid PRIMARY KEY, scope_key text NOT NULL, scope jsonb NOT NULL,
+ name text NOT NULL, objective_template text NOT NULL,
+ cron_expression text NOT NULL, timezone text NOT NULL,
+ enabled boolean NOT NULL DEFAULT true,
+ current_order_id uuid NULL, consecutive_failures integer NOT NULL DEFAULT 0,
+ last_run_at timestamptz NULL, last_fired_order_id uuid NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS runtime_scheduled_tasks_scope ON veridis_runtime_v1.scheduled_tasks(scope_key, created_at DESC);
+CREATE INDEX IF NOT EXISTS runtime_scheduled_tasks_enabled ON veridis_runtime_v1.scheduled_tasks(enabled) WHERE enabled;
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

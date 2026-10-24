@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { migrate, provisionSession } from './database.js';
 import { ContentRuntime } from './service.js';
 import { OfficeRuntime } from './office-runtime.js';
+import { Scheduler } from './scheduler.js';
 import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
 import { Defaults } from './contracts.js';
@@ -42,9 +43,19 @@ async function main() {
    });
    await office.setup();
   }
-  const server = createRuntimeServer(runtime, office);
+  // Las tareas programadas disparan expedientes reales sin que nadie le dé clic a nada; solo
+  // tiene sentido si office/ ya está habilitado, y sigue necesitando su propio interruptor
+  // explícito (un operador puede querer office/ real sin disparos automáticos todavía).
+  let scheduler: Scheduler | undefined;
+  if (office && process.env.VERIDIS_SCHEDULER_ENABLED === 'true') {
+   scheduler = new Scheduler(pool, office, {
+    maxPerHour: z.coerce.number().int().positive().parse(process.env.VERIDIS_SCHEDULER_MAX_PER_HOUR ?? '10'),
+   });
+   await scheduler.start();
+  }
+  const server = createRuntimeServer(runtime, office, scheduler);
   server.listen(z.coerce.number().int().min(1024).max(65535).parse(process.env.PORT ?? 3000), '127.0.0.1', () => process.stderr.write('API gobernada escuchando en loopback.\n'));
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(() => { void pool.end(); }));
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(() => { scheduler?.stop(); void pool.end(); }));
   return;
  }
  try {

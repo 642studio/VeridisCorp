@@ -7,7 +7,7 @@ import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { ContentRuntime } from '../src/runtime/service.js';
-import { OfficeRuntime } from '../src/runtime/office-runtime.js';
+import { OfficeRuntime, scheduler } from '../src/runtime/office-runtime.js';
 import { createRuntimeServer } from '../src/runtime/http.js';
 import { migrate, provisionSession, scopeKey, tokenHash } from '../src/runtime/database.js';
 import { executor, orchestrator, reviewer, worker, Defaults } from '../src/runtime/contracts.js';
@@ -372,6 +372,83 @@ test('office/ real sobre HTTP: crear, avanzar y listar un expediente con varios 
    const id = started.data.id;
    const advanced = await request(base, token, `/office/orders/${id}/advance`, {});
    assert.equal(advanced.status, 200); assert.equal(advanced.data.order.status, 'completed');
+  });
+ } finally { await close(server); await pool.end(); }
+});
+
+test('office/ tareas programadas sobre HTTP: crear, listar, editar, disparar y borrar', { skip: !connectionString, timeout: 30000 }, async (t) => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const office = new OfficeRuntime(pool, officeTestIntelligence(), { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2 });
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ const scope: AccessScope = { workspaceId: randomUUID(), companyId: '642', divisionId: 'studio', clientId: randomUUID(), projectId: 'office-pilot' };
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['draft.create', 'data.read', 'data.write'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+  // El disparo manual (/fire) pasa por fireOnce -> startScheduled, que se autoriza como el
+  // principal de servicio del scheduler, no como el humano que pidió el disparo.
+  { principal: scheduler, operations: ['draft.create'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  let scheduleId = '';
+  await t.test('crea una tarea programada con cron válido y calcula la próxima ejecución', async () => {
+   const created = await request(base, token, '/office/schedules', { name: 'Resumen semanal', objective: 'Redactar un resumen semanal de prueba', cronExpression: '0 9 * * 1', timezone: 'America/Hermosillo' });
+   assert.equal(created.status, 200, JSON.stringify(created.data));
+   assert.equal(created.data.enabled, true); assert.equal(created.data.running, false);
+   assert(created.data.nextRunAt, 'debe calcular la próxima ejecución real');
+   scheduleId = created.data.id;
+  });
+  await t.test('una expresión cron o zona horaria inválida se rechaza antes de tocar la base', async () => {
+   assert.equal((await request(base, token, '/office/schedules', { name: 'Mala', objective: 'x', cronExpression: 'no es cron', timezone: 'UTC' })).status, 400);
+   assert.equal((await request(base, token, '/office/schedules', { name: 'Mala', objective: 'x', cronExpression: '0 9 * * 1', timezone: 'Zona/Inventada' })).status, 400);
+  });
+  await t.test('listar incluye la tarea creada; verla por id respeta el ámbito del cliente', async () => {
+   const listed = await request(base, token, '/office/schedules');
+   assert.equal(listed.status, 200); assert(listed.data.schedules.some((s: any) => s.id === scheduleId));
+   const got = await request(base, token, `/office/schedules/${scheduleId}`);
+   assert.equal(got.status, 200); assert.equal(got.data.id, scheduleId);
+   const otherToken = await provisionSession(pool, { principal: { kind: 'human', id: randomUUID() }, scope: { ...scope, clientId: 'otro-cliente' }, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+    { principal: { kind: 'human', id: randomUUID() }, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+   ] });
+   assert.equal((await request(base, otherToken, `/office/schedules/${scheduleId}`)).status, 404);
+  });
+  await t.test('editar sin permiso data.write se rechaza con 403', async () => {
+   const limitedHuman: Principal = { kind: 'human', id: randomUUID() };
+   const limitedToken = await provisionSession(pool, { principal: limitedHuman, scope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+    { principal: limitedHuman, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+   ] });
+   assert.equal((await request(base, limitedToken, `/office/schedules/${scheduleId}/update`, { enabled: false })).status, 403);
+  });
+  await t.test('editar cambia cron y zona horaria revalidando ambos juntos', async () => {
+   const updated = await request(base, token, `/office/schedules/${scheduleId}/update`, { cronExpression: '0 0 * * *', timezone: 'UTC' });
+   assert.equal(updated.status, 200, JSON.stringify(updated.data));
+   assert.equal(updated.data.cronExpression, '0 0 * * *'); assert.equal(updated.data.timezone, 'UTC');
+   assert.equal((await request(base, token, `/office/schedules/${scheduleId}/update`, { cronExpression: 'no es cron' })).status, 400);
+  });
+  await t.test('el disparo manual usa la misma fireOnce que el Cron real y marca el expediente', async () => {
+   const fired = await request(base, token, `/office/schedules/${scheduleId}/fire`, {});
+   assert.equal(fired.status, 200, JSON.stringify(fired.data));
+   assert.equal(fired.data.result, 'fired'); assert(fired.data.lastFiredOrderId);
+   const order = await pool.query('SELECT created_by_schedule_id, status FROM veridis_runtime_v1.office_orders WHERE id=$1', [fired.data.lastFiredOrderId]);
+   assert.equal(order.rows[0].created_by_schedule_id, scheduleId);
+   assert.equal(order.rows[0].status, 'completed');
+  });
+  await t.test('apagar quita la próxima ejecución; reactivar la devuelve (ida y vuelta de "reactivar")', async () => {
+   const disabled = await request(base, token, `/office/schedules/${scheduleId}/update`, { enabled: false });
+   assert.equal(disabled.data.enabled, false); assert.equal(disabled.data.nextRunAt, null, 'una tarea apagada no muestra próxima ejecución');
+   const reactivated = await request(base, token, `/office/schedules/${scheduleId}/update`, { enabled: true });
+   assert.equal(reactivated.data.enabled, true); assert(reactivated.data.nextRunAt);
+  });
+  await t.test('borrar la tarea programada la quita del listado y de la vista por id', async () => {
+   const deleted = await request(base, token, `/office/schedules/${scheduleId}/delete`, {});
+   assert.equal(deleted.status, 200, JSON.stringify(deleted.data)); assert.equal(deleted.data.id, scheduleId);
+   assert.equal((await request(base, token, `/office/schedules/${scheduleId}`)).status, 404);
+   const listed = await request(base, token, '/office/schedules');
+   assert.equal(listed.data.schedules.some((s: any) => s.id === scheduleId), false);
   });
  } finally { await close(server); await pool.end(); }
 });

@@ -6,24 +6,30 @@ import { OrgChart } from './screens/OrgChart';
 import { AgentsMenu } from './screens/AgentsMenu';
 import { OfficeOrders } from './screens/OfficeOrders';
 import { OfficeOrderDetail } from './screens/OfficeOrderDetail';
+import { OfficeChat } from './screens/OfficeChat';
+import { Schedules } from './screens/Schedules';
 import { clearToken } from './api/client';
 
-type View = 'runs' | 'office' | 'organization' | 'agents';
+type View = 'chat' | 'runs' | 'office' | 'schedules' | 'organization' | 'agents';
 
 const NAV: { id: View; label: string }[] = [
+  { id: 'chat', label: 'ASISTENTE' },
   { id: 'runs', label: 'EXPEDIENTES' },
   { id: 'office', label: 'OFICINA' },
+  { id: 'schedules', label: 'TAREAS PROGRAMADAS' },
   { id: 'organization', label: 'ORGANIGRAMA' },
   { id: 'agents', label: 'AGENTES' },
 ];
 
 export function App() {
-  const [view, setView] = useState<View>('runs');
+  const [view, setView] = useState<View>('chat');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
 
-  const section = view === 'runs' ? (selectedId ? `EXPEDIENTES / ${selectedId.slice(0, 8)}` : 'EXPEDIENTES')
+  const section = view === 'chat' ? 'ASISTENTE'
+    : view === 'runs' ? (selectedId ? `EXPEDIENTES / ${selectedId.slice(0, 8)}` : 'EXPEDIENTES')
     : view === 'office' ? (selectedOfficeId ? `OFICINA / ${selectedOfficeId.slice(0, 8)}` : 'OFICINA')
+    : view === 'schedules' ? 'TAREAS PROGRAMADAS'
     : view === 'organization' ? 'ORGANIGRAMA' : 'AGENTES';
 
   return (
@@ -58,12 +64,18 @@ export function App() {
             <span className="badge badge--ok">SESIÓN: ACTIVA</span>
           </header>
           <main className="shell__content">
+            {view === 'chat' && (
+              <OfficeChat onOpenTechnical={(id) => { setSelectedOfficeId(id); setView('office'); }} />
+            )}
             {view === 'organization' && <OrgChart />}
             {view === 'agents' && <AgentsMenu />}
             {view === 'office' && (
               selectedOfficeId
                 ? <OfficeOrderDetail id={selectedOfficeId} onBack={() => setSelectedOfficeId(null)} />
                 : <OfficeOrders onSelect={setSelectedOfficeId} />
+            )}
+            {view === 'schedules' && (
+              <Schedules onOpenOrder={(id) => { setSelectedOfficeId(id); setView('office'); }} />
             )}
             {view === 'runs' && (
               selectedId

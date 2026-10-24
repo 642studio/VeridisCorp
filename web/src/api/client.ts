@@ -1,6 +1,6 @@
 import type {
-  AgentDetail, OfficeOrderDetail, OfficeOrdersListResponse, OrganizationResponse,
-  RunDetailResponse, RunsListResponse, RunStatus,
+  AgentDetail, FireScheduleResponse, OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
+  OfficeSchedulesListResponse, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus,
 } from './types';
 
 const TOKEN_KEY = 'veridis_runtime_token';
@@ -94,5 +94,23 @@ export const api = {
   },
   answerOfficeOrder(id: string, answer: string) {
     return request<OfficeOrderDetail>(`/office/orders/${id}/answer`, { method: 'POST', body: JSON.stringify({ answer }) });
+  },
+  listSchedules() {
+    return request<OfficeSchedulesListResponse>('/office/schedules');
+  },
+  getSchedule(id: string) {
+    return request<OfficeSchedule>(`/office/schedules/${id}`);
+  },
+  createSchedule(input: { name: string; objective: string; cronExpression: string; timezone: string }) {
+    return request<OfficeSchedule>('/office/schedules', { method: 'POST', body: JSON.stringify(input) });
+  },
+  updateSchedule(id: string, input: Partial<{ name: string; objective: string; cronExpression: string; timezone: string; enabled: boolean }>) {
+    return request<OfficeSchedule>(`/office/schedules/${id}/update`, { method: 'POST', body: JSON.stringify(input) });
+  },
+  deleteSchedule(id: string) {
+    return request<{ id: string }>(`/office/schedules/${id}/delete`, { method: 'POST', body: '{}' });
+  },
+  fireSchedule(id: string) {
+    return request<FireScheduleResponse>(`/office/schedules/${id}/fire`, { method: 'POST', body: '{}' });
   },
 };

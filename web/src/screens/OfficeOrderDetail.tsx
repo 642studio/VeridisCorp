@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useOfficeOrder, useAdvanceOfficeOrder, useAnswerOfficeOrder } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { SessionExpired } from '../components/SessionExpired';
+import { InvolvedAgents } from '../components/InvolvedAgents';
 import { useElapsedSeconds } from '../useElapsedSeconds';
 import { ORDER_STATUS, TASK_STATUS } from '../officeStatus';
 import type { OfficeAssessment, OfficeEvidence } from '../api/types';
@@ -78,7 +79,6 @@ export function OfficeOrderDetail({ id, onBack }: { id: string; onBack: () => vo
   if (!query.data) return null;
 
   const { order, turns, rejectedDecisions, interrupted, pendingQuestion, modelCalls, limits } = query.data;
-  const distinctAgents = [...new Set(modelCalls.map((c) => c.agentId))].sort();
   const canAdvance = order.status === 'active' && !interrupted;
   const orderStatus = ORDER_STATUS[order.status];
 
@@ -108,13 +108,7 @@ export function OfficeOrderDetail({ id, onBack }: { id: string; onBack: () => vo
         </div>
       )}
 
-      <div className="office-agents-involved">
-        <p className="panel-title">AGENTES REALES INVOLUCRADOS</p>
-        {distinctAgents.length === 0 && <p className="muted">Todavía ninguno.</p>}
-        <div className="tag-row">
-          {distinctAgents.map((agentId) => <span key={agentId} className="tag tag--real">{agentId}</span>)}
-        </div>
-      </div>
+      <InvolvedAgents modelCalls={modelCalls} />
 
       {interrupted && pendingQuestion && (
         <div className="approval-panel approval-panel--decided">

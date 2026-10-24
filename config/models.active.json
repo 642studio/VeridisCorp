@@ -13,6 +13,17 @@
       "structuredOutputMethod": "jsonMode",
       "thinkingMode": "disabled"
     },
+    "deepseek-code": {
+      "provider": "openai",
+      "baseURL": "https://api.deepseek.com",
+      "modelEnv": "DEEPSEEK_MODEL",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "maxOutputTokens": 4000,
+      "timeoutMs": 60000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonMode",
+      "thinkingMode": "disabled"
+    },
     "analysis": {
       "provider": "openai",
       "baseURL": "https://api.deepseek.com",
@@ -44,7 +55,15 @@
       "structuredOutputMethod": "functionCalling",
       "reasoningEffort": "medium"
     },
-    "local-code": {
+    "gemini-flash": {
+      "provider": "google",
+      "modelEnv": "GEMINI_MODEL",
+      "apiKeyEnv": "GEMINI_API_KEY",
+      "maxOutputTokens": 4000,
+      "timeoutMs": 60000,
+      "maxRetries": 0
+    },
+    "uncensored": {
       "provider": "openai",
       "baseURL": "http://127.0.0.1:11434/v1",
       "modelEnv": "OLLAMA_MODEL",
@@ -73,13 +92,13 @@
       "coordinate": "complex"
     },
     "cto": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "cfo": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "cmo": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "coo": {
       "coordinate": "review"
@@ -97,16 +116,16 @@
       "coordinate": "analysis"
     },
     "quality-lead": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "ciso": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "software-lead": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "infrastructure-lead": {
-      "coordinate": "complex"
+      "coordinate": "analysis"
     },
     "data-lead": {
       "coordinate": "analysis"
@@ -117,20 +136,8 @@
     "review": {
       "review": "review"
     },
-    "development": {
-      "execute": "local-code"
-    },
-    "backend": {
-      "execute": "local-code"
-    },
-    "frontend": {
-      "execute": "local-code"
-    },
-    "security-appsec": {
-      "execute": "complex"
-    },
     "security-review": {
-      "review": "complex"
+      "review": "uncensored"
     },
     "finance-review": {
       "review": "complex"
@@ -149,22 +156,22 @@
     {
       "stage": "execute",
       "capability": "software.design",
-      "profile": "complex"
+      "profile": "analysis"
     },
     {
       "stage": "execute",
       "capability": "software.implement",
-      "profile": "local-code"
+      "profile": "deepseek-code"
     },
     {
       "stage": "execute",
       "capability": "software.backend",
-      "profile": "local-code"
+      "profile": "deepseek-code"
     },
     {
       "stage": "execute",
       "capability": "software.frontend",
-      "profile": "local-code"
+      "profile": "deepseek-code"
     },
     {
       "stage": "execute",
@@ -194,17 +201,32 @@
     {
       "stage": "execute",
       "capability": "security.audit",
-      "profile": "complex"
+      "profile": "uncensored"
     },
     {
       "stage": "execute",
       "capability": "security.appsec",
-      "profile": "complex"
+      "profile": "uncensored"
     },
     {
       "stage": "execute",
       "capability": "security.incident",
-      "profile": "complex"
+      "profile": "uncensored"
+    },
+    {
+      "stage": "execute",
+      "capability": "security.defense",
+      "profile": "uncensored"
+    },
+    {
+      "stage": "execute",
+      "capability": "security.governance",
+      "profile": "uncensored"
+    },
+    {
+      "stage": "execute",
+      "capability": "security.access",
+      "profile": "uncensored"
     },
     {
       "stage": "review",
@@ -219,28 +241,32 @@
     {
       "stage": "review",
       "capability": "security.audit",
-      "profile": "complex"
+      "profile": "uncensored"
     },
     {
       "stage": "review",
       "capability": "security.appsec",
-      "profile": "complex"
+      "profile": "uncensored"
     },
     {
       "stage": "review",
       "capability": "security.incident",
-      "profile": "complex"
+      "profile": "uncensored"
+    },
+    {
+      "stage": "review",
+      "capability": "security.defense",
+      "profile": "uncensored"
+    },
+    {
+      "stage": "review",
+      "capability": "security.governance",
+      "profile": "uncensored"
     },
     {
       "stage": "review",
       "capability": "software.design",
-      "profile": "complex"
-    },
-    {
-      "stage": "execute",
-      "agentId": "development",
-      "capability": "software.document",
-      "profile": "routine"
+      "profile": "analysis"
     }
   ]
 }

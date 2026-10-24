@@ -1,6 +1,6 @@
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { OfficeOrderDetail, RunDetailResponse, RunStatus } from './types';
+import type { OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
 
 export function useRunsList(status?: RunStatus[]) {
   return useInfiniteQuery({
@@ -89,3 +89,22 @@ function useOfficeOrderAction<A extends unknown[]>(fn: (id: string, ...args: A) 
 
 export const useAdvanceOfficeOrder = () => useOfficeOrderAction((id: string) => api.advanceOfficeOrder(id));
 export const useAnswerOfficeOrder = () => useOfficeOrderAction((id: string, answer: string) => api.answerOfficeOrder(id, answer));
+
+export function useSchedules() {
+  return useQuery({ queryKey: ['schedules'], queryFn: () => api.listSchedules(), refetchInterval: 15000 });
+}
+
+function useScheduleMutation<A extends unknown[], R>(fn: (...args: A) => Promise<R>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (args: A) => fn(...args),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['schedules'] }); },
+  });
+}
+
+export const useCreateSchedule = () =>
+  useScheduleMutation((input: { name: string; objective: string; cronExpression: string; timezone: string }) => api.createSchedule(input));
+export const useUpdateSchedule = () =>
+  useScheduleMutation((id: string, input: Partial<Pick<OfficeSchedule, 'name' | 'objective' | 'cronExpression' | 'timezone' | 'enabled'>>) => api.updateSchedule(id, input));
+export const useDeleteSchedule = () => useScheduleMutation((id: string) => api.deleteSchedule(id));
+export const useFireSchedule = () => useScheduleMutation((id: string) => api.fireSchedule(id));

@@ -210,3 +210,51 @@ pre { font-family: inherit; }
 .agent-panel__knowledge { list-style: none; padding: 0; font-size: 12px; }
 .agent-panel__knowledge li { padding: 4px 0; border-bottom: 1px solid var(--border); }
 .agent-panel__footer { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 10px; }
+
+/* ---- chat (ASISTENTE) ---- */
+.chat-layout { display: flex; height: 100%; border: 1px solid var(--border); background: var(--bg); }
+.chat-sidebar { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px; overflow-y: auto; }
+.chat-sidebar__new { width: 100%; margin-bottom: 10px; }
+.chat-sidebar__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.chat-sidebar__item { padding: 8px; cursor: pointer; border: 1px solid transparent; display: flex; flex-direction: column; gap: 4px; }
+.chat-sidebar__item:hover { background: var(--panel-raised); border-color: var(--border-bright); }
+.chat-sidebar__item--active { background: var(--panel-raised); border-color: var(--accent); }
+.chat-sidebar__brief { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.chat-thread { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.chat-empty { text-align: center; margin-top: 60px; }
+.chat-bubble { max-width: 72%; padding: 10px 14px; border: 1px solid var(--border); }
+.chat-bubble--user { align-self: flex-end; background: var(--panel-raised); border-color: var(--accent-dim); }
+.chat-bubble--assistant { align-self: flex-start; background: var(--panel); border-color: var(--border-bright); }
+.chat-bubble--thinking { color: var(--accent); border-color: var(--accent-dim); }
+.chat-bubble__text { white-space: pre-wrap; margin: 0; font-size: 13px; line-height: 1.5; }
+
+.chat-process { margin: 0 20px 10px; border: 1px solid var(--border); padding: 8px 12px; }
+.chat-process summary { cursor: pointer; color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.chat-process .office-agents-involved { margin-top: 10px; }
+.chat-closed-note { padding: 0 20px; }
+
+.chat-input { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.chat-input textarea { flex: 1; background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px; resize: none; }
+
+/* ---- tareas programadas ---- */
+.schedules__header { display: flex; justify-content: space-between; align-items: center; }
+.schedules__rows { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.schedules__row { border: 1px solid var(--border); background: var(--panel); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.schedules__row-main { display: flex; flex-direction: column; gap: 2px; }
+.schedules__name { font-weight: 700; color: var(--text); }
+.schedules__row-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.schedules__row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.schedule-form { border: 1px solid var(--border-bright); background: var(--panel); padding: 16px; margin: 16px 0; display: flex; flex-direction: column; gap: 12px; }
+.schedule-form__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.schedule-form__field input, .schedule-form__field select, .schedule-form__field textarea {
+  background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px;
+}
+.schedule-form__row { display: flex; gap: 20px; flex-wrap: wrap; }
+.schedule-form__time { display: flex; align-items: center; gap: 6px; }
+.schedule-form__time input { width: 60px; }
+.schedule-form__weekdays { display: flex; gap: 6px; flex-wrap: wrap; }
+.schedule-form__cron { font-size: 11px; }
+.schedule-form__actions { display: flex; gap: 8px; justify-content: flex-end; }

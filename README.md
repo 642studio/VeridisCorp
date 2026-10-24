@@ -12,6 +12,8 @@ Las pruebas usan proveedores de contenido deterministas y un receptor local. No 
 
 La ruta usa un plan determinista de contenido y revisión, no un orquestador general autónomo. Los [contratos de gobierno](docs/governance-foundation.md) incluyen además relaciones multiempresa, memoria, decisiones, tareas humanas, eventos y credenciales; su disponibilidad no significa que todas esas funciones estén conectadas al piloto.
 
+Con `VERIDIS_OFFICE_ENABLED=true`, `office/` deja de ser solo simulación: el CEO real coordina expedientes bajo el mismo módulo de gobierno (`/office/orders`), con una pantalla de chat (ASISTENTE) sobre esa misma ruta. Con `VERIDIS_SCHEDULER_ENABLED=true` además, tareas programadas (`/office/schedules`) disparan esos expedientes solas en cron real, con candado contra solapamiento, límite de tasa y apagado automático tras fallos repetidos — detalle completo en [runtime-pilot.md](docs/runtime-pilot.md#oficina-real-expedientes-chat-y-tareas-programadas).
+
 ## Inicio y pruebas
 
 Requisitos: Node.js 22 o superior; PostgreSQL 16 para las pruebas persistentes.

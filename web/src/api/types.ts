@@ -277,6 +277,11 @@ export interface OfficeWorkflowLimits {
   maxQuestions: number;
 }
 
+export interface OfficeExchange {
+  question: string;
+  answer: string;
+}
+
 export interface OfficeOrderDetail {
   id: string;
   order: OfficeWorkOrder;
@@ -284,7 +289,36 @@ export interface OfficeOrderDetail {
   rejectedDecisions: number;
   lastError: string | null;
   modelCalls: OfficeModelCall[];
+  exchanges: OfficeExchange[];
   interrupted: boolean;
   pendingQuestion: string | null;
   limits: OfficeWorkflowLimits;
+}
+
+// Tipos que reflejan src/runtime/office-runtime.ts (shapeSchedule) y src/runtime/scheduler.ts.
+
+export interface OfficeSchedule {
+  id: string;
+  name: string;
+  objective: string;
+  cronExpression: string;
+  timezone: string;
+  enabled: boolean;
+  running: boolean;
+  consecutiveFailures: number;
+  lastRunAt: string | null;
+  lastFiredOrderId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  nextRunAt: string | null;
+}
+
+export interface OfficeSchedulesListResponse {
+  schedules: OfficeSchedule[];
+}
+
+export type FireScheduleResult = 'fired' | 'skipped-overlap' | 'skipped-rate-limit' | 'skipped-disabled' | 'failed';
+
+export interface FireScheduleResponse extends OfficeSchedule {
+  result: FireScheduleResult;
 }
