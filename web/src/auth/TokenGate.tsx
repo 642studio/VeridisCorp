@@ -8,12 +8,7 @@ export function TokenGate({ children }: { children: ReactNode }) {
   if (!token) {
     return (
       <div className="token-gate">
-        <pre className="token-gate__ascii">{String.raw`
- __      __       _     _ _      _____
- \ \    / /__ _ _(_)__| (_)___ / ___|___ _ _ _ __
-  \ \/\/ / -_) '_| / _\` | (_-<| |__ / _ \ '_| '_ \\
-   \_/\_/\___|_| |_\__,_|_/__/ \___\___/_| | .__/
-                                            |_|`}</pre>
+        <div className="token-gate__brand">VERIDIS<span className="token-gate__brand-accent">CORP</span></div>
         <h1>RUNTIME_ACCESS // 642 STUDIO</h1>
         <p>
           Pega el token de sesión que generaste con <code>runtime:provision</code>. Se guarda solo en esta pestaña

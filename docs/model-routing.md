@@ -1,6 +1,6 @@
 # Selección de modelos en la oficina Veridis
 
-Fecha: 2026-10-22. Estado: implementada y verificada con invocaciones simuladas; llamadas reales a proveedores pendientes.
+Fecha original: 2026-10-22. Actualizado: 2026-10-24. Estado: implementada, con llamadas reales a proveedores (OpenAI, Anthropic, DeepSeek, Gemini) verificadas en vivo desde que `office/` corre con `VERIDIS_OFFICE_ENABLED=true` — ya no es solo simulación, ver [office-architecture.md](office-architecture.md).
 
 ## Identidad, tarea y modelo
 

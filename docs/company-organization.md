@@ -1,6 +1,6 @@
 # Veridis como oficina empresarial
 
-Fecha: 2026-10-22. Fase: Arranque. Estado: organigrama, reglas de delegación y planificación departamental implementados; especialistas operando con propuestas y simulaciones.
+Fecha original: 2026-10-22. Actualizado: 2026-10-24. Fase: Arranque. Estado: organigrama, reglas de delegación y planificación departamental implementados. La mayoría de los 56 especialistas sigue operando solo con propuestas (sin ninguna herramienta en `allowedTools`); 20 ya tienen alguna herramienta real — ver [office-architecture.md](office-architecture.md) para cuáles producen un efecto verdadero y cuáles solo proponen.
 
 ## Estructura inicial
 

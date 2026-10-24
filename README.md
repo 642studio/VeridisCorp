@@ -2,7 +2,7 @@
 
 VeridisCorp es el ecosistema empresarial de agentes de Grupo 642, construido sobre el motor Veridis con LangGraph y TypeScript.
 
-Fecha: 2026-10-22. Fase: **Arranque**. La carpeta de trabajo es `VeridisCorp/`, dentro del proyecto local CODE. Las referencias sincronizadas de `../sources/` son de solo lectura.
+Fecha: 2026-10-24. Fase: **Arranque**. La carpeta de trabajo es `VeridisCorp/`, dentro del proyecto local CODE. Las referencias sincronizadas de `../sources/` son de solo lectura.
 
 ## Estado actual
 
@@ -42,7 +42,7 @@ Editar el ejemplo de sesión antes de aprovisionar. No se crean usuarios ni perm
 
 El [inventario provisional](agents/INVENTORY.md) conserva **56 perfiles**, nueve áreas principales y cuatro subdepartamentos tecnológicos. Cada perfil vive en `agents/<id>/`, con `config.json`, `instructions.md`, `context.md` y referencias explícitas en `knowledge/`. Consulta la [guía de edición](agents/README.md) y el [organigrama](docs/company-organization.md).
 
-La [política de modelos](docs/model-routing.md) permite selección por agente, capacidad y etapa con OpenAI, Anthropic, Google y endpoints compatibles. `config/models.example.json` contiene la plantilla; los modelos y secretos se configuran en el entorno. El piloto utiliza `content` y `review` y desactiva reintentos automáticos del adaptador para registrar cada intento desde el servicio.
+La [política de modelos](docs/model-routing.md) permite selección por agente, capacidad y etapa con OpenAI, Anthropic, Google y endpoints compatibles. `config/models.example.json` contiene la plantilla; los modelos y secretos se configuran en el entorno. El piloto de contenido (`runtime/`) usa `content` y `review`; `office/` real, con `VERIDIS_OFFICE_ENABLED=true`, ya ejecuta a cualquiera de los 56 perfiles, con 20 de ellos usando alguna de las doce herramientas reales descritas en [office-architecture.md](docs/office-architecture.md). Desactiva reintentos automáticos del adaptador para registrar cada intento desde el servicio.
 
 ## Simulaciones y compatibilidad
 
@@ -61,13 +61,13 @@ Las simulaciones anteriores se conservan sin red. Sus reglas organizacionales no
 
 - `src/runtime/`: API, sesiones, repositorios PostgreSQL, flujo gobernado, catálogo de capacidades del piloto y conector de entrega.
 - `src/governance/`: contratos y reglas deterministas de permisos, aprobaciones, trabajo humano y recuperación.
-- `src/office/`: motor de oficina, registro de perfiles, organigrama, selección de modelos y simulaciones.
+- `src/office/`: motor de oficina (protocolo coordinar/despachar/revisar/delegar), registro de perfiles, organigrama, selección de modelos, herramientas reales (`tools.ts`) y simulaciones.
 - `src/graph.ts`: flujo secuencial inicial conservado para compatibilidad.
 - `agents/`: puestos editables; no concede permisos de ejecución por sí mismo.
 - `test/runtime-postgres.test.ts`: ruta integrada, autorización, límites, concurrencia y recuperación de proceso.
 
 ## Próximas entregas
 
-Mantener una ruta integrada antes de ampliar agentes: conectar un proveedor de negocio autorizado, persistir tareas humanas y disponibilidad, añadir memoria filtrada y evolucionar a eventos y workers cuando lo requiera el volumen. Siguen pendientes login/SSO, seguridad y operación de producción, roles PostgreSQL separados, bóveda de secretos, cola/outbox general, compensaciones y evaluación empresarial de resultados. Evaluación de viabilidad (pendiente de ejecutar) de dejarlo siempre encendido en el servidor de oficina: [runtime-pilot.md](docs/runtime-pilot.md#despliegue-continuo-en-el-servidor-de-oficina-pendiente). Prioridad de herramientas nuevas para v1 (PDF, notificación proactiva, ClickUp con escritura, correo, comandos reales en el VPS con aprobación humana): [assistant-v1-roadmap.md](docs/assistant-v1-roadmap.md).
+Mantener una ruta integrada antes de ampliar agentes: persistir tareas humanas y disponibilidad, añadir memoria filtrada y evolucionar a eventos y workers cuando lo requiera el volumen. Siguen pendientes login/SSO, seguridad y operación de producción, roles PostgreSQL separados, bóveda de secretos, cola/outbox general, compensaciones y evaluación empresarial de resultados. Evaluación de viabilidad (pendiente de ejecutar) de dejarlo siempre encendido en el servidor de oficina: [runtime-pilot.md](docs/runtime-pilot.md#despliegue-continuo-en-el-servidor-de-oficina-pendiente). De la hoja de ruta v1 ([assistant-v1-roadmap.md](docs/assistant-v1-roadmap.md)), PDF, correo, Drive, Calendar, Sheets, Meet y Slides ya están implementados; quedan notificación proactiva, ClickUp con escritura, y comandos reales en el VPS con aprobación humana.
 
-La arquitectura previa está en [office-architecture.md](docs/office-architecture.md). Su alcance de simulación debe distinguirse de la ruta gobernada nueva, documentada en [runtime-pilot.md](docs/runtime-pilot.md).
+[office-architecture.md](docs/office-architecture.md) explica el protocolo del motor (quién decide, cómo pasa el turno entre agentes, qué puede hacer cada herramienta) — con IA y Postgres reales, no solo en simulación. [runtime-pilot.md](docs/runtime-pilot.md) documenta el contrato HTTP, la autenticación y el despliegue.

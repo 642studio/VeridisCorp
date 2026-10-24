@@ -1,8 +1,8 @@
 # Núcleo de gobierno y evolución de VeridisCorp
 
-Fecha: 2026-10-22. Fase: Arranque.
+Fecha original: 2026-10-22. Actualizado: 2026-10-24. Fase: Arranque.
 
-Este diseño incorpora el checklist estructural y los ocho ajustes de arquitectura multiempresa. La primera entrega añade contratos y funciones deterministas en `src/governance/`, verificadas localmente. Son un módulo independiente: todavía no median las decisiones del workflow `office.v1`, no crean tablas, no conceden permisos reales y no ejecutan herramientas. Los 56 perfiles y checkpoints existentes conservan su formato.
+Este diseño incorpora el checklist estructural y los ocho ajustes de arquitectura multiempresa. La primera entrega añadió contratos y funciones deterministas en `src/governance/`, verificadas localmente como módulo independiente. **Esa independencia ya no describe el estado actual**: `src/runtime/office-runtime.ts` usa `authorize()` de este módulo para decidir con permisos reales si una sesión puede crear, leer o escribir sobre un expediente, una tarea programada o un archivo — ver `permit()` en ese archivo y [runtime-pilot.md](runtime-pilot.md). Los 56 perfiles y checkpoints existentes conservan su formato.
 
 ## Integración posterior del piloto
 
