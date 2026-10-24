@@ -79,6 +79,18 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.scheduled_tasks (
 );
 CREATE INDEX IF NOT EXISTS runtime_scheduled_tasks_scope ON veridis_runtime_v1.scheduled_tasks(scope_key, created_at DESC);
 CREATE INDEX IF NOT EXISTS runtime_scheduled_tasks_enabled ON veridis_runtime_v1.scheduled_tasks(enabled) WHERE enabled;
+-- Archivos reales que produce una tarea de office/ (hoy solo pdf.generate). Los bytes viven en
+-- Postgres (bytea), igual que artifacts.content hoy vive como texto — una sola fuente de verdad,
+-- sin directorio aparte que aprovisionar ni respaldar. input_hash hace la herramienta idempotente
+-- por (order_id, input): review() puede volver a pedir el mismo render sin duplicar el archivo.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_files (
+ id uuid PRIMARY KEY, order_id uuid NOT NULL REFERENCES veridis_runtime_v1.office_orders(id),
+ filename text NOT NULL, content_type text NOT NULL, content bytea NOT NULL,
+ input_hash text NOT NULL, size_bytes integer NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS runtime_office_files_order ON veridis_runtime_v1.office_files(order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS runtime_office_files_dedupe ON veridis_runtime_v1.office_files(order_id, input_hash);
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

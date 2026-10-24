@@ -1,11 +1,48 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toolsFor, webSearchTool, evaluateExpression } from '../src/office/tools.js';
+import { execSync } from 'node:child_process';
+import { toolsFor, webSearchTool, pdfGenerateTool, evaluateExpression } from '../src/office/tools.js';
 
 test('toolsFor solo expone herramientas presentes en allowedTools', () => {
   assert.deepEqual(toolsFor([]), []);
   assert.deepEqual(toolsFor(['algo.inexistente']), []);
   assert.deepEqual(toolsFor(['web.search']), [webSearchTool]);
+  assert.deepEqual(toolsFor(['pdf.generate']), [pdfGenerateTool]);
+});
+
+// Igual que code.sandbox, esta prueba depende de Docker real (la misma imagen que
+// docker/pdf-renderer/Dockerfile construye) — se salta sola si Docker no está disponible en vez
+// de exigir una variable de entorno nueva, consistente con cómo este proyecto ya trata "Docker
+// no disponible" como un modo de fallo esperado, nunca un requisito duro de CI.
+function dockerAvailable(): boolean {
+  try { execSync('docker info', { stdio: 'ignore', timeout: 5000 }); return true; }
+  catch { return false; }
+}
+const hasDocker = dockerAvailable();
+
+test('pdfGenerateTool produce un PDF real con tipografía y maquetación, a partir de bloques tipados', { skip: !hasDocker, timeout: 30000 }, async () => {
+  const raw = await pdfGenerateTool.invoke({
+    title: 'Reporte de prueba', subtitle: 'Suite automatizada', accentColor: 'teal',
+    blocks: [
+      { type: 'heading', level: '1', text: 'Sección' },
+      { type: 'paragraph', text: 'Párrafo de prueba.' },
+      { type: 'bullet_list', items: ['Uno', 'Dos'] },
+      { type: 'callout', tone: 'info', text: 'Aviso de prueba.' },
+      { type: 'table', headers: ['A', 'B'], rows: [['1', '2']] },
+      { type: 'quote', text: 'Una cita.', attribution: 'Autor' },
+      { type: 'divider' },
+    ],
+  } as never);
+  const parsed = JSON.parse(raw as string) as { filename: string; contentType: string; pages: number; base64: string };
+  assert.equal(parsed.filename, 'reporte-de-prueba.pdf');
+  assert.equal(parsed.contentType, 'application/pdf');
+  assert.equal(parsed.pages, 1);
+  const bytes = Buffer.from(parsed.base64, 'base64');
+  assert.equal(bytes.subarray(0, 5).toString('latin1'), '%PDF-');
+});
+
+test('pdfGenerateTool rechaza una entrada sin bloques (el modelo no puede entregar un documento vacío)', { skip: !hasDocker }, async () => {
+  await assert.rejects(pdfGenerateTool.invoke({ title: 'Vacío', blocks: [] } as never));
 });
 
 test('evaluateExpression calcula con la precedencia aritmética estándar', () => {

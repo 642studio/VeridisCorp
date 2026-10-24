@@ -6,7 +6,8 @@
     "data.analyze"
   ],
   "allowedTools": [
-    "calculator"
+    "calculator",
+    "pdf.generate"
   ],
   "organization": {
     "title": "Analítica de negocio",

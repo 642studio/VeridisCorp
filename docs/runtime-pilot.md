@@ -62,11 +62,12 @@ Requisitos: Node.js 22+, PostgreSQL 16 y una base dedicada. Mantener usuario de 
 ```bash
 npm ci
 npm run runtime:db
+docker build -t veridis-pdf-renderer:latest docker/pdf-renderer
 npm run runtime:provision -- config/runtime-session.example.json /ruta/privada/token.txt
 npm run runtime:serve
 ```
 
-Editar ámbito, identidad, permisos y vencimiento del ejemplo antes de aprovisionar. `runtime:provision` escribe el token en un archivo nuevo de modo 0600 y no lo imprime. `.env` y tokens no se guardan en repositorios. Usar un cliente HTTP con encabezado Authorization Bearer; evitar poner el secreto en comandos registrados en el historial.
+El `docker build` solo hace falta si algún agente tiene `pdf.generate` en su `allowedTools` (ver [assistant-v1-roadmap.md](assistant-v1-roadmap.md)); sin la imagen construida, esa herramienta falla igual que cualquier otra sin configurar — nunca tumba `execute()`. Editar ámbito, identidad, permisos y vencimiento del ejemplo antes de aprovisionar. `runtime:provision` escribe el token en un archivo nuevo de modo 0600 y no lo imprime. `.env` y tokens no se guardan en repositorios. Usar un cliente HTTP con encabezado Authorization Bearer; evitar poner el secreto en comandos registrados en el historial.
 
 El servidor escucha solamente en 127.0.0.1. No se despliega ni abre puertos automáticamente. Antes de publicarlo faltan TLS, autenticación de usuarios de producción, control de tasa, políticas operativas de secretos y de retención de datos, además de verificación con conectores reales. Los errores HTTP omiten cuerpos y credenciales; los rechazos de una sesión verificable se registran en auditoría.
 
@@ -104,6 +105,10 @@ Fecha: 2026-10-23. `office/` deja de ser solo simulación cuando el servidor arr
 
 Autorización: `draft.create` para crear o avanzar/responder, `data.read` para listar o consultar — siempre sobre `workflow/office-pilot`, igual patrón que `content-pilot`. La vista técnica completa vive en la pantalla OFICINA; la pantalla ASISTENTE (chat con animación de espera y efecto de máquina de escribir) se construye por completo sobre estas mismas rutas — no hay streaming real del backend ni un endpoint propio de chat, solo una sola petición HTTP que bloquea hasta terminar, con el hilo de conversación reconstruido en el navegador a partir de `objective` + `exchanges` + el estado final del expediente.
 
+### Archivos generados (`pdf.generate`)
+
+`GET /office/files/{id}` — primera ruta binaria del servidor (todo lo demás responde JSON). Sirve los bytes reales de un documento que un agente generó durante `execute()` (hoy solo PDF, vía la herramienta `pdf.generate`, ver [docs/assistant-v1-roadmap.md](assistant-v1-roadmap.md)), con `content-type` real y `content-disposition: attachment`. Autorización `data.read` sobre `workflow/office-pilot`, existencia-en-scope antes que permiso (404 para otro cliente, nunca 403) — el archivo se resuelve por `order_id` contra `office_orders.scope_key`, el mismo patrón que el resto de recursos hijos de un expediente.
+
 ### Tareas programadas
 
 Cron real (vía `croner`) que dispara expedientes de oficina sin intervención humana, solo tiene efecto si `office/` ya está habilitado. Interruptor propio: `VERIDIS_SCHEDULER_ENABLED=true`, con `VERIDIS_SCHEDULER_MAX_PER_HOUR` (por defecto 10) como límite de tasa por `scope_key`. Un disparo automático se autoriza como el principal de servicio `scheduler` (`{kind:'service', id:'scheduler'}`), aprovisionado igual que `content-orchestrator`/`delivery-executor`: una entrada más en `permissions` al aprovisionar la sesión (ver `config/runtime-session.example.json`), sin mecanismo nuevo.
@@ -138,8 +143,23 @@ npm run test:postgres
 
 `test:postgres` crea un clúster temporal aislado en loopback, ejecuta toda la suite con PostgreSQL real y elimina ese clúster al terminar. No usa `DATABASE_URL` ni cambia instancias existentes. En Linux, configurar `VERIDIS_POSTGRES_BIN` con la carpeta de binarios; en Mac se usa `/opt/homebrew/opt/postgresql@16/bin`. Requiere ejecutar como usuario no root. También puede ejecutarse `npm test` con `VERIDIS_TEST_DATABASE_URL` apuntando a una base exclusiva de pruebas; sin esa variable se omiten las pruebas PostgreSQL.
 
-Casos cubiertos: identidad inválida o revocada, acceso a otro cliente, identidad inyectada, flujo completo, doble ejecución concurrente, nueva versión después de aprobar, permisos del ejecutor revocados, límites antes de llamar, costo desconocido ante fallo, JSON Schema inválido, artefacto alterado, resultado incierto sin confirmación, reinicio real del proceso tras envío, listado con filtro por estado, paginación por cursor y aislamiento por ámbito, organigrama con sesión revocada o inventada, regeneración solo sobre una versión rechazada (nunca sobre una pendiente o ya aprobada), y aprobación sin motivo frente a rechazo sin motivo. `test/runtime-postgres.test.ts` también cubre `/office/orders` y `/office/schedules` completos (crear, listar, editar, disparo manual, 403 por falta de `data.write`, 404 por ámbito ajeno, pausar/reactivar); `test/scheduler-postgres.test.ts` cubre `fireOnce` aislado (candado, límite de tasa, apagado automático) contra PostgreSQL real.
+Casos cubiertos: identidad inválida o revocada, acceso a otro cliente, identidad inyectada, flujo completo, doble ejecución concurrente, nueva versión después de aprobar, permisos del ejecutor revocados, límites antes de llamar, costo desconocido ante fallo, JSON Schema inválido, artefacto alterado, resultado incierto sin confirmación, reinicio real del proceso tras envío, listado con filtro por estado, paginación por cursor y aislamiento por ámbito, organigrama con sesión revocada o inventada, regeneración solo sobre una versión rechazada (nunca sobre una pendiente o ya aprobada), y aprobación sin motivo frente a rechazo sin motivo. `test/runtime-postgres.test.ts` también cubre `/office/orders`, `/office/schedules` y `office_files` completos (crear, listar, editar, disparo manual, 403 por falta de `data.write`, 404 por ámbito ajeno, pausar/reactivar, deduplicación de `pdf.generate` por `(order_id, input)`, descarga binaria real); `test/scheduler-postgres.test.ts` cubre `fireOnce` aislado (candado, límite de tasa, apagado automático) contra PostgreSQL real; `test/office-tools.test.ts` genera un PDF real con Docker/WeasyPrint y confirma que el documento resultante es un `%PDF-` válido (se salta sola si Docker no está disponible).
 
 Si `pg_ctl` falla al iniciar el clúster temporal con `postmaster became multithreaded during startup`, es un problema de locale del shell (no del código): ejecutar con `LC_ALL=C LANG=C npm run test:postgres`.
 
 No se realizaron llamadas pagadas, publicaciones externas ni despliegues en el servidor de oficina. La próxima ampliación debe mantener estos controles al agregar un conector real y persistencia para tareas humanas.
+
+## Despliegue continuo en el servidor de oficina (pendiente)
+
+Fecha: 2026-10-23. Evaluación de viabilidad, todavía no implementada: montar `runtime:serve` (con `VERIDIS_OFFICE_ENABLED` y `VERIDIS_SCHEDULER_ENABLED` activos) como proceso siempre encendido en el Linux de oficina, para que las tareas programadas disparen de verdad sin depender de que alguien deje la laptop prendida.
+
+Es viable en principio: es un solo proceso Node + PostgreSQL, sin infraestructura pesada — el propio motor de disparo (`src/runtime/scheduler.ts`) ya está pensado para correr así, sin recuperación de lo perdido al reiniciar (ver sección anterior). Pero "siempre corriendo" expone de inmediato las brechas que esta misma guía ya señala como pendientes en **Preparación local** (TLS, autenticación de producción, control de tasa, roles de PostgreSQL separados): hoy el servidor solo escucha en `127.0.0.1` sin supervisor de proceso que lo reviva tras un cierre o un reinicio de la máquina, y `.env` guarda las credenciales en disco sin separación de roles.
+
+Recomendación, pendiente de ejecutar:
+
+- **Supervisor de proceso**: un unit de `systemd` para `npm run runtime:serve` (restart automático, logs a `journalctl`), en vez de dejarlo corriendo en una terminal o con `nohup`.
+- **Acceso restringido, no expuesto por el router**: mantenerlo en `127.0.0.1` y acceder solo por la Tailscale que ya usan entre el Mac y la oficina (IP `100.110.27.75`), en vez de sumarlo a los puertos 80/443/3000 ya reenviados en el router para otros servicios — el riesgo no es solo la API en sí, sino que el scheduler dispara IA real sola; menos superficie expuesta importa más que de costumbre.
+- **Rol de PostgreSQL separado**: el servicio solo necesita DML sobre sus tablas y la secuencia de auditoría, nunca DDL ni acceso a `sessions`/`grants` — esta separación de roles sigue sin configurarse en ninguna instalación, no solo en la de oficina.
+- **Visibilidad de costo**: con el scheduler corriendo 24/7, revisar `VERIDIS_SCHEDULER_MAX_PER_HOUR` y los límites de `Defaults` (`src/runtime/contracts.ts`) con la frecuencia real de las tareas configuradas, no con los valores conservadores pensados para pruebas interactivas.
+
+Nada de esto está hecho todavía; es una recomendación, no una descripción de la instalación actual.

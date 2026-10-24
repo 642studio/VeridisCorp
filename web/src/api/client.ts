@@ -113,4 +113,25 @@ export const api = {
   fireSchedule(id: string) {
     return request<FireScheduleResponse>(`/office/schedules/${id}/fire`, { method: 'POST', body: '{}' });
   },
+  // La sesión usa token Bearer, no cookie — no puede ser un <a href> plano (el navegador no
+  // mandaría la cabecera). Se pide el archivo con fetch autenticado y se dispara la descarga
+  // del navegador con un URL de objeto temporal.
+  async downloadOfficeFile(id: string, fallbackFilename: string): Promise<void> {
+    const token = getToken();
+    const response = await fetch(`${BASE}/office/files/${id}`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      throw new ApiError(response.status, body?.error ?? 'No se pudo descargar el archivo');
+    }
+    const disposition = response.headers.get('content-disposition') ?? '';
+    const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackFilename;
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = filename;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    URL.revokeObjectURL(url);
+  },
 };

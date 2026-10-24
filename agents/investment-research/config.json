@@ -6,7 +6,8 @@
     "finance.investment-research"
   ],
   "allowedTools": [
-    "calculator"
+    "calculator",
+    "pdf.generate"
   ],
   "organization": {
     "title": "Investigación de inversiones",

@@ -75,7 +75,7 @@ export function createOfficeWorkflow(
   const specialistContext = (state: typeof OfficeState.State, task: WorkTask, agentId: string): SpecialistContext => structuredClone({
     objective: state.order.objective, task, agent: registry.get(agentId),
     dependencies: state.order.tasks.filter((t) => task.dependsOn.includes(t.id)),
-    exchanges: state.exchanges,
+    exchanges: state.exchanges, orderId: state.order.id,
   });
 
   return new StateGraph(OfficeState)

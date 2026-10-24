@@ -37,7 +37,7 @@ async function main() {
   // llamadas reales (no tiene presupuesto en dólares propio, solo el tope de turnos).
   let office: OfficeRuntime | undefined;
   if (process.env.VERIDIS_OFFICE_ENABLED === 'true') {
-   office = new OfficeRuntime(pool, createOfficeIntelligence({ registry: officeRegistry }), {
+   office = new OfficeRuntime(pool, createOfficeIntelligence({ registry: officeRegistry, pool }), {
     maxTurns: z.coerce.number().int().positive().max(100).parse(process.env.VERIDIS_OFFICE_MAX_TURNS ?? '5'),
     maxRejectedDecisions: 3, maxQuestions: 2,
    });

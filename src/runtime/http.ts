@@ -53,6 +53,17 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     else if (req.method === 'POST' && action === 'advance') result = await office.advance(token, id);
     else if (req.method === 'POST' && action === 'answer') result = await office.answer(token, id, await body(req));
     else throw new RuntimeError(405, 'Método no disponible');
+   } else if (office && req.method === 'GET' && /^\/office\/files\/([0-9a-f-]{36})$/.test(path)) {
+    // Primera ruta binaria del servidor: todo lo demás termina en res.end(JSON.stringify(...))
+    // con content-type: application/json fijo (ver arriba); aquí lo sobreescribimos y salimos
+    // antes de llegar a ese camino genérico.
+    const fileId = /^\/office\/files\/([0-9a-f-]{36})$/.exec(path)![1]!;
+    const file = await office.getFile(token, fileId);
+    res.setHeader('content-type', file.contentType);
+    res.setHeader('content-disposition', `attachment; filename="${file.filename.replace(/[\\"]/g, '_')}"`);
+    res.writeHead(200);
+    res.end(file.content);
+    return;
    } else if (office && req.method === 'POST' && path === '/office/schedules') {
     result = await office.createSchedule(token, await body(req));
     scheduler?.register({ id: (result as { id: string }).id, cron_expression: (result as { cronExpression: string }).cronExpression, timezone: (result as { timezone: string }).timezone });

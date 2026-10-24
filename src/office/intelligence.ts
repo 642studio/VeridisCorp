@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { randomUUID, createHash } from 'node:crypto';
+import type { Pool } from 'pg';
 import { HumanMessage, SystemMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';
 import type { AgentDefinition } from './contracts.js';
 import type { AgentRegistry } from './registry.js';
@@ -6,6 +8,26 @@ import { CoordinatorDecision, WorkerReply, ReviewReply, DepartmentReply, type Of
 import { loadModelRouter, type ModelRouter, type ModelRequest, type ResolvedProfile } from './models.js';
 import { createStructuredInvoker, createProfileModel, type StructuredInvoker } from './model-providers.js';
 import { toolsFor, groundedWebSearch, braveSearch } from './tools.js';
+
+// pdf.generate (tool 'generate_pdf') produce un entregable con efecto secundario real (un
+// archivo guardado), a diferencia de toda otra herramienta de este archivo, que solo verifica o
+// consulta. gatherToolResults() la intercepta aquí mismo: guarda los bytes reales en
+// office_files y sustituye lo que ve el modelo por metadata segura — nunca bytes ni base64 hacia
+// su contexto. input_hash hace la operación idempotente por (order_id, input): una repetición
+// (reintento, redispatch) reusa la fila existente en vez de guardar un duplicado.
+export async function persistGeneratedPdf(pool: Pool, orderId: string, args: Record<string, unknown>, rawOutput: string): Promise<string> {
+  const parsed = JSON.parse(rawOutput) as { filename: string; contentType: string; pages: number; base64: string };
+  const content = Buffer.from(parsed.base64, 'base64');
+  const inputHash = createHash('sha256').update(JSON.stringify({ orderId, args })).digest('hex');
+  const result = await pool.query(
+    `INSERT INTO veridis_runtime_v1.office_files(id, order_id, filename, content_type, content, input_hash, size_bytes)
+     VALUES($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (order_id, input_hash) DO UPDATE SET filename = EXCLUDED.filename
+     RETURNING id`,
+    [randomUUID(), orderId, parsed.filename, parsed.contentType, content, inputHash, content.length],
+  );
+  return JSON.stringify({ fileId: result.rows[0].id as string, filename: parsed.filename, pages: parsed.pages });
+}
 
 // Herramientas reales, acotadas por allowedTools (agents/<id>/config.json): sin ninguna permitida
 // no se toca el modelo. Cualquier falla (sin credencial, cuota, red, proveedor sin tool-calling,
@@ -17,6 +39,7 @@ const MAX_TOOL_ROUNDS = 3;
 async function gatherToolResults(
   router: ModelRouter, profile: ResolvedProfile, env: NodeJS.ProcessEnv,
   agent: AgentDefinition, objective: string, taskTitle: string, extra?: string,
+  persist?: { pool: Pool; orderId: string },
 ): Promise<{ tool: string; query: string; output: string }[]> {
   const tools = toolsFor(agent.allowedTools);
   if (!tools.length) return [];
@@ -57,8 +80,14 @@ async function gatherToolResults(
       const tool = tools.find((t) => t.name === call.name);
       const args = (call.args ?? {}) as Record<string, unknown>;
       let output: string;
-      try { output = tool ? await tool.invoke(args as never) : 'Herramienta no disponible.'; }
-      catch (error) { output = 'La herramienta falló: ' + (error instanceof Error ? error.message : 'error desconocido'); }
+      try {
+        if (call.name === 'generate_pdf' && !persist) throw new Error('Esta sesión no puede guardar documentos generados');
+        if (!tool) output = 'Herramienta no disponible.';
+        else {
+          output = await tool.invoke(args as never);
+          if (call.name === 'generate_pdf' && persist) output = await persistGeneratedPdf(persist.pool, persist.orderId, args, output);
+        }
+      } catch (error) { output = 'La herramienta falló: ' + (error instanceof Error ? error.message : 'error desconocido'); }
       const query = typeof args.query === 'string' ? args.query : typeof args.expression === 'string' ? args.expression : '';
       calls.push({ tool: call.name, query, output });
       messages.push(new ToolMessage({ tool_call_id: call.id ?? call.name, content: output }));
@@ -88,7 +117,7 @@ function unwrapMisnestedCommand(raw: unknown): unknown {
 }
 
 export function createOfficeIntelligence(options: {
-  router?: ModelRouter; invoker?: StructuredInvoker; env?: NodeJS.ProcessEnv; registry?: AgentRegistry;
+  router?: ModelRouter; invoker?: StructuredInvoker; env?: NodeJS.ProcessEnv; registry?: AgentRegistry; pool?: Pool;
 } = {}): OfficeIntelligence {
   const env = options.env ?? process.env;
   const router = options.router ?? loadModelRouter(env);
@@ -133,7 +162,8 @@ Los pasos son limitados: usa pocas tareas concretas y evita trabajo redundante.`
     },
     async execute(context) {
       const selection = router.select({ stage: 'execute', agentId: context.agent.id, capability: context.task.capability });
-      const toolResults = await gatherToolResults(router, router.profile(selection.profileId), env, context.agent, context.objective, context.task.title)
+      const toolResults = await gatherToolResults(router, router.profile(selection.profileId), env, context.agent, context.objective, context.task.title,
+        undefined, options.pool ? { pool: options.pool, orderId: context.orderId } : undefined)
         .catch(() => []);
       const result = await invoke({ stage: 'execute', agentId: context.agent.id, capability: context.task.capability },
         workerSchema, 'office_worker', `Eres ${context.agent.name}.
@@ -145,10 +175,13 @@ el texto completo y verificable del entregable debe ir en el campo summary de es
 Un revisor independiente no puede confirmar un criterio sobre contenido que no esté presente de forma literal en la evidencia.
 Si la tarea requiere consultar herramientas ausentes, pide apoyo o información; no inventes su ejecución.
 El contexto puede incluir "toolResults": resultados reales de herramientas ya ejecutadas por el motor, no por ti
-(búsqueda web, calculadora, vulnerabilidades CVE, ejecución de código o ClickUp, según lo que tengas permitido).
-Cualquier cifra, cálculo, fuente, resultado de código o tarea de ClickUp que reportes debe venir literalmente de un
-elemento de "toolResults"; si está vacío o no trajo nada útil, no reportes haber usado ninguna herramienta.
-Si tienes permitido ejecutar código y el entregable es código, verifica que corre antes de entregarlo como resultado.`,
+(búsqueda web, calculadora, vulnerabilidades CVE, ejecución de código, generación de PDF o ClickUp, según lo que tengas permitido).
+Cualquier cifra, cálculo, fuente, resultado de código, documento generado o tarea de ClickUp que reportes debe venir
+literalmente de un elemento de "toolResults"; si está vacío o no trajo nada útil, no reportes haber usado ninguna herramienta.
+Si tienes permitido ejecutar código y el entregable es código, verifica que corre antes de entregarlo como resultado.
+Si tienes permitido generar PDF y el entregable es un documento para compartir, genéralo antes de reportarlo: la evidencia
+va con kind "artifact" y reference "office-file://" seguido del "fileId" exacto que "toolResults" devolvió (nunca uno
+inventado, nunca sin ese prefijo) — es lo único que permite descargar el archivo real después.`,
         { ...context, toolResults, now: new Date().toISOString() });
       return result.reply;
     },
@@ -161,8 +194,14 @@ Si tienes permitido ejecutar código y el entregable es código, verifica que co
       try {
         const assignedAgent = registry?.get(context.task.assignedAgentId);
         if (assignedAgent) {
+          // pdf.generate produce un archivo real con efecto secundario (se guarda en
+          // office_files) — a diferencia de calculator/web.search/code.sandbox, volver a
+          // "verificarla" aquí duplicaría el documento. El revisor nunca recibe esta herramienta.
+          const reviewAgent = assignedAgent.allowedTools.includes('pdf.generate')
+            ? { ...assignedAgent, allowedTools: assignedAgent.allowedTools.filter((id) => id !== 'pdf.generate') }
+            : assignedAgent;
           const selection = router.select({ stage: 'execute', agentId: assignedAgent.id, capability: context.task.capability });
-          toolResults = await gatherToolResults(router, router.profile(selection.profileId), env, assignedAgent,
+          toolResults = await gatherToolResults(router, router.profile(selection.profileId), env, reviewAgent,
             context.objective, context.task.title, context.task.submission?.summary);
         }
       } catch {

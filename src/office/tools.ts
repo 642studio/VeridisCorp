@@ -229,6 +229,171 @@ export const codeSandboxTool = tool(
   },
 );
 
+// Imagen propia (docker/pdf-renderer/, construida localmente con `docker build`, no bajada de
+// un registro de terceros): WeasyPrint sin motor JS, sobra para HTML+CSS estático. 8MB es muy
+// generoso para un documento de negocio — tope duro contra un render fuera de control.
+const PDF_RENDERER_IMAGE = 'veridis-pdf-renderer:latest';
+const MAX_PDF_BYTES = 8 * 1024 * 1024;
+
+// Variante binary-safe de runSandboxed: los bytes de un PDF no son texto, así que stdout se
+// acumula como Buffer sin truncar (a diferencia del límite de 8000 caracteres de runSandboxed).
+// stderr sí es texto corto: solo lleva {"pages": N} o un traceback si algo falla. Memoria más
+// alta que el sandbox de código (512m vs 256m): Pango/cairo necesitan más margen para tipografía.
+function runSandboxedBinary(
+  image: string, stdin: string, timeoutMs = 30000, memory = '512m',
+): Promise<{ exitCode: number; stdout: Buffer; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('docker', [
+      'run', '--rm', '-i', '--network', 'none', '--memory', memory, '--cpus', '1',
+      '--read-only', '--tmpfs', '/workspace:rw,size=64m', '--workdir', '/workspace', image,
+    ], { timeout: timeoutMs, stdio: ['pipe', 'pipe', 'pipe'] });
+    const chunks: Buffer[] = []; let stderr = ''; let size = 0; let killedForSize = false;
+    child.stdout.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_PDF_BYTES) { killedForSize = true; child.kill('SIGKILL'); return; }
+      chunks.push(chunk);
+    });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', reject);
+    child.on('close', (exitCode, signal) => {
+      if (killedForSize) { reject(new Error('El documento generado excede el tamaño máximo permitido')); return; }
+      if (signal) { reject(new Error(`El contenedor se interrumpió (${signal}), probablemente por el límite de tiempo`)); return; }
+      resolve({ exitCode: exitCode ?? -1, stdout: Buffer.concat(chunks), stderr: stderr.slice(0, 4000) });
+    });
+    child.stdin.end(stdin);
+  });
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function slugify(text: string): string {
+  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80) || 'documento';
+}
+
+const ACCENT_COLORS: Record<string, string> = {
+  teal: '#0f766e', navy: '#1e3a5f', burgundy: '#7f1d3d', forest: '#14532d', slate: '#334155',
+};
+
+const PdfBlock = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('heading'), level: z.enum(['1', '2']), text: z.string().trim().min(1).max(200) }).strict(),
+  z.object({ type: z.literal('paragraph'), text: z.string().trim().min(1).max(4000) }).strict(),
+  z.object({ type: z.literal('bullet_list'), items: z.array(z.string().trim().min(1).max(500)).min(1).max(20) }).strict(),
+  z.object({ type: z.literal('callout'), tone: z.enum(['info', 'success', 'warning']), text: z.string().trim().min(1).max(1000) }).strict(),
+  z.object({ type: z.literal('table'), headers: z.array(z.string().max(100)).min(1).max(8), rows: z.array(z.array(z.string().max(200))).min(1).max(30) }).strict(),
+  z.object({ type: z.literal('quote'), text: z.string().trim().min(1).max(1000), attribution: z.string().trim().max(200).optional() }).strict(),
+  z.object({ type: z.literal('divider') }).strict(),
+]);
+
+// El modelo nunca escribe HTML/CSS: compone una secuencia de bloques tipados (qué usar, en qué
+// orden, con qué énfasis) y el motor es dueño de toda la tipografía, el espaciado y el color.
+// Esto da agencia real sobre el diseño del documento sin arriesgar consistencia visual ni abrir
+// inyección — y 'accentColor' es una paleta curada, no un color libre.
+const pdfGenerateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  subtitle: z.string().trim().max(200).optional(),
+  accentColor: z.enum(['teal', 'navy', 'burgundy', 'forest', 'slate']).default('navy'),
+  blocks: z.array(PdfBlock).min(1).max(40),
+  footerNote: z.string().trim().max(300).optional(),
+}).strict();
+
+function renderBlock(block: z.infer<typeof PdfBlock>): string {
+  switch (block.type) {
+    case 'heading':
+      return `<h${block.level}>${escapeHtml(block.text)}</h${block.level}>`;
+    case 'paragraph':
+      return `<p>${escapeHtml(block.text)}</p>`;
+    case 'bullet_list':
+      return `<ul>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    case 'callout':
+      return `<div class="callout callout--${block.tone}">${escapeHtml(block.text)}</div>`;
+    case 'table':
+      return `<table><thead><tr>${block.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>`
+        + `<tbody>${block.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    case 'quote':
+      return `<blockquote>${escapeHtml(block.text)}${block.attribution ? `<footer>— ${escapeHtml(block.attribution)}</footer>` : ''}</blockquote>`;
+    case 'divider':
+      return '<hr/>';
+  }
+}
+
+// Plantilla profesional provisional: sin logo ni marca real todavía (no hay assets de 642
+// Studio en este repo). Las variables de color (accent) son el único gancho de marca por ahora
+// — sustituir por la identidad real de 642 Studio es trabajo pendiente, no de este alcance.
+function buildDocumentHtml(input: z.infer<typeof pdfGenerateSchema>): string {
+  const accent = ACCENT_COLORS[input.accentColor] ?? ACCENT_COLORS.navy;
+  const body = input.blocks.map(renderBlock).join('\n');
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 28mm 22mm 24mm; @bottom-center { content: counter(page) " / " counter(pages); font-size: 9pt; color: #94a3b8; } }
+  * { box-sizing: border-box; }
+  body { font-family: 'DejaVu Sans', sans-serif; color: #1e293b; font-size: 11pt; line-height: 1.55; }
+  .cover { border-bottom: 3pt solid ${accent}; padding-bottom: 10mm; margin-bottom: 12mm; }
+  .cover h1 { font-size: 24pt; margin: 0 0 4mm; color: ${accent}; letter-spacing: -0.01em; }
+  .cover .subtitle { font-size: 12pt; color: #64748b; margin: 0; }
+  h1 { font-size: 16pt; color: ${accent}; margin: 10mm 0 4mm; }
+  h2 { font-size: 13pt; color: #334155; margin: 8mm 0 3mm; }
+  p { margin: 0 0 4mm; text-align: justify; }
+  ul { margin: 0 0 4mm; padding-left: 6mm; }
+  li { margin-bottom: 1.5mm; }
+  hr { border: none; border-top: 0.5pt solid #cbd5e1; margin: 8mm 0; }
+  blockquote { border-left: 2pt solid ${accent}; margin: 0 0 4mm; padding: 2mm 0 2mm 6mm; font-style: italic; color: #475569; }
+  blockquote footer { font-style: normal; font-size: 9pt; color: #94a3b8; margin-top: 2mm; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 4mm; font-size: 10pt; }
+  th { text-align: left; background: ${accent}; color: #fff; padding: 2.5mm 3mm; font-weight: 600; }
+  td { padding: 2.5mm 3mm; border-bottom: 0.5pt solid #e2e8f0; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .callout { border-radius: 2mm; padding: 4mm 5mm; margin: 0 0 4mm; font-size: 10.5pt; }
+  .callout--info { background: #eff6ff; border-left: 2pt solid #3b82f6; color: #1e40af; }
+  .callout--success { background: #f0fdf4; border-left: 2pt solid #22c55e; color: #166534; }
+  .callout--warning { background: #fffbeb; border-left: 2pt solid #f59e0b; color: #92400e; }
+  .footer-note { margin-top: 14mm; padding-top: 4mm; border-top: 0.5pt solid #e2e8f0; font-size: 8.5pt; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <h1>${escapeHtml(input.title)}</h1>
+  ${input.subtitle ? `<p class="subtitle">${escapeHtml(input.subtitle)}</p>` : ''}
+</div>
+${body}
+${input.footerNote ? `<div class="footer-note">${escapeHtml(input.footerNote)}</div>` : ''}
+</body>
+</html>`;
+}
+
+// Devuelve metadata + los bytes en base64 (filename, contentType, pages, base64) — lo que ve el
+// modelo normalmente NO es esto: gatherToolResults() en intelligence.ts intercepta esta
+// herramienta en particular, persiste el archivo y le sustituye el resultado por metadata segura
+// (fileId, filename, pages) antes de que llegue al contexto del modelo. Invocada aquí directo
+// (pruebas, uso fuera de office/) sigue devolviendo el documento completo.
+export const pdfGenerateTool = tool(
+  async (input: z.infer<typeof pdfGenerateSchema>) => {
+    const html = buildDocumentHtml(input);
+    const { exitCode, stdout, stderr } = await runSandboxedBinary(PDF_RENDERER_IMAGE, html);
+    if (exitCode !== 0) throw new Error(`No se pudo generar el PDF: ${stderr.slice(0, 500) || 'el renderizador terminó con error'}`);
+    let pages = 0;
+    try { pages = (JSON.parse(stderr.trim().split('\n')[0] ?? '{}') as { pages?: number }).pages ?? 0; }
+    catch { /* stderr sin el conteo de páginas: no es crítico para el resultado */ }
+    return JSON.stringify({
+      filename: `${slugify(input.title)}.pdf`, contentType: 'application/pdf', pages,
+      base64: stdout.toString('base64'),
+    });
+  },
+  {
+    name: 'generate_pdf',
+    description: 'Genera un documento PDF real, con tipografía y maquetación profesionales, a partir '
+      + 'de bloques estructurados (encabezados, párrafos, listas, tablas, citas, cajas destacadas) — '
+      + 'nunca de HTML libre. Úsala cuando el entregable de la tarea sea un documento o reporte para '
+      + 'compartir, no para texto que solo vive dentro de la conversación.',
+    schema: pdfGenerateSchema,
+  },
+);
+
 // Pendiente de probar en vivo: falta BRAVE... no, falta CLICKUP_API_KEY y CLICKUP_TEAM_ID (el id
 // de espacio de trabajo, no el de una lista). Solo lectura: lista tareas reales del equipo y
 // filtra por palabra clave en el cliente, sin crear, mover ni cerrar nada.
@@ -273,6 +438,7 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface> = {
   'cve.lookup': cveLookupTool,
   'code.sandbox': codeSandboxTool,
   'clickup.read': clickupTool,
+  'pdf.generate': pdfGenerateTool,
 };
 
 export function toolsFor(allowedTools: readonly string[]): StructuredToolInterface[] {

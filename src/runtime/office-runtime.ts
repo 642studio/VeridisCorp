@@ -298,6 +298,25 @@ export class OfficeRuntime {
   await this.audit(this.pool, auth, id, 'schedule.fired_manually', { result });
   return transaction(this.pool, async (tx) => ({ result, ...this.shapeSchedule(await this.scheduleRowRaw(tx, auth, id)) }));
  }
+ // Igual patrón que el resto de recursos hijos de un expediente: existencia-en-scope (vía el
+ // order_id al que pertenece el archivo) antes que permiso — una sesión de otro cliente recibe
+ // 404, nunca 403, sin importar qué permisos tenga otorgados en general.
+ async getFile(token: string, raw_id: string) {
+  const id = z.uuid().parse(raw_id);
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   const row = await tx.query(
+    `SELECT f.filename, f.content_type, f.content FROM veridis_runtime_v1.office_files f
+     JOIN veridis_runtime_v1.office_orders o ON o.id = f.order_id
+     WHERE f.id=$1 AND o.scope_key=$2`,
+    [id, scopeKey(auth.scope)],
+   );
+   if (!row.rows[0]) { await this.audit(this.pool, auth, null, 'resource.denied', { requestedFileId: id }); throw new RuntimeError(404, 'Archivo no disponible'); }
+   await this.permit(tx, auth, null, 'data.read');
+   const file = row.rows[0] as { filename: string; content_type: string; content: Buffer };
+   return { filename: file.filename, contentType: file.content_type, content: file.content };
+  });
+ }
  async answer(token: string, id: string, raw: unknown) {
   const input = AnswerInput.parse(raw);
   const { auth, threadId } = await transaction(this.pool, async (tx) => {

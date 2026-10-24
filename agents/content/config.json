@@ -5,7 +5,9 @@
   "capabilities": [
     "content.draft"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "pdf.generate"
+  ],
   "organization": {
     "title": "Contenido",
     "departmentId": "marketing",

@@ -1,23 +1,50 @@
 import { useState } from 'react';
 import { useOfficeOrder, useAdvanceOfficeOrder, useAnswerOfficeOrder } from '../api/hooks';
-import { ApiError } from '../api/client';
+import { ApiError, api } from '../api/client';
 import { SessionExpired } from '../components/SessionExpired';
 import { InvolvedAgents } from '../components/InvolvedAgents';
 import { useElapsedSeconds } from '../useElapsedSeconds';
 import { ORDER_STATUS, TASK_STATUS } from '../officeStatus';
 import type { OfficeAssessment, OfficeEvidence } from '../api/types';
 
+const OFFICE_FILE_PREFIX = 'office-file://';
+
+function EvidenceFileDownload({ fileId }: { fileId: string }) {
+  const [state, setState] = useState<'idle' | 'pending' | 'error'>('idle');
+  return (
+    <>
+      <button
+        type="button" className="button button--link"
+        disabled={state === 'pending'}
+        onClick={() => {
+          setState('pending');
+          api.downloadOfficeFile(fileId, 'documento.pdf')
+            .then(() => setState('idle'))
+            .catch(() => setState('error'));
+        }}
+      >
+        {state === 'pending' ? 'Descargando…' : '[ DESCARGAR PDF ]'}
+      </button>
+      {state === 'error' && <span className="error">No se pudo descargar.</span>}
+    </>
+  );
+}
+
 function EvidenceList({ evidence }: { evidence: OfficeEvidence[] }) {
   if (evidence.length === 0) return null;
   return (
     <ul className="task-evidence">
-      {evidence.map((item) => (
-        <li key={item.id} className="task-evidence__item">
-          <span className="tag">{item.kind}</span>
-          <span className="task-evidence__reference" title={item.reference}>{item.reference}</span>
-          <p className="muted">{item.summary}</p>
-        </li>
-      ))}
+      {evidence.map((item) => {
+        const fileId = item.reference.startsWith(OFFICE_FILE_PREFIX) ? item.reference.slice(OFFICE_FILE_PREFIX.length) : null;
+        return (
+          <li key={item.id} className="task-evidence__item">
+            <span className="tag">{item.kind}</span>
+            <span className="task-evidence__reference" title={item.reference}>{item.reference}</span>
+            <p className="muted">{item.summary}</p>
+            {fileId && <EvidenceFileDownload fileId={fileId} />}
+          </li>
+        );
+      })}
     </ul>
   );
 }

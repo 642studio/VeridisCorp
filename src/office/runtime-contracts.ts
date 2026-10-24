@@ -42,6 +42,10 @@ export type SpecialistContext = {
   agent: AgentDefinition;
   dependencies: WorkTask[];
   exchanges: HumanExchange[];
+  // Id del expediente (= office_orders.id en runtime/), no el AccessScope completo: lo único que
+  // una herramienta con efecto persistente (pdf.generate) necesita para vincular lo que produce
+  // a un expediente real — la verificación de scope sigue viviendo solo en runtime/office-runtime.ts.
+  orderId: string;
 };
 
 // Las respuestas no incluyen Actor. La identidad la establece el runtime.

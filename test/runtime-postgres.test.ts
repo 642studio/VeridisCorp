@@ -14,6 +14,7 @@ import { executor, orchestrator, reviewer, worker, Defaults } from '../src/runti
 import type { AccessScope, Principal } from '../src/governance/contracts.js';
 import type { ModelGateway, DeliveryConnector } from '../src/runtime/providers.js';
 import type { OfficeIntelligence } from '../src/office/runtime-contracts.js';
+import { persistGeneratedPdf } from '../src/office/intelligence.js';
 
 // Determinista, sin IA real: crea una tarea, la despacha, la revisa y cierra el expediente.
 function officeTestIntelligence(): OfficeIntelligence {
@@ -449,6 +450,61 @@ test('office/ tareas programadas sobre HTTP: crear, listar, editar, disparar y b
    assert.equal((await request(base, token, `/office/schedules/${scheduleId}`)).status, 404);
    const listed = await request(base, token, '/office/schedules');
    assert.equal(listed.data.schedules.some((s: any) => s.id === scheduleId), false);
+  });
+ } finally { await close(server); await pool.end(); }
+});
+
+test('office_files (pdf.generate): persiste con deduplicación real y aislamiento por ámbito', { skip: !connectionString, timeout: 30000 }, async (t) => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const office = new OfficeRuntime(pool, officeTestIntelligence(), { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2 });
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ const scope: AccessScope = { workspaceId: randomUUID(), companyId: '642', divisionId: 'studio', clientId: randomUUID(), projectId: 'office-pilot' };
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['draft.create', 'data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  let orderId = '';
+  await t.test('crea un expediente real al que vincular los archivos de prueba', async () => {
+   const started = await request(base, token, '/office/orders', { objective: 'Expediente para probar office_files' });
+   assert.equal(started.status, 200, JSON.stringify(started.data));
+   orderId = started.data.id;
+  });
+  let firstFileId = '';
+  await t.test('la misma entrada no duplica el archivo; una entrada distinta sí crea uno nuevo', async () => {
+   const rawOutput = JSON.stringify({ filename: 'reporte.pdf', contentType: 'application/pdf', pages: 1, base64: Buffer.from('%PDF-prueba').toString('base64') });
+   const first = JSON.parse(await persistGeneratedPdf(pool, orderId, { title: 'Reporte A' }, rawOutput)) as { fileId: string };
+   const second = JSON.parse(await persistGeneratedPdf(pool, orderId, { title: 'Reporte A' }, rawOutput)) as { fileId: string };
+   assert.equal(first.fileId, second.fileId, 'misma (order_id, input): no debe duplicar');
+   const count = await pool.query('SELECT count(*)::int AS n FROM veridis_runtime_v1.office_files WHERE order_id=$1', [orderId]);
+   assert.equal(count.rows[0].n, 1);
+   firstFileId = first.fileId;
+   const third = JSON.parse(await persistGeneratedPdf(pool, orderId, { title: 'Reporte B' }, rawOutput)) as { fileId: string };
+   assert.notEqual(third.fileId, firstFileId, 'input distinto para el mismo order_id sí crea un archivo nuevo');
+  });
+  await t.test('GET /office/files/{id} sirve el PDF real con la sesión correcta', async () => {
+   const response = await fetch(`${base}/office/files/${firstFileId}`, { headers: { authorization: `Bearer ${token}` } });
+   assert.equal(response.status, 200);
+   assert.equal(response.headers.get('content-type'), 'application/pdf');
+   assert.ok(/attachment; filename="reporte\.pdf"/.test(response.headers.get('content-disposition') ?? ''));
+   const bytes = Buffer.from(await response.arrayBuffer());
+   assert.equal(bytes.toString('latin1'), '%PDF-prueba');
+  });
+  await t.test('una sesión de otro cliente recibe 404, nunca 403', async () => {
+   const otherToken = await provisionSession(pool, { principal: { kind: 'human', id: randomUUID() }, scope: { ...scope, clientId: 'otro-cliente' }, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+    { principal: { kind: 'human', id: randomUUID() }, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+   ] });
+   const response = await fetch(`${base}/office/files/${firstFileId}`, { headers: { authorization: `Bearer ${otherToken}` } });
+   assert.equal(response.status, 404);
+  });
+  await t.test('un id inexistente también responde 404', async () => {
+   const response = await fetch(`${base}/office/files/${randomUUID()}`, { headers: { authorization: `Bearer ${token}` } });
+   assert.equal(response.status, 404);
   });
  } finally { await close(server); await pool.end(); }
 });

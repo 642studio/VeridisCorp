@@ -6,7 +6,8 @@
     "research.market"
   ],
   "allowedTools": [
-    "web.search"
+    "web.search",
+    "pdf.generate"
   ],
   "organization": {
     "title": "Investigación de mercado y competencia",

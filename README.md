@@ -68,6 +68,6 @@ Las simulaciones anteriores se conservan sin red. Sus reglas organizacionales no
 
 ## Próximas entregas
 
-Mantener una ruta integrada antes de ampliar agentes: conectar un proveedor de negocio autorizado, persistir tareas humanas y disponibilidad, añadir memoria filtrada y evolucionar a eventos y workers cuando lo requiera el volumen. Siguen pendientes login/SSO, seguridad y operación de producción, roles PostgreSQL separados, bóveda de secretos, cola/outbox general, compensaciones y evaluación empresarial de resultados.
+Mantener una ruta integrada antes de ampliar agentes: conectar un proveedor de negocio autorizado, persistir tareas humanas y disponibilidad, añadir memoria filtrada y evolucionar a eventos y workers cuando lo requiera el volumen. Siguen pendientes login/SSO, seguridad y operación de producción, roles PostgreSQL separados, bóveda de secretos, cola/outbox general, compensaciones y evaluación empresarial de resultados. Evaluación de viabilidad (pendiente de ejecutar) de dejarlo siempre encendido en el servidor de oficina: [runtime-pilot.md](docs/runtime-pilot.md#despliegue-continuo-en-el-servidor-de-oficina-pendiente). Prioridad de herramientas nuevas para v1 (PDF, notificación proactiva, ClickUp con escritura, correo, comandos reales en el VPS con aprobación humana): [assistant-v1-roadmap.md](docs/assistant-v1-roadmap.md).
 
 La arquitectura previa está en [office-architecture.md](docs/office-architecture.md). Su alcance de simulación debe distinguirse de la ruta gobernada nueva, documentada en [runtime-pilot.md](docs/runtime-pilot.md).
