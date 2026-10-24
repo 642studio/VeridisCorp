@@ -91,6 +91,14 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_files (
 );
 CREATE INDEX IF NOT EXISTS runtime_office_files_order ON veridis_runtime_v1.office_files(order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS runtime_office_files_dedupe ON veridis_runtime_v1.office_files(order_id, input_hash);
+-- Primera credencial reversible del proyecto (ver src/runtime/secrets.ts): el refresh token de
+-- OAuth se cifra en la aplicación (AES-256-GCM) antes de guardarse aquí, nunca en claro. Una
+-- sola cuenta dedicada por ahora; account_email es la clave primaria para que una reautorización
+-- reemplace en vez de duplicar.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.gmail_accounts (
+ account_email text PRIMARY KEY, refresh_token_encrypted bytea NOT NULL, scope text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

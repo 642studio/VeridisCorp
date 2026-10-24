@@ -63,11 +63,12 @@ Requisitos: Node.js 22+, PostgreSQL 16 y una base dedicada. Mantener usuario de 
 npm ci
 npm run runtime:db
 docker build -t veridis-pdf-renderer:latest docker/pdf-renderer
+npm run runtime:gmail-authorize
 npm run runtime:provision -- config/runtime-session.example.json /ruta/privada/token.txt
 npm run runtime:serve
 ```
 
-El `docker build` solo hace falta si algún agente tiene `pdf.generate` en su `allowedTools` (ver [assistant-v1-roadmap.md](assistant-v1-roadmap.md)); sin la imagen construida, esa herramienta falla igual que cualquier otra sin configurar — nunca tumba `execute()`. Editar ámbito, identidad, permisos y vencimiento del ejemplo antes de aprovisionar. `runtime:provision` escribe el token en un archivo nuevo de modo 0600 y no lo imprime. `.env` y tokens no se guardan en repositorios. Usar un cliente HTTP con encabezado Authorization Bearer; evitar poner el secreto en comandos registrados en el historial.
+El `docker build` solo hace falta si algún agente tiene `pdf.generate` en su `allowedTools` (ver [assistant-v1-roadmap.md](assistant-v1-roadmap.md)); sin la imagen construida, esa herramienta falla igual que cualquier otra sin configurar — nunca tumba `execute()`. `runtime:gmail-authorize` es igual de opcional: autoriza una vez (navegador, cuenta de Gmail dedicada del sistema ya iniciada) y guarda el refresh token cifrado; sin cuenta autorizada, `email.draft`/`email.read` fallan igual que cualquier herramienta sin configurar. Requiere antes `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET` y `VERIDIS_TOKEN_ENCRYPTION_KEY` en `.env` (ver `.env.example` y [assistant-v1-roadmap.md](assistant-v1-roadmap.md) para el detalle completo, incluido qué configurar en Google Cloud Console). Editar ámbito, identidad, permisos y vencimiento del ejemplo antes de aprovisionar. `runtime:provision` escribe el token en un archivo nuevo de modo 0600 y no lo imprime. `.env` y tokens no se guardan en repositorios. Usar un cliente HTTP con encabezado Authorization Bearer; evitar poner el secreto en comandos registrados en el historial.
 
 El servidor escucha solamente en 127.0.0.1. No se despliega ni abre puertos automáticamente. Antes de publicarlo faltan TLS, autenticación de usuarios de producción, control de tasa, políticas operativas de secretos y de retención de datos, además de verificación con conectores reales. Los errores HTTP omiten cuerpos y credenciales; los rechazos de una sesión verificable se registran en auditoría.
 

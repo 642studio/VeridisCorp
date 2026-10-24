@@ -6,7 +6,13 @@
     "content.draft"
   ],
   "allowedTools": [
-    "pdf.generate"
+    "pdf.generate",
+    "email.draft",
+    "email.read",
+    "drive.upload",
+    "calendar.create_event",
+    "meet.create_space",
+    "slides.create"
   ],
   "organization": {
     "title": "Contenido",

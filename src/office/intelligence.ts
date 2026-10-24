@@ -9,6 +9,14 @@ import { loadModelRouter, type ModelRouter, type ModelRequest, type ResolvedProf
 import { createStructuredInvoker, createProfileModel, type StructuredInvoker } from './model-providers.js';
 import { toolsFor, groundedWebSearch, braveSearch } from './tools.js';
 
+// Ids de allowedTools (no los nombres de function-calling) de toda herramienta con efecto
+// secundario real — nunca se le ofrece a review(), ver más abajo. Toda herramienta nueva con
+// efecto real debe sumarse aquí (email.draft se escapó de esta lista una vez; no debe repetirse).
+const SIDE_EFFECTING_TOOLS = new Set([
+  'pdf.generate', 'email.draft', 'drive.upload', 'calendar.create_event', 'sheets.create',
+  'meet.create_space', 'slides.create',
+]);
+
 // pdf.generate (tool 'generate_pdf') produce un entregable con efecto secundario real (un
 // archivo guardado), a diferencia de toda otra herramienta de este archivo, que solo verifica o
 // consulta. gatherToolResults() la intercepta aquí mismo: guarda los bytes reales en
@@ -194,11 +202,12 @@ inventado, nunca sin ese prefijo) — es lo único que permite descargar el arch
       try {
         const assignedAgent = registry?.get(context.task.assignedAgentId);
         if (assignedAgent) {
-          // pdf.generate produce un archivo real con efecto secundario (se guarda en
-          // office_files) — a diferencia de calculator/web.search/code.sandbox, volver a
-          // "verificarla" aquí duplicaría el documento. El revisor nunca recibe esta herramienta.
-          const reviewAgent = assignedAgent.allowedTools.includes('pdf.generate')
-            ? { ...assignedAgent, allowedTools: assignedAgent.allowedTools.filter((id) => id !== 'pdf.generate') }
+          // Herramientas con efecto secundario real (guardan un archivo, crean un borrador de
+          // correo real) — a diferencia de calculator/web.search/code.sandbox, que solo
+          // verifican, volver a "comprobarlas" aquí repetiría el efecto real. El revisor nunca
+          // las recibe. Toda herramienta nueva con efecto secundario debe sumarse a esta lista.
+          const reviewAgent = assignedAgent.allowedTools.some((id) => SIDE_EFFECTING_TOOLS.has(id))
+            ? { ...assignedAgent, allowedTools: assignedAgent.allowedTools.filter((id) => !SIDE_EFFECTING_TOOLS.has(id)) }
             : assignedAgent;
           const selection = router.select({ stage: 'execute', agentId: assignedAgent.id, capability: context.task.capability });
           toolResults = await gatherToolResults(router, router.profile(selection.profileId), env, reviewAgent,

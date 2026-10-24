@@ -1,13 +1,28 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
-import { toolsFor, webSearchTool, pdfGenerateTool, evaluateExpression } from '../src/office/tools.js';
+import {
+  toolsFor, webSearchTool, pdfGenerateTool, gmailDraftTool, gmailReadTool, configureGmail, evaluateExpression,
+  driveUploadTool, calendarCreateEventTool, sheetsCreateTool, meetCreateSpaceTool, slidesCreateTool,
+} from '../src/office/tools.js';
 
 test('toolsFor solo expone herramientas presentes en allowedTools', () => {
   assert.deepEqual(toolsFor([]), []);
   assert.deepEqual(toolsFor(['algo.inexistente']), []);
   assert.deepEqual(toolsFor(['web.search']), [webSearchTool]);
   assert.deepEqual(toolsFor(['pdf.generate']), [pdfGenerateTool]);
+  assert.deepEqual(toolsFor(['email.draft', 'email.read']), [gmailDraftTool, gmailReadTool]);
+});
+
+test('las herramientas de Google fallan con un mensaje claro si no se autorizó ninguna cuenta (sin red)', async () => {
+  configureGmail(null);
+  await assert.rejects(gmailDraftTool.invoke({ to: ['a@b.com'], subject: 'x', body: 'y' } as never), /cuenta de Google no está configurada/);
+  await assert.rejects(gmailReadTool.invoke({ query: '', limit: 5 } as never), /cuenta de Google no está configurada/);
+  await assert.rejects(driveUploadTool.invoke({ title: 'x', content: 'y' } as never), /cuenta de Google no está configurada/);
+  await assert.rejects(calendarCreateEventTool.invoke({ summary: 'x', start: '2027-01-01T10:00:00Z', end: '2027-01-01T11:00:00Z' } as never), /cuenta de Google no está configurada/);
+  await assert.rejects(sheetsCreateTool.invoke({ title: 'x' } as never), /cuenta de Google no está configurada/);
+  await assert.rejects(meetCreateSpaceTool.invoke({} as never), /cuenta de Google no está configurada/);
+  await assert.rejects(slidesCreateTool.invoke({ title: 'x', slides: [{ heading: 'h', bullets: ['b'] }] } as never), /cuenta de Google no está configurada/);
 });
 
 // Igual que code.sandbox, esta prueba depende de Docker real (la misma imagen que

@@ -1,7 +1,9 @@
 import { tool, type StructuredToolInterface } from '@langchain/core/tools';
 import { HumanMessage } from '@langchain/core/messages';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import type { OAuth2Client } from 'google-auth-library';
 import { createProfileModel } from './model-providers.js';
 import type { ResolvedProfile } from './models.js';
 
@@ -432,6 +434,257 @@ export const clickupTool = tool(
   },
 );
 
+// Un solo cliente OAuth2 real de la cuenta de Google dedicada, para Gmail, Drive, Calendar,
+// Sheets, Meet y Slides — inyectado una sola vez al arrancar desde runtime/cli.ts (lee y
+// desencripta el refresh token guardado, ver runtime/secrets.ts). Sin cuenta autorizada todavía
+// (npm run runtime:gmail-authorize), queda null y las herramientas fallan con un mensaje claro,
+// igual que clickup.read sin CLICKUP_API_KEY — nunca tumban execute().
+let googleClient: OAuth2Client | null = null;
+export function configureGmail(client: OAuth2Client | null): void { googleClient = client; }
+
+function requireGoogleClient(): OAuth2Client {
+  if (!googleClient) throw new Error('La cuenta de Google no está configurada: falta autorizar (npm run runtime:gmail-authorize)');
+  return googleClient;
+}
+
+function buildMimeMessage(to: string[], subject: string, body: string): string {
+  const headers = [`To: ${to.join(', ')}`, `Subject: ${subject}`, 'Content-Type: text/plain; charset="UTF-8"', 'MIME-Version: 1.0'].join('\r\n');
+  return `${headers}\r\n\r\n${body}`;
+}
+function toBase64Url(text: string): string {
+  return Buffer.from(text, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Nunca llama users.messages.send: solo crea un borrador real (users.drafts.create). El
+// envío lo decide un humano revisando la bandeja de Borradores de la cuenta — la aprobación
+// que docs/assistant-v1-roadmap.md ya exigía para correo, sin inventar un mecanismo nuevo.
+const gmailDraftSchema = z.object({
+  to: z.array(z.email()).min(1).max(10),
+  subject: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(8000),
+}).strict();
+export const gmailDraftTool = tool(
+  async ({ to, subject, body }: z.infer<typeof gmailDraftSchema>) => {
+    const client = requireGoogleClient();
+    const raw = toBase64Url(buildMimeMessage(to, subject, body));
+    const response = await client.request<{ id: string }>({
+      url: 'https://gmail.googleapis.com/gmail/v1/users/me/drafts', method: 'POST',
+      data: { message: { raw } },
+    });
+    return JSON.stringify({ draftId: response.data.id, webLink: 'https://mail.google.com/mail/u/0/#drafts' });
+  },
+  {
+    name: 'draft_email',
+    description: 'Crea un borrador real de correo en la cuenta de Gmail del sistema — nunca lo envía. '
+      + 'Un humano lo revisa y lo envía manualmente desde la bandeja de Borradores. Úsala cuando el '
+      + 'entregable sea comunicación real por correo hacia un destinatario.',
+    schema: gmailDraftSchema,
+  },
+);
+
+type GmailMessageList = { messages?: { id: string }[] };
+type GmailMessage = { id: string; snippet?: string; payload?: { headers?: { name: string; value: string }[] } };
+const gmailReadSchema = z.object({
+  query: z.string().trim().max(200).default('').describe('Consulta de búsqueda de Gmail (p. ej. "from:cliente@dominio.com"), o vacío para los más recientes'),
+  limit: z.number().int().min(1).max(10).default(5),
+}).strict();
+export const gmailReadTool = tool(
+  async ({ query, limit }: z.infer<typeof gmailReadSchema>) => {
+    const client = requireGoogleClient();
+    const list = await client.request<GmailMessageList>({
+      url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
+      params: { q: query || undefined, maxResults: limit },
+    });
+    const ids = list.data.messages ?? [];
+    if (!ids.length) return 'Sin mensajes reales encontrados para esa consulta.';
+    const messages = await Promise.all(ids.map((m) => client.request<GmailMessage>({
+      url: `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}`,
+      params: { format: 'metadata', metadataHeaders: ['Subject', 'From', 'Date'] },
+    }).then((r) => r.data)));
+    const results = messages.map((msg) => ({
+      id: msg.id,
+      subject: msg.payload?.headers?.find((h) => h.name === 'Subject')?.value ?? '(sin asunto)',
+      from: msg.payload?.headers?.find((h) => h.name === 'From')?.value ?? '',
+      date: msg.payload?.headers?.find((h) => h.name === 'Date')?.value ?? '',
+      snippet: msg.snippet ?? '',
+    }));
+    return JSON.stringify(results);
+  },
+  {
+    name: 'search_email',
+    description: 'Busca mensajes reales (solo lectura) en la cuenta de Gmail del sistema, con la '
+      + 'sintaxis de búsqueda de Gmail. Devuelve asunto, remitente, fecha y un extracto real. No '
+      + 'modifica ni borra nada.',
+    schema: gmailReadSchema,
+  },
+);
+
+// Las cinco herramientas que siguen comparten cliente con Gmail (requireGoogleClient()), pero a
+// diferencia de pdf.generate no guardan nada en nuestra Postgres: Drive, Calendar, Sheets, Meet
+// y Slides son dueños del contenido real, y cada una devuelve su propio enlace real para citar
+// como evidencia — mismo patrón que ya usa email.draft.
+
+const DRIVE_BOUNDARY = 'veridiscorp_drive_upload_boundary';
+function buildDriveMultipart(metadata: Record<string, unknown>, content: string, mimeType: string): string {
+  return `--${DRIVE_BOUNDARY}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`
+    + `--${DRIVE_BOUNDARY}\r\nContent-Type: ${mimeType}\r\n\r\n${content}\r\n--${DRIVE_BOUNDARY}--`;
+}
+const driveUploadSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  content: z.string().trim().min(1).max(200000),
+  mimeType: z.enum(['text/plain', 'text/csv', 'text/markdown']).default('text/plain'),
+}).strict();
+export const driveUploadTool = tool(
+  async ({ title, content, mimeType }: z.infer<typeof driveUploadSchema>) => {
+    const client = requireGoogleClient();
+    const response = await client.request<{ id: string; webViewLink?: string }>({
+      url: 'https://www.googleapis.com/upload/drive/v3/files', method: 'POST',
+      params: { uploadType: 'multipart', fields: 'id,webViewLink' },
+      headers: { 'Content-Type': `multipart/related; boundary=${DRIVE_BOUNDARY}` },
+      data: buildDriveMultipart({ name: title }, content, mimeType),
+    });
+    return JSON.stringify({ fileId: response.data.id, webViewLink: response.data.webViewLink });
+  },
+  {
+    name: 'upload_drive_file',
+    description: 'Sube un archivo de texto real a Drive, en la cuenta del sistema (drive.file: solo '
+      + 've archivos que esta misma herramienta crea, nunca el resto del Drive). Devuelve un enlace '
+      + 'real para compartir. Úsala para un entregable que deba vivir como archivo compartible.',
+    schema: driveUploadSchema,
+  },
+);
+
+type CalendarEventResponse = { id: string; htmlLink: string; hangoutLink?: string; conferenceData?: { entryPoints?: { entryPointType: string; uri: string }[] } };
+const calendarEventSchema = z.object({
+  summary: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).optional(),
+  start: z.iso.datetime({ offset: true }),
+  end: z.iso.datetime({ offset: true }),
+  attendees: z.array(z.email()).max(20).optional(),
+  withMeetLink: z.boolean().default(false),
+}).strict();
+// sendUpdates: 'all' — a diferencia de email.draft, un invitado real SÍ recibe la invitación de
+// verdad en el momento de crear el evento, sin que un humano la revise antes. Decisión explícita
+// del usuario, documentada en docs/assistant-v1-roadmap.md — más riesgo que correo, a propósito.
+export const calendarCreateEventTool = tool(
+  async ({ summary, description, start, end, attendees, withMeetLink }: z.infer<typeof calendarEventSchema>) => {
+    const client = requireGoogleClient();
+    const response = await client.request<CalendarEventResponse>({
+      url: 'https://www.googleapis.com/calendar/v3/calendars/primary/events', method: 'POST',
+      params: { sendUpdates: 'all', ...(withMeetLink ? { conferenceDataVersion: 1 } : {}) },
+      data: {
+        summary, ...(description ? { description } : {}),
+        start: { dateTime: start }, end: { dateTime: end },
+        ...(attendees?.length ? { attendees: attendees.map((email) => ({ email })) } : {}),
+        ...(withMeetLink ? { conferenceData: { createRequest: { requestId: randomUUID() } } } : {}),
+      },
+    });
+    const meetLink = response.data.hangoutLink ?? response.data.conferenceData?.entryPoints?.find((e) => e.entryPointType === 'video')?.uri;
+    return JSON.stringify({ eventId: response.data.id, htmlLink: response.data.htmlLink, ...(meetLink ? { meetLink } : {}) });
+  },
+  {
+    name: 'create_calendar_event',
+    description: 'Crea un evento real en el Calendar de la cuenta del sistema. Si incluye "attendees", '
+      + 'Google les manda la invitación real de inmediato — no es un borrador, no la revisa un humano '
+      + 'antes. Usa "withMeetLink" para incluir un enlace real de videollamada en el propio evento.',
+    schema: calendarEventSchema,
+  },
+);
+
+type SheetsCreateResponse = { spreadsheetId: string; spreadsheetUrl: string };
+const sheetsCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  headers: z.array(z.string().max(100)).max(20).optional(),
+  rows: z.array(z.array(z.string().max(300)).max(20)).max(500).optional(),
+}).strict();
+export const sheetsCreateTool = tool(
+  async ({ title, headers, rows }: z.infer<typeof sheetsCreateSchema>) => {
+    const client = requireGoogleClient();
+    const created = await client.request<SheetsCreateResponse>({
+      url: 'https://sheets.googleapis.com/v4/spreadsheets', method: 'POST',
+      data: { properties: { title } },
+    });
+    const values = [...(headers ? [headers] : []), ...(rows ?? [])];
+    if (values.length) {
+      await client.request({
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${created.data.spreadsheetId}/values/A1:append`,
+        method: 'POST', params: { valueInputOption: 'RAW' }, data: { values },
+      });
+    }
+    return JSON.stringify({ spreadsheetId: created.data.spreadsheetId, spreadsheetUrl: created.data.spreadsheetUrl });
+  },
+  {
+    name: 'create_spreadsheet',
+    description: 'Crea una hoja de cálculo real en Google Sheets, con encabezados y filas opcionales, '
+      + 'y devuelve su enlace real. Úsala cuando el entregable sean datos estructurados, no un documento.',
+    schema: sheetsCreateSchema,
+  },
+);
+
+type MeetSpaceResponse = { meetingUri: string; meetingCode: string };
+export const meetCreateSpaceTool = tool(
+  async () => {
+    const client = requireGoogleClient();
+    const response = await client.request<MeetSpaceResponse>({
+      url: 'https://meet.googleapis.com/v2/spaces', method: 'POST', data: {},
+    });
+    return JSON.stringify({ meetingUri: response.data.meetingUri, meetingCode: response.data.meetingCode });
+  },
+  {
+    name: 'create_meet_space',
+    description: 'Crea una sala real de Google Meet, sin evento de calendario asociado, y devuelve el '
+      + 'enlace real para unirse. Para programar una reunión con fecha y hora, usa create_calendar_event '
+      + 'con withMeetLink en vez de esta.',
+    schema: z.object({}).strict(),
+  },
+);
+
+type SlidesCreateResponse = { presentationId: string; slides?: { objectId: string }[] };
+const slideBlockSchema = z.object({
+  heading: z.string().trim().min(1).max(200),
+  bullets: z.array(z.string().trim().min(1).max(300)).min(1).max(8),
+}).strict();
+const slidesCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  slides: z.array(slideBlockSchema).min(1).max(15),
+}).strict();
+// v1 solo compone encabezado + viñetas por diapositiva, con diseños predefinidos de Google
+// (TITLE, TITLE_AND_BODY) — nada de imágenes, tablas ni dos columnas todavía, misma frontera que
+// ya se puso en pdf.generate. La API de Slides es por objetos: cada diapositiva necesita sus
+// propios ids de marcador de posición antes de poder insertarle texto, todo en un solo batchUpdate.
+export const slidesCreateTool = tool(
+  async ({ title, slides }: z.infer<typeof slidesCreateSchema>) => {
+    const client = requireGoogleClient();
+    const created = await client.request<SlidesCreateResponse>({
+      url: 'https://slides.googleapis.com/v1/presentations', method: 'POST', data: { title },
+    });
+    const presentationId = created.data.presentationId;
+    const requests: Record<string, unknown>[] = [];
+    const defaultSlideId = created.data.slides?.[0]?.objectId;
+    if (defaultSlideId) requests.push({ deleteObject: { objectId: defaultSlideId } });
+    const coverTitleId = 'cover_title';
+    requests.push({ createSlide: { objectId: 'cover', insertionIndex: 0, slideLayoutReference: { predefinedLayout: 'TITLE' },
+      placeholderIdMappings: [{ layoutPlaceholder: { type: 'CENTERED_TITLE' }, objectId: coverTitleId }] } });
+    requests.push({ insertText: { objectId: coverTitleId, insertionIndex: 0, text: title } });
+    slides.forEach((slide, index) => {
+      const slideId = `content_${index}`; const titleId = `${slideId}_title`; const bodyId = `${slideId}_body`;
+      requests.push({ createSlide: { objectId: slideId, insertionIndex: index + 1, slideLayoutReference: { predefinedLayout: 'TITLE_AND_BODY' },
+        placeholderIdMappings: [{ layoutPlaceholder: { type: 'TITLE' }, objectId: titleId }, { layoutPlaceholder: { type: 'BODY' }, objectId: bodyId }] } });
+      requests.push({ insertText: { objectId: titleId, insertionIndex: 0, text: slide.heading } });
+      requests.push({ insertText: { objectId: bodyId, insertionIndex: 0, text: slide.bullets.map((b) => `• ${b}`).join('\n') } });
+    });
+    await client.request({ url: `https://slides.googleapis.com/v1/presentations/${presentationId}:batchUpdate`, method: 'POST', data: { requests } });
+    return JSON.stringify({ presentationId, url: `https://docs.google.com/presentation/d/${presentationId}/edit` });
+  },
+  {
+    name: 'create_presentation',
+    description: 'Crea una presentación real de Google Slides: una diapositiva de portada con el título '
+      + 'y una diapositiva por cada bloque de encabezado + viñetas. Sin imágenes ni tablas todavía. '
+      + 'Devuelve el enlace real de edición.',
+    schema: slidesCreateSchema,
+  },
+);
+
 const OFFICE_TOOLS: Record<string, StructuredToolInterface> = {
   'web.search': webSearchTool,
   calculator: calculatorTool,
@@ -439,6 +692,13 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface> = {
   'code.sandbox': codeSandboxTool,
   'clickup.read': clickupTool,
   'pdf.generate': pdfGenerateTool,
+  'email.draft': gmailDraftTool,
+  'email.read': gmailReadTool,
+  'drive.upload': driveUploadTool,
+  'calendar.create_event': calendarCreateEventTool,
+  'sheets.create': sheetsCreateTool,
+  'meet.create_space': meetCreateSpaceTool,
+  'slides.create': slidesCreateTool,
 };
 
 export function toolsFor(allowedTools: readonly string[]): StructuredToolInterface[] {

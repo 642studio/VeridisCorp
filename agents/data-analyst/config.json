@@ -7,7 +7,9 @@
   ],
   "allowedTools": [
     "calculator",
-    "pdf.generate"
+    "pdf.generate",
+    "drive.upload",
+    "sheets.create"
   ],
   "organization": {
     "title": "Analítica de negocio",
