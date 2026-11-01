@@ -8,7 +8,8 @@
   "allowedTools": [
     "web.search",
     "memory.write",
-    "memory.query"
+    "memory.query",
+    "mcp.use"
   ],
   "organization": {
     "title": "Gestión de conocimiento",

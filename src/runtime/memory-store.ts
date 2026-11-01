@@ -189,6 +189,19 @@ export class MemoryStore {
     return quarantined;
   }
 
+  // Solo para memorias que escribe el propio motor a partir de lo que observó (el estado de una
+  // conexión MCP): la versión nueva reemplaza a todas las anteriores de la misma entidad, aunque un
+  // humano las hubiera confirmado, porque describen un estado que ya cambió — no un conocimiento que
+  // alguien validó. Nunca se usa para lo que proponen agentes, el archivista o una importación.
+  async supersedeOthers(scope: AccessScope, entityType: CorporateMemoryRecord['entityType'], entityId: string, keepId: string): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE veridis_runtime_v1.memory_records
+       SET data = jsonb_set(data, '{status}', '"superseded"') || jsonb_build_object('updatedAt', $5::text)
+       WHERE scope_key = $1 AND entity_type = $2 AND entity_id = $3 AND id <> $4 AND status IN ('proposed', 'validated')`,
+      [scopeKey(scope), entityType, entityId, keepId, new Date().toISOString()]);
+    return result.rowCount ?? 0;
+  }
+
   async get(scope: AccessScope, id: string): Promise<CorporateMemoryRecord | null> {
     const { rows } = await this.pool.query<{ data: CorporateMemoryRecord }>(
       'SELECT data FROM veridis_runtime_v1.memory_records WHERE id = $1 AND scope_key = $2',

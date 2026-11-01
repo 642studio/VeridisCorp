@@ -1,5 +1,5 @@
 import type {
-  AgentDetail, AssistantMessage, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
+  AgentDetail, AssistantMessage, McpConnection, McpCredentialInput, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
   OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
   OfficeSchedulesListResponse, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus,
 } from './types';
@@ -110,6 +110,27 @@ export const api = {
   },
   deleteSchedule(id: string) {
     return request<{ id: string }>(`/office/schedules/${id}/delete`, { method: 'POST', body: '{}' });
+  },
+  listConnections() {
+    return request<{ connections: McpConnection[] }>('/office/connections');
+  },
+  addConnection(input: { name: string; url: string | null; purpose: string; credential: McpCredentialInput | null }) {
+    return request<McpConnection>('/office/connections', { method: 'POST', body: JSON.stringify(input) });
+  },
+  refreshConnection(id: string) {
+    return request<McpConnection>(`/office/connections/${id}/refresh`, { method: 'POST', body: '{}' });
+  },
+  setConnectionCredential(id: string, credential: McpCredentialInput | null) {
+    return request<McpConnection>(`/office/connections/${id}/credential`, { method: 'POST', body: JSON.stringify({ credential }) });
+  },
+  setConnectionTools(id: string, change: { enabled?: Record<string, boolean>; access?: Record<string, 'read' | 'write'> }) {
+    return request<McpConnection>(`/office/connections/${id}/tools`, { method: 'POST', body: JSON.stringify(change) });
+  },
+  confirmConnection(id: string) {
+    return request<McpConnection>(`/office/connections/${id}/confirm`, { method: 'POST', body: '{}' });
+  },
+  removeConnection(id: string) {
+    return request<McpConnection>(`/office/connections/${id}/remove`, { method: 'POST', body: '{}' });
   },
   fireSchedule(id: string) {
     return request<FireScheduleResponse>(`/office/schedules/${id}/fire`, { method: 'POST', body: '{}' });

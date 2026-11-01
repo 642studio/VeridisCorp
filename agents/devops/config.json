@@ -7,7 +7,9 @@
     "infrastructure.observe"
   ],
   "allowedTools": [
-    "repo.read"
+    "repo.read",
+    "mcp.connect",
+    "mcp.use"
   ],
   "organization": {
     "title": "Despliegues y observabilidad",

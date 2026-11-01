@@ -5,7 +5,11 @@
   "capabilities": [
     "automation.design"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "mcp.connect",
+    "mcp.use",
+    "memory.query"
+  ],
   "organization": {
     "title": "Integraciones y automatización",
     "departmentId": "data",

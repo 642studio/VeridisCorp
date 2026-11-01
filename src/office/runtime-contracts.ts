@@ -22,7 +22,7 @@ export const HumanAnswer = z.string().trim().min(1).max(16000);
 export const ArchivistReply = z.object({
   memories: z.array(z.object({
     kind: z.enum(['decision', 'fact', 'preference', 'question']),
-    entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision']),
+    entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration']),
     // Tolerante a propósito (el runtime lo normaliza a slug): una mayúscula o un espacio no debe
     // tirar a la basura todas las memorias de la respuesta.
     entityId: z.string().trim().min(1).max(120),
@@ -47,6 +47,8 @@ export type AssistantContext = {
   question: string;
   history: { question: string; answer: string }[];
   memories: { id: string; entityType: string; entityId: string; kind: string; content: string; confirmed: boolean }[];
+  // Estado en vivo de las conexiones MCP según el motor (no la memoria): la fuente para "qué hay hoy".
+  connections?: { name: string; status: string; confirmedByHuman: boolean; purpose: string; usableTools: string[]; offTools: string[] }[];
 };
 export type IngestContext = {
   title: string;

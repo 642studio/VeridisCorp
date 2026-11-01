@@ -48,8 +48,8 @@ test('parseRepos solo acepta nombre=/ruta/absoluta con nombres simples', () => {
 test('ningún esquema de herramienta lleva lookarounds: DeepSeek rechaza la llamada entera si los trae', async () => {
   const { toJsonSchema } = await import('@langchain/core/utils/json_schema');
   const all = ['web.search', 'calculator', 'cve.lookup', 'code.sandbox', 'clickup.read', 'memory.write', 'memory.query', 'pdf.generate',
-    'email.draft', 'email.read', 'drive.upload', 'calendar.create_event', 'sheets.create', 'meet.create_space', 'slides.create', 'repo.read'];
-  assert.equal(toolsFor(all).length, 22);
+    'email.draft', 'email.read', 'drive.upload', 'calendar.create_event', 'sheets.create', 'meet.create_space', 'slides.create', 'repo.read', 'mcp.use', 'mcp.connect'];
+  assert.equal(toolsFor(all).length, 25);
   for (const t of toolsFor(all)) {
     // Correo y fecha sí llevan pattern (de Zod) y DeepSeek los acepta; lo que rechaza son lookarounds.
     const patterns = JSON.stringify(toJsonSchema(t.schema as never)).match(/"pattern":"(?:[^"\\]|\\.)*"/g) ?? [];

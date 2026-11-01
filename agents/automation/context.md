@@ -10,4 +10,9 @@
 
 ## Información por completar
 
-Objetivos, procedimientos, responsables humanos, fuentes y permisos concretos se definirán con Adrián. No hay herramientas externas habilitadas para este perfil.
+Objetivos, procedimientos, responsables humanos y fuentes concretas se definirán con Adrián.
+
+## Herramientas habilitadas
+
+- Conexiones MCP (mcp.connect, mcp.use): puede conectar servidores MCP remotos por https y usar sus herramientas activas. Cada conexión queda descrita en la memoria corporativa. Las herramientas que escriben quedan apagadas hasta que un humano las active en Conexiones.
+- Consulta de memoria corporativa (memory.query).

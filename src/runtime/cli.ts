@@ -15,6 +15,8 @@ import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
 import { configureGmail, configureMemory } from '../office/tools.js';
 import { configureRepos, parseRepos } from '../office/repo-tools.js';
+import { configureMcp } from '../office/mcp-tools.js';
+import { McpStore } from './mcp-store.js';
 import { officeRegistry } from '../office/registry.js';
 import { AccessScope, Principal, Operation } from '../governance/contracts.js';
 import { MemoryStore, companyMemoryScope } from './memory-store.js';
@@ -137,15 +139,20 @@ async function main() {
    // fallarán en su primera llamada real.
    const embeddingProfile = embeddingProfileFromEnv();
    const memoryStore = new MemoryStore(pool, createEmbedder(embeddingProfile), embeddingProfile.model);
+   // Conexiones MCP: sin VERIDIS_TOKEN_ENCRYPTION_KEY funcionan igual, solo no se pueden guardar credenciales.
+   let encryptionKey: Buffer | null = null;
+   try { encryptionKey = loadEncryptionKey(process.env); } catch { encryptionKey = null; }
+   const mcpStore = new McpStore(pool, memoryStore, encryptionKey);
    office = new OfficeRuntime(pool, createOfficeIntelligence({ registry: officeRegistry, pool }), {
     maxTurns: z.coerce.number().int().positive().max(100).parse(process.env.VERIDIS_OFFICE_MAX_TURNS ?? '5'),
     maxRejectedDecisions: 3, maxQuestions: 2,
     maxCostMicros: process.env.VERIDIS_OFFICE_MAX_COST_MICROS
      ? z.coerce.number().int().positive().safe().parse(process.env.VERIDIS_OFFICE_MAX_COST_MICROS) : null,
-   }, memoryStore, vaultPathFromEnv());
+   }, memoryStore, vaultPathFromEnv(), mcpStore);
    await office.setup();
    const serviceScope = companyMemoryScope();
    configureMemory(memoryStore, serviceScope);
+   configureMcp(mcpStore, serviceScope);
    // Repos git que los puestos de software pueden leer (solo lectura): VERIDIS_REPOS="nombre=/ruta,...".
    configureRepos(parseRepos(process.env.VERIDIS_REPOS));
    const telegramConfig = telegramConfigFromEnv(serviceScope);

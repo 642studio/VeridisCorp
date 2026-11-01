@@ -6,7 +6,8 @@
     "projects.human-tasks"
   ],
   "allowedTools": [
-    "clickup.read"
+    "clickup.read",
+    "mcp.use"
   ],
   "organization": {
     "title": "Coordinación de tareas humanas",

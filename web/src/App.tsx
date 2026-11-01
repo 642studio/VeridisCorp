@@ -9,9 +9,10 @@ import { OfficeOrderDetail } from './screens/OfficeOrderDetail';
 import { OfficeChat } from './screens/OfficeChat';
 import { Schedules } from './screens/Schedules';
 import { Memory } from './screens/Memory';
+import { Connections } from './screens/Connections';
 import { clearToken } from './api/client';
 
-type View = 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'organization' | 'agents';
+type View = 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'connections' | 'organization' | 'agents';
 
 const NAV: { id: View; label: string }[] = [
   { id: 'chat', label: 'ASISTENTE' },
@@ -19,6 +20,7 @@ const NAV: { id: View; label: string }[] = [
   { id: 'office', label: 'OFICINA' },
   { id: 'schedules', label: 'TAREAS PROGRAMADAS' },
   { id: 'memory', label: 'MEMORIA' },
+  { id: 'connections', label: 'CONEXIONES' },
   { id: 'organization', label: 'ORGANIGRAMA' },
   { id: 'agents', label: 'AGENTES' },
 ];
@@ -33,6 +35,7 @@ export function App() {
     : view === 'office' ? (selectedOfficeId ? `OFICINA / ${selectedOfficeId.slice(0, 8)}` : 'OFICINA')
     : view === 'schedules' ? 'TAREAS PROGRAMADAS'
     : view === 'memory' ? 'MEMORIA'
+    : view === 'connections' ? 'CONEXIONES'
     : view === 'organization' ? 'ORGANIGRAMA' : 'AGENTES';
 
   return (
@@ -81,6 +84,7 @@ export function App() {
               <Schedules onOpenOrder={(id) => { setSelectedOfficeId(id); setView('office'); }} />
             )}
             {view === 'memory' && <Memory />}
+            {view === 'connections' && <Connections />}
             {view === 'runs' && (
               selectedId
                 ? <RunDetail id={selectedId} onBack={() => setSelectedId(null)} />

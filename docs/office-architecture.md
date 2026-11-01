@@ -80,6 +80,24 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
   - git corre con `execFile`, sin shell, con referencias y rutas validadas, y sin textconv ni ext-diff.
   - Nunca escribe, ni hace fetch, checkout o push.
   - Solo lee archivos versionados: un `.env` o una llave ignorados no existen para el agente.
+- Conexiones MCP (`src/office/mcp-client.ts`, `src/office/mcp-tools.ts`, `src/runtime/mcp-store.ts`). Tres ids:
+  - `mcp.connect` (automation, devops): `mcp_connect` conecta un servidor MCP remoto o lo deja solicitado sin URL.
+  - `mcp.use` (automation, devops, development, backend, research, knowledge-curator, human-task-coordinator):
+    `mcp_list_tools` y `mcp_call` sobre las herramientas activas de las conexiones activas.
+  - `mcp.use.readonly`: la variante que recibe el revisor; `mcp_call` rechaza lo que no sea de lectura.
+  - Solo transportes remotos (Streamable HTTP y, si falla, SSE). Nunca stdio: eso ejecutaría un comando en el servidor.
+  - Un agente solo conecta `https` público: se resuelve el nombre y se rechaza red privada, loopback, Tailscale
+    (100.64/10) y metadatos de nube, en cada petición. Un humano sí puede conectar su LAN (p. ej. n8n).
+  - Cada herramienta queda como `read` (el servidor declara `readOnlyHint`), `write` o `unknown` (no declara).
+    Solo `read` nace activa. Un humano activa las demás y puede clasificar una `unknown` como de lectura.
+  - Los argumentos se validan con el esquema que declaró el servidor (Ajv); la respuesta se recorta, se le tapan
+    credenciales y llega marcada como dato externo. La credencial va cifrada (`VERIDIS_TOKEN_ENCRYPTION_KEY`).
+  - Memoria: cada conexión tiene una memoria `integration` / `mcp-<nombre>` que el motor reescribe en cada cambio
+    (qué es, para qué sirve, cada herramienta, quién la conectó, estado). La versión nueva sustituye a las
+    anteriores. Queda confirmada solo si la conexión lo está y el cambio lo hizo un humano.
+  - El motor pone el estado real de las conexiones en `toolResults` (`mcp_connections`) y guarda, por expediente
+    y tarea, las respuestas MCP que observó al ejecutar. El revisor compara contra eso, sin repetir llamadas que
+    escriben (se pierde si la API se reinicia entre ejecución y revisión).
   - La salida se recorta y se tapan cadenas con forma de credencial.
   - Al especialista se le dice qué repos hay, con su rama y último commit, y tiene hasta 6 llamadas.
 - `clickup.read` (agentes de `projects`): lista tareas reales de ClickUp por palabra clave, sin crear ni modificar nada.

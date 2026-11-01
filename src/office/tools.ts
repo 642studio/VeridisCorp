@@ -9,6 +9,7 @@ import type { ResolvedProfile } from './models.js';
 import type { AccessScope, CorporateMemoryRecord } from '../governance/contracts.js';
 import type { MemoryQueryResult } from '../runtime/memory-store.js';
 import { REPO_TOOLS } from './repo-tools.js';
+import { MCP_TOOLS } from './mcp-tools.js';
 
 // Catálogo de herramientas reales que un agente puede usar durante execute(), siempre acotado
 // por su allowedTools (agents/<id>/config.json). El id aquí es el mismo que allowedTools declara;
@@ -477,7 +478,7 @@ export async function recallCorporateMemory(question: string, options: { limit: 
   })));
 }
 
-const MEMORY_ENTITY_TYPES = ['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision'] as const;
+const MEMORY_ENTITY_TYPES = ['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration'] as const;
 const memoryWriteSchema = z.object({
   entityType: z.enum(MEMORY_ENTITY_TYPES).describe('Qué tipo de entidad describe esta memoria'),
   entityId: z.string().trim().min(1).max(120).describe('Identificador corto y estable de ESTE conocimiento, con su tema (p. ej. "cliente-acme-tono-de-marca", no solo "cliente-acme"): '
@@ -800,6 +801,7 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInter
   'meet.create_space': meetCreateSpaceTool,
   'slides.create': slidesCreateTool,
   'repo.read': REPO_TOOLS,
+  ...MCP_TOOLS,
 };
 
 export function toolsFor(allowedTools: readonly string[]): StructuredToolInterface[] {

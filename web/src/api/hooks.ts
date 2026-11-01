@@ -1,6 +1,6 @@
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { AssistantMessage, MemoryStatus, OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
+import type { AssistantMessage, McpCredentialInput, MemoryStatus, OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
 
 export function useRunsList(status?: RunStatus[]) {
   return useInfiniteQuery({
@@ -161,3 +161,25 @@ export function useQuarantineMemory() {
     onSuccess: () => { void client.invalidateQueries({ queryKey: ['memory'] }); },
   });
 }
+
+// Conexiones MCP. Cada cambio reescribe la memoria de la conexión: se refresca también ['memory'].
+export function useConnections() {
+  return useQuery({ queryKey: ['connections'], queryFn: () => api.listConnections(), refetchInterval: 30000 });
+}
+function useConnectionMutation<A extends unknown[], R>(fn: (...args: A) => Promise<R>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (args: A) => fn(...args),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['connections'] });
+      void client.invalidateQueries({ queryKey: ['memory'] });
+    },
+  });
+}
+export const useAddConnection = () => useConnectionMutation((input: Parameters<typeof api.addConnection>[0]) => api.addConnection(input));
+export const useRefreshConnection = () => useConnectionMutation((id: string) => api.refreshConnection(id));
+export const useConnectionCredential = () => useConnectionMutation((id: string, credential: McpCredentialInput | null) => api.setConnectionCredential(id, credential));
+export const useConnectionTools = () => useConnectionMutation((id: string, change: Parameters<typeof api.setConnectionTools>[1]) => api.setConnectionTools(id, change));
+export const useConfirmConnection = () => useConnectionMutation((id: string) => api.confirmConnection(id));
+export const useRemoveConnection = () => useConnectionMutation((id: string) => api.removeConnection(id));
+

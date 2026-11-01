@@ -143,6 +143,21 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.assistant_messages (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS runtime_assistant_messages_thread ON veridis_runtime_v1.assistant_messages(scope_key, thread_id, created_at);
+-- Conexiones MCP (src/runtime/mcp-store.ts). tools guarda lo que el servidor declaró más la decisión
+-- humana de cuáles están activas; credential_encrypted va cifrada como el refresh token de Google.
+-- memory_id apunta a la memoria corporativa vigente que describe la conexión. Un nombre retirado
+-- puede volver a usarse (índice único parcial).
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.mcp_connections (
+ id uuid PRIMARY KEY, scope_key text NOT NULL, name text NOT NULL, url text NULL,
+ status text NOT NULL CHECK (status IN ('active','needs_auth','error','requested','removed')),
+ trust text NOT NULL CHECK (trust IN ('confirmed','unconfirmed')),
+ purpose text NOT NULL, added_by jsonb NOT NULL, origin_order_id uuid NULL,
+ server jsonb NULL, tools jsonb NOT NULL DEFAULT '[]', credential_encrypted bytea NULL,
+ memory_id uuid NULL, last_error text NULL, last_checked_at timestamptz NULL,
+ call_count integer NOT NULL DEFAULT 0, last_used_at timestamptz NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS runtime_mcp_connections_name ON veridis_runtime_v1.mcp_connections(scope_key, name) WHERE status <> 'removed';
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

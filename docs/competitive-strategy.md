@@ -346,6 +346,48 @@ Pendiente:
 - Delegar en CLIs de código.
 - Que el revisor reciba fuentes de dominio (p. ej. la especificación del SAT) cuando el encargo dependa de ellas.
 
+## Hecho: conexiones MCP con memoria (2026-11-01)
+
+Pedido: que al hacer o solicitar una conexión MCP la empresa la guarde en memoria y la entienda después.
+Decisión de Adrián: los agentes también pueden conectar, no solo él.
+
+- **Conectar.** `mcp.connect` (automation, devops) conecta un servidor MCP remoto por https, o lo deja
+  solicitado si no tiene la URL. Desde la pantalla CONEXIONES un humano puede conectar también su LAN (n8n),
+  con credencial cifrada.
+- **Usar.** `mcp.use` da `mcp_call` sobre las herramientas activas. Las que el servidor declara de lectura
+  nacen activas; las que escriben o no declaran nada quedan apagadas hasta que un humano las active.
+- **Recordar.** Cada conexión tiene una memoria `integration` que el motor reescribe en cada cambio: qué es,
+  para qué sirve, cada herramienta, quién la conectó y en qué estado está. Una conexión pedida sin URL, o que
+  pide credencial, queda como pregunta abierta. El asistente del chat recibe además el estado en vivo.
+- **Revisar.** El revisor ve el estado real de las conexiones y las respuestas MCP que el motor observó al
+  ejecutar, así comprueba sin repetir llamadas que escriben.
+
+Prueba en vivo con servidores reales:
+
+| Prueba | Resultado |
+|---|---|
+| Conectar DeepWiki desde la pantalla | Activa por Streamable HTTP, 3 herramientas leídas, memoria confirmada |
+| Encargo: «usa deepwiki para averiguar cómo guarda LangGraph los checkpoints» | Completado, $0.14. automation consultó DeepWiki y el revisor aceptó comparando con lo que el motor observó |
+| Encargo: «conecta el MCP de documentación de Cloudflare» | Completado, $0.14. automation lo conectó sola (2 herramientas de lectura), quedó sin confirmar y el revisor lo comprobó con el estado real |
+| Chat: «¿tenemos forma de consultar la documentación de Cloudflare?» | 1.7 s. Encontró la conexión por significado, con sus herramientas y su estado |
+| Chat: «¿qué integraciones tenemos ahora y cuáles puedo usar?» | 2.6 s. Las dos conexiones, qué herramientas están activas y que «sin confirmar» no impide usarla |
+
+Lo que encontró la prueba y se corrigió antes de cerrar:
+
+- DeepWiki no declara si sus herramientas escriben, y el sistema las mostraba como "escriben". Ahora hay un
+  tercer estado, "no declara", y un humano puede clasificarlas.
+- El revisor rechazaba porque no podía volver a llamar herramientas sin declarar: ahora compara con lo que
+  observó el motor.
+- Un agente se detuvo a preguntar si "sin confirmar" contaba como conectada; los mensajes ya lo aclaran.
+- Al retirar y volver a conectar convivían dos memorias de la misma conexión; ahora la nueva sustituye a las
+  anteriores.
+
+Pendiente:
+
+- OAuth de servidores MCP (Notion, GitHub, ClickUp remotos lo piden); hoy solo cabecera con token.
+- Servidores locales por stdio, solo declarados por el operador.
+- Que las respuestas observadas sobrevivan a un reinicio de la API (hoy viven en memoria del proceso).
+
 ## Backlog validado, priorizado, pendiente de decisión
 
 1. **Reanudar un expediente pausado por presupuesto.** Hoy una pausa (por presupuesto o por

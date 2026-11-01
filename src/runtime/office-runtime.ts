@@ -22,6 +22,8 @@ import { fireOnce } from './scheduler.js';
 import { companyMemoryScope, type MemoryStore } from './memory-store.js';
 import { exportRecordToVault } from './memory-export.js';
 import { splitDocument, SECTION_MAX } from './memory-ingest.js';
+import type { McpStore } from './mcp-store.js';
+import { McpConnectError } from '../office/mcp-client.js';
 
 type Tx = PoolClient;
 const slug = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -40,6 +42,20 @@ const ImportSectionInput = z.object({
  // Un documento escrito por quien lo importa puede entrar ya confirmado: es la confirmación humana.
  confirm: z.boolean().default(false),
 }).strict();
+// Conexiones MCP: la credencial va en una cabecera (Authorization por defecto; "Bearer " se agrega solo).
+const McpCredentialInput = z.object({
+ headerName: z.string().trim().min(1).max(80).regex(/^[A-Za-z0-9-]+$/).default('Authorization'),
+ value: z.string().trim().min(1).max(4000),
+}).strict();
+const McpConnectionInput = z.object({
+ name: z.string().trim().min(1).max(40), url: z.string().trim().max(500).nullable().optional(),
+ purpose: z.string().trim().min(1).max(500), credential: McpCredentialInput.nullable().optional(),
+}).strict();
+const McpToolsInput = z.object({
+ enabled: z.record(z.string().min(1).max(120), z.boolean()).optional(),
+ access: z.record(z.string().min(1).max(120), z.enum(['read', 'write'])).optional(),
+}).strict();
+const McpCredentialUpdate = z.object({ credential: McpCredentialInput.nullable() }).strict();
 const ScheduleInput = z.object({
  name: z.string().trim().min(1).max(200),
  objective: z.string().trim().min(1).max(4000),
@@ -88,6 +104,7 @@ export class OfficeRuntime {
   // exitosa también espeja esa memoria a disco (ver src/runtime/memory-export.ts). Postgres sigue
   // siendo la fuente de verdad; un fallo al escribir el archivo no revierte ni falla la validación.
   private readonly memoryVaultPath?: string | null,
+  private readonly mcp?: McpStore,
  ) {
   this.saver = new PostgresSaver(pool);
  }
@@ -497,8 +514,17 @@ export class OfficeRuntime {
     // Sin embeddings o sin memoria: se responde igual, sin ella.
    }
   }
+  // Estado en vivo de las conexiones MCP: la memoria dice qué se sabe de cada una, esto dice cómo están ahora.
+  let connections: AssistantContext['connections'];
+  if (this.mcp) {
+   connections = (await this.mcp.list(companyMemoryScope()).catch(() => [])).map((c) => ({
+    name: c.name, status: c.status, confirmedByHuman: c.trust === 'confirmed', purpose: c.purpose,
+    usableTools: c.status === 'active' ? c.tools.filter((t) => t.enabled).map((t) => t.name) : [],
+    offTools: c.tools.filter((t) => !t.enabled).map((t) => t.name),
+   }));
+  }
   let usage: ModelUsage | null = null;
-  const reply = AssistantReply.parse(await this.intelligence.ask({ question: input.question, history: previous, memories }, (u) => { usage = u; }));
+  const reply = AssistantReply.parse(await this.intelligence.ask({ question: input.question, history: previous, memories, ...(connections ? { connections } : {}) }, (u) => { usage = u; }));
   const counted = usage as ModelUsage | null;
   // Solo cuentan las memorias que el modelo dice haber usado y que de verdad se le dieron.
   const usedIds = [...new Set(reply.memoryIds)].filter((id) => memories.some((m) => m.id === id));
@@ -628,6 +654,62 @@ export class OfficeRuntime {
    }
   }
   return quarantined;
+ }
+ // Conexiones MCP (src/runtime/mcp-store.ts). Leer y agregar son trabajo normal (data.read / data.write);
+ // activar herramientas que escriben, confirmar lo que conectó un agente y retirar una conexión son
+ // decisiones de gobierno (approval.decide), igual que confirmar o descartar memoria. La conexión con
+ // el servidor ocurre fuera de la transacción: puede tardar segundos y no debe retener la base.
+ private async mcpAuth(token: string, operation: Operation): Promise<{ auth: Auth; mcp: McpStore }> {
+  const auth = await transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, operation);
+   return auth;
+  });
+  if (!this.mcp) throw new RuntimeError(409, 'Las conexiones MCP no están configuradas en este servidor');
+  return { auth, mcp: this.mcp };
+ }
+ private async mcpCall<T>(work: () => Promise<T>): Promise<T> {
+  try { return await work(); }
+  catch (error) {
+   if (error instanceof McpConnectError) throw new RuntimeError(400, error.message);
+   throw error;
+  }
+ }
+ async listConnections(token: string) {
+  const { auth, mcp } = await this.mcpAuth(token, 'data.read');
+  return { connections: await mcp.list(auth.scope) };
+ }
+ async addConnection(token: string, raw: unknown) {
+  const input = McpConnectionInput.parse(raw);
+  const { auth, mcp } = await this.mcpAuth(token, 'data.write');
+  return this.mcpCall(() => mcp.connect(auth.scope, { name: input.name, url: input.url ?? null, purpose: input.purpose, credential: input.credential ?? null }, { principal: auth.principal }));
+ }
+ async refreshConnection(token: string, rawId: string) {
+  const id = z.uuid().parse(rawId);
+  const { auth, mcp } = await this.mcpAuth(token, 'data.write');
+  return this.mcpCall(() => mcp.refresh(auth.scope, id, { principal: auth.principal }));
+ }
+ async setConnectionCredential(token: string, rawId: string, raw: unknown) {
+  const id = z.uuid().parse(rawId);
+  const { credential } = McpCredentialUpdate.parse(raw);
+  const { auth, mcp } = await this.mcpAuth(token, 'data.write');
+  return this.mcpCall(() => mcp.setCredential(auth.scope, id, credential, { principal: auth.principal }));
+ }
+ async setConnectionTools(token: string, rawId: string, raw: unknown) {
+  const id = z.uuid().parse(rawId);
+  const change = McpToolsInput.parse(raw);
+  const { auth, mcp } = await this.mcpAuth(token, 'approval.decide');
+  return mcp.setTools(auth.scope, id, change, { principal: auth.principal });
+ }
+ async confirmConnection(token: string, rawId: string) {
+  const id = z.uuid().parse(rawId);
+  const { auth, mcp } = await this.mcpAuth(token, 'approval.decide');
+  return mcp.confirm(auth.scope, id, { principal: auth.principal });
+ }
+ async removeConnection(token: string, rawId: string) {
+  const id = z.uuid().parse(rawId);
+  const { auth, mcp } = await this.mcpAuth(token, 'approval.decide');
+  return mcp.remove(auth.scope, id, { principal: auth.principal });
  }
  async answer(token: string, id: string, raw: unknown) {
   const auth = await transaction(this.pool, async (tx) => this.auth(tx, token));

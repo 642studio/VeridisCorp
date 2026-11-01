@@ -83,6 +83,18 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     result = await office.validateMemory(token, /^\/office\/memory\/([0-9a-f-]{36})\/validate$/.exec(path)![1]!);
    } else if (office && req.method === 'POST' && /^\/office\/memory\/([0-9a-f-]{36})\/quarantine$/.test(path)) {
     result = await office.quarantineMemory(token, /^\/office\/memory\/([0-9a-f-]{36})\/quarantine$/.exec(path)![1]!, await body(req));
+   } else if (office && req.method === 'GET' && path === '/office/connections') {
+    result = await office.listConnections(token);
+   } else if (office && req.method === 'POST' && path === '/office/connections') {
+    result = await office.addConnection(token, await body(req));
+   } else if (office && /^\/office\/connections\/([0-9a-f-]{36})\/(refresh|credential|tools|confirm|remove)$/.test(path)) {
+    const [, id, action] = /^\/office\/connections\/([0-9a-f-]{36})\/(refresh|credential|tools|confirm|remove)$/.exec(path)!;
+    if (req.method !== 'POST') throw new RuntimeError(405, 'Método no disponible');
+    if (action === 'refresh') result = await office.refreshConnection(token, id!);
+    else if (action === 'credential') result = await office.setConnectionCredential(token, id!, await body(req));
+    else if (action === 'tools') result = await office.setConnectionTools(token, id!, await body(req));
+    else if (action === 'confirm') result = await office.confirmConnection(token, id!);
+    else result = await office.removeConnection(token, id!);
    } else if (office && req.method === 'POST' && path === '/office/schedules') {
     result = await office.createSchedule(token, await body(req));
     scheduler?.register({ id: (result as { id: string }).id, cron_expression: (result as { cronExpression: string }).cronExpression, timezone: (result as { timezone: string }).timezone });

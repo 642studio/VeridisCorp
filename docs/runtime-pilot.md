@@ -101,6 +101,13 @@ Fecha: 2026-10-23. `office/` deja de ser solo simulación cuando el servidor arr
 | POST /office/assistant/ask | `{question, threadId?}`; respuesta rápida: una llamada con la memoria corporativa ya consultada (unos 2–3 s). Devuelve `mode` `answer`, o `order` con `objective` (el encargo redactado) cuando lo pedido es trabajo; la UI lo abre entonces con `POST /office/orders`. Exige `data.read` |
 | GET /office/assistant/threads | Conversaciones rápidas del ámbito, con título, número de mensajes y si solo fueron traspasos a la oficina |
 | GET /office/assistant/threads/{id} | Mensajes de una conversación rápida, con las memorias usadas, tokens, costo y latencia de cada respuesta |
+| GET /office/connections | Conexiones MCP del ámbito con su estado, herramientas (lectura / escritura / no declara, activa o no), quién las conectó y uso. Exige `data.read` |
+| POST /office/connections | `{name, url?, purpose, credential?}`; conecta un servidor MCP (o lo deja solicitado sin URL) y escribe su memoria. Exige `data.write` |
+| POST /office/connections/{id}/refresh | Vuelve a leer el servidor; conserva lo que un humano decidió. `data.write` |
+| POST /office/connections/{id}/credential | `{credential: {headerName?, value} \| null}`; guarda la credencial cifrada y vuelve a probar. `data.write` |
+| POST /office/connections/{id}/tools | `{enabled?, access?}`; activa o apaga herramientas y clasifica las que el servidor no declara. `approval.decide` |
+| POST /office/connections/{id}/confirm | Confirma una conexión que hizo un agente (y su memoria). `approval.decide` |
+| POST /office/connections/{id}/remove | Retira la conexión; su memoria pasa a "retirada". `approval.decide` |
 | POST /office/orders | `{objective}`; crea un expediente y lo hace avanzar hasta que el CEO lo cierre, lo pause o pregunte algo |
 | GET /office/orders | Lista expedientes de oficina del ámbito autorizado |
 | GET /office/orders/{id} | Expediente completo: tareas, eventos, llamadas de modelo reales, preguntas y respuestas ya intercambiadas (`exchanges`) y límites del flujo |

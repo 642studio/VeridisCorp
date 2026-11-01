@@ -341,7 +341,7 @@ export interface FireScheduleResponse extends OfficeSchedule {
 // src/runtime/office-runtime.ts (listMemory/validateMemory) — sin transformación, el mismo objeto
 // validado por zod que se guarda en memory_records.data.
 
-export type MemoryEntityType = 'company' | 'division' | 'client' | 'brand' | 'project' | 'contract' | 'person' | 'product' | 'decision';
+export type MemoryEntityType = 'company' | 'division' | 'client' | 'brand' | 'project' | 'contract' | 'person' | 'product' | 'decision' | 'integration';
 export type MemoryStatus = 'proposed' | 'validated' | 'superseded' | 'quarantined';
 export type MemoryTrust = 'external_untrusted' | 'internal_unverified' | 'verified';
 
@@ -423,3 +423,19 @@ export interface AssistantThreadSummary {
   createdAt: string;
   updatedAt: string;
 }
+
+// Conexiones MCP (src/runtime/mcp-store.ts).
+export type McpStatus = 'active' | 'needs_auth' | 'error' | 'requested' | 'removed';
+export interface McpTool {
+  name: string; title: string | null; description: string; inputSchema: Record<string, unknown>;
+  access: 'read' | 'write' | 'unknown'; enabled: boolean; accessSetBy?: 'server' | 'human';
+}
+export interface McpConnection {
+  id: string; name: string; url: string | null; displayUrl: string | null; status: McpStatus; trust: 'confirmed' | 'unconfirmed';
+  purpose: string; addedBy: { kind: 'human' | 'agent' | 'service'; id: string }; originOrderId: string | null;
+  server: { name: string | null; version: string | null; instructions: string | null; transport: string } | null;
+  tools: McpTool[]; hasCredential: boolean; memoryId: string | null; lastError: string | null; lastCheckedAt: string | null;
+  callCount: number; lastUsedAt: string | null; createdAt: string; updatedAt: string;
+}
+export interface McpCredentialInput { headerName?: string; value: string }
+

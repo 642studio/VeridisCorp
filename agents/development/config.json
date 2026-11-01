@@ -9,7 +9,8 @@
   ],
   "allowedTools": [
     "code.sandbox",
-    "repo.read"
+    "repo.read",
+    "mcp.use"
   ],
   "organization": {
     "title": "Desarrollo",

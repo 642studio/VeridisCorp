@@ -6,7 +6,14 @@
     "news.research",
     "news.summarize"
   ],
-  "allowedTools": ["web.search", "pdf.generate", "drive.upload", "memory.write", "memory.query"],
+  "allowedTools": [
+    "web.search",
+    "pdf.generate",
+    "drive.upload",
+    "memory.write",
+    "memory.query",
+    "mcp.use"
+  ],
   "organization": {
     "title": "Investigacion",
     "departmentId": "intelligence",
