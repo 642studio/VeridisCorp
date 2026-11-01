@@ -6,7 +6,9 @@
     "infrastructure.delivery",
     "infrastructure.observe"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "repo.read"
+  ],
   "organization": {
     "title": "Despliegues y observabilidad",
     "departmentId": "infrastructure",

@@ -10,7 +10,10 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
 await new Promise((resolve) => server.close(resolve));
 const run = (name, args) => {
- const result = spawnSync(join(binaries, name), args, { encoding: 'utf8' });
+ // LC_ALL=C: en macOS reciente, postmaster puede arrancar "multithreaded" con el locale heredado
+ // de la sesión y Postgres lo rechaza (FATAL postmaster became multithreaded during startup).
+ // No afecta a la base de prueba en sí (initdb ya corre con --no-locale).
+ const result = spawnSync(join(binaries, name), args, { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C', LANG: 'C' } });
  if (result.status !== 0) throw new Error(result.stderr || result.error?.message || name + ' falló');
 };
 let started = false;

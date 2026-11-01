@@ -136,7 +136,12 @@ pre { font-family: inherit; }
 .audit-timeline__event { color: var(--accent); }
 .audit-timeline__who { color: var(--muted); }
 
-.action-bar { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 12px 0; margin-top: 24px; }
+.memory__contradicts { border-left: 2px solid var(--warn); padding: 6px 0 6px 10px; margin: 8px 0; font-size: 12px; color: var(--warn); }
+.memory__contradicts p { margin: 0 0 6px; }
+.memory__contradicts .agent-panel__prompt { color: var(--muted); }
+.usage-summary { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; font-size: 12px; color: var(--text); }
+.usage-summary strong { color: var(--accent); font-weight: 600; }
+.action-bar { position: sticky; bottom: 0; z-index: 10; background: var(--bg); border-top: 1px solid var(--border); padding: 12px 0; margin-top: 24px; }
 .action-bar__buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .action-bar__revise { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .action-bar__revise textarea { background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px; }
@@ -144,6 +149,9 @@ pre { font-family: inherit; }
 .session-expired { text-align: center; margin-top: 80px; }
 
 /* ---- org chart ---- */
+.org-chart__mode-toggle { display: flex; gap: 4px; margin-bottom: 10px; }
+.org-chart__mode-toggle .shell__nav-item { padding: 6px 14px; border-left: none; border: 1px solid var(--border-bright); }
+.org-chart__mode-toggle .shell__nav-item--active { background: var(--panel-raised); }
 .org-chart__executive { font-size: 13px; margin-bottom: 8px; }
 .org-chart__search {
   width: 100%; background: var(--panel-raised); border: 1px solid var(--border-bright); color: var(--text);
@@ -230,14 +238,20 @@ pre { font-family: inherit; }
 .chat-bubble--assistant { align-self: flex-start; background: var(--panel); border-color: var(--border-bright); }
 .chat-bubble--thinking { color: var(--accent); border-color: var(--accent-dim); }
 .chat-bubble__text { white-space: pre-wrap; margin: 0; font-size: 13px; line-height: 1.5; }
+.chat-bubble__speak { margin-top: 4px; padding: 0; font-size: 12px; }
 
 .chat-process { margin: 0 20px 10px; border: 1px solid var(--border); padding: 8px 12px; }
 .chat-process summary { cursor: pointer; color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
 .chat-process .office-agents-involved { margin-top: 10px; }
 .chat-closed-note { padding: 0 20px; }
 
+.chat-voice-bar { display: flex; align-items: center; gap: 14px; padding: 0 20px 8px; }
+.chat-voice-bar__toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+
 .chat-input { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .chat-input textarea { flex: 1; background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px; resize: none; }
+.chat-input__mic { flex-shrink: 0; font-size: 16px; line-height: 1; }
+.chat-input__mic--active { border-color: var(--accent); background: var(--panel-raised); }
 
 /* ---- tareas programadas ---- */
 .schedules__header { display: flex; justify-content: space-between; align-items: center; }
@@ -247,6 +261,11 @@ pre { font-family: inherit; }
 .schedules__name { font-weight: 700; color: var(--text); }
 .schedules__row-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 12px; }
 .schedules__row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.memory__tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 10px 0 0; }
+.memory__tabs .shell__nav-item { padding: 8px 14px; border-left: none; border-bottom: 3px solid transparent; }
+.memory__tabs .shell__nav-item--active { border-bottom-color: var(--accent); }
+.memory .agent-panel__prompt { max-height: 160px; margin: 6px 0; }
 
 .schedule-form { border: 1px solid var(--border-bright); background: var(--panel); padding: 16px; margin: 16px 0; display: flex; flex-direction: column; gap: 12px; }
 .schedule-form__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -259,3 +278,123 @@ pre { font-family: inherit; }
 .schedule-form__weekdays { display: flex; gap: 6px; flex-wrap: wrap; }
 .schedule-form__cron { font-size: 11px; }
 .schedule-form__actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ---- org graph (grafo radial) ---- */
+.org-graph__legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 8px 0 10px; font-size: 11px; color: var(--muted); }
+.org-graph__legend-item { display: flex; align-items: center; gap: 6px; }
+.org-graph__swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.org-graph__canvas {
+  width: 100%; height: 72vh; background: var(--bg); border: 1px solid var(--border);
+  touch-action: none; cursor: grab;
+}
+.org-graph__canvas:active { cursor: grabbing; }
+.org-graph__links path { fill: none; stroke-width: 1.2px; }
+.org-graph__label { font-size: 10px; fill: var(--muted); cursor: default; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+.org-graph__label--root { fill: var(--accent); font-weight: 700; font-size: 13px; }
+.org-graph__label--department { fill: var(--text); font-weight: 700; cursor: pointer; }
+.org-graph__label--agent { fill: var(--text); cursor: pointer; }
+.org-graph__label--tool { fill: var(--muted); font-size: 9px; }
+
+/* ---- mapa de memoria (components/memoryMap) ---- */
+.memory-map { display: flex; flex-direction: column; gap: 10px; }
+.memory-map__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.memory-map__title { margin: 0; font-size: 12px; letter-spacing: 0.12em; color: var(--accent); }
+.memory-map__stats { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.memory-map__head-actions { display: flex; gap: 8px; }
+.memory-map__legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text); }
+.memory-map__legend li { display: inline-flex; align-items: center; gap: 6px; }
+.memory-map__dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-right: 6px; vertical-align: middle; }
+.memory-map__legend .memory-map__dot { margin-right: 0; }
+.memory-map__dot--ring { background: transparent; border: 1.5px solid #fff; width: 8px; height: 8px; }
+.memory-map__dot--lit { background: #3987e5; box-shadow: 0 0 6px 2px rgba(57, 135, 229, 0.7); }
+.memory-map__dash { display: inline-block; width: 16px; border-top: 1.5px dashed #e8e8e2; }
+.memory-map__stage { position: relative; height: calc(100vh - 340px); min-height: 420px; border: 1px solid var(--border); overflow: hidden; background: #070b14; }
+.memory-map__canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.memory-map__canvas:active { cursor: grabbing; }
+.memory-map__canvas:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.memory-map__empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 24px; text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+.memory-map__keys { position: absolute; left: 12px; bottom: 10px; margin: 0; font-size: 11px; color: var(--muted); pointer-events: none; }
+.memory-map__keys kbd { font-family: inherit; font-size: 10px; border: 1px solid var(--border-bright); padding: 1px 5px; color: var(--text); background: rgba(7, 11, 20, 0.8); }
+.memory-map__panel {
+  position: absolute; z-index: 2; top: 12px; right: 12px; bottom: 12px; width: min(360px, calc(100% - 24px)); overflow-y: auto;
+  background: rgba(11, 15, 20, 0.94); border: 1px solid var(--border-bright); padding: 14px 16px; font-size: 12px;
+  display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(4px);
+}
+.memory-map__panel-head { display: flex; justify-content: space-between; align-items: center; color: var(--text); font-size: 12px; letter-spacing: 0.04em; }
+.memory-map__close { background: none; border: 1px solid var(--border-bright); color: var(--muted); width: 24px; height: 24px; cursor: pointer; font-size: 14px; line-height: 1; }
+.memory-map__close:hover { color: var(--text); }
+.memory-map__content { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.memory-map__meta { display: grid; grid-template-columns: 88px 1fr; gap: 6px 10px; margin: 0; }
+.memory-map__meta dt { color: var(--muted); }
+.memory-map__meta dd { margin: 0; color: var(--text); word-break: break-word; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.memory-map__status { font-size: 10px; letter-spacing: 0.08em; padding: 2px 6px; border: 1px solid; }
+.memory-map__status--confirmed { color: var(--done); border-color: var(--done); }
+.memory-map__status--unconfirmed { color: var(--warn); border-color: var(--warn); }
+.memory-map__status--quarantined { color: var(--danger); border-color: var(--danger); }
+.memory-map__status-note { color: var(--muted); }
+.memory-map__section { margin: 4px 0 0; padding-top: 10px; border-top: 1px solid var(--border); color: var(--muted); letter-spacing: 0.06em; }
+.memory-map__usage { margin: 0; color: var(--text); }
+.memory-map__connections { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.memory-map__connections button {
+  width: 100%; display: flex; align-items: center; gap: 0; background: none; border: 1px solid transparent; padding: 5px 6px;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.memory-map__connections button:hover { border-color: var(--border-bright); background: var(--panel-raised); }
+.memory-map__connection-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memory-map__pct { color: var(--muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
+.memory-map__actions { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.memory-map__buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.memory__views { display: flex; gap: 4px; margin-bottom: 12px; }
+
+/* ---- importar texto a memoria (components/MemoryImport) ---- */
+.memory__views { align-items: center; }
+.memory__import-button { margin-left: auto; }
+.memory-import { border: 1px solid var(--border); background: var(--panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.memory-import__head { display: flex; justify-content: space-between; align-items: center; }
+.memory-import__head .panel-title { margin: 0; }
+.memory-import__field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text); }
+.memory-import__field input, .memory-import__field textarea {
+  background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px 10px; font: inherit; font-size: 13px;
+}
+.memory-import__field textarea { min-height: 220px; resize: vertical; line-height: 1.5; }
+.memory-import__summary { margin: 0; color: var(--accent); font-size: 13px; }
+.memory-import__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.memory-import__row { border: 1px solid var(--border); padding: 8px 10px; font-size: 12px; }
+.memory-import__row--running { border-color: var(--accent-dim); }
+.memory-import__row--error { border-color: var(--danger); }
+.memory-import__state { display: inline-block; min-width: 22px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.memory-import__row--pending .memory-import__state { color: var(--muted); }
+.memory-import__section { color: var(--text); }
+.memory-import__memories { list-style: none; margin: 8px 0 0 22px; padding: 0; display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.memory-import__memories li { line-height: 1.45; }
+.chat-input__limit { margin: 4px 0 0; font-size: 12px; }
+.memory-import__check { display: flex; gap: 8px; align-items: baseline; margin: 8px 0; font-size: 13px; }
+
+/* ---- chat: respuestas rápidas ---- */
+.chat-exchange { display: flex; flex-direction: column; gap: 14px; }
+.chat-empty p { margin: 6px 0; }
+.chat-error { padding: 0 20px; }
+.chat-bubble__footer { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+.chat-bubble__footer .chat-bubble__speak { margin-top: 0; }
+.chat-bubble__escalate { padding: 0; font-size: 12px; }
+.chat-answer-meta { margin: 0; font-size: 11px; color: var(--muted); }
+.chat-answer-meta summary { cursor: pointer; }
+.chat-answer-meta ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-width: 560px; }
+.chat-answer-meta li { line-height: 1.45; border-left: 2px solid var(--border-bright); padding-left: 8px; }
+.chat-answer-meta__state { display: inline-block; margin-right: 6px; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; color: var(--muted); }
+.chat-answer-meta__state--confirmed { color: var(--accent); }
+.chat-handoff { margin-top: 10px; border: 1px solid var(--accent-dim); background: var(--panel-raised); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.chat-handoff__label { margin: 0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+.chat-handoff__objective { margin: 0; font-size: 12px; white-space: pre-wrap; line-height: 1.45; }
+.chat-handoff__status { display: flex; align-items: center; gap: 10px; }
+.chat-handoff p.muted { margin: 0; font-size: 12px; }
+
+/* Markdown mínimo de las respuestas (components/RichText.tsx). */
+.rich-text { white-space: normal; }
+.rich-text p { margin: 0 0 8px; }
+.rich-text p:last-child, .rich-text ul:last-child, .rich-text ol:last-child { margin-bottom: 0; }
+.rich-text ul, .rich-text ol { margin: 0 0 8px; padding-left: 20px; }
+.rich-text li { margin: 2px 0; }
+.rich-text strong { color: var(--text); font-weight: 700; }
+.rich-text code { background: #000; padding: 0 4px; border: 1px solid var(--border); font-size: 12px; }
+.rich-text__heading { font-weight: 700; color: var(--accent); margin-top: 6px; }

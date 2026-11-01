@@ -1,6 +1,6 @@
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
+import type { AssistantMessage, MemoryStatus, OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
 
 export function useRunsList(status?: RunStatus[]) {
   return useInfiniteQuery({
@@ -65,6 +65,34 @@ export function useOfficeOrder(id: string | null) {
   });
 }
 
+export function useAssistantThreads() {
+  return useQuery({ queryKey: ['assistant', 'threads'], queryFn: () => api.listAssistantThreads(), staleTime: 30000 });
+}
+
+export function useAssistantThread(threadId: string | null) {
+  return useQuery({
+    queryKey: ['assistant', 'thread', threadId],
+    queryFn: () => api.getAssistantThread(threadId!),
+    enabled: threadId !== null,
+    // Solo cambia cuando se pregunta aquí, y useAskAssistant ya agrega la respuesta a esta caché.
+    staleTime: Infinity,
+  });
+}
+
+// La respuesta se agrega al hilo en caché en el acto (sin esperar un refetch) para que se sienta inmediata.
+export function useAskAssistant() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ question, threadId }: { question: string; threadId: string | null }) => api.askAssistant(question, threadId),
+    onSuccess: (message) => {
+      client.setQueryData<{ threadId: string; messages: AssistantMessage[] }>(['assistant', 'thread', message.threadId],
+        (prev) => ({ threadId: message.threadId, messages: [...(prev?.messages ?? []), message] }));
+      void client.invalidateQueries({ queryKey: ['assistant', 'threads'] });
+      void client.invalidateQueries({ queryKey: ['memory'] });
+    },
+  });
+}
+
 export function useStartOfficeOrder() {
   const client = useQueryClient();
   return useMutation({
@@ -108,3 +136,28 @@ export const useUpdateSchedule = () =>
   useScheduleMutation((id: string, input: Partial<Pick<OfficeSchedule, 'name' | 'objective' | 'cronExpression' | 'timezone' | 'enabled'>>) => api.updateSchedule(id, input));
 export const useDeleteSchedule = () => useScheduleMutation((id: string) => api.deleteSchedule(id));
 export const useFireSchedule = () => useScheduleMutation((id: string) => api.fireSchedule(id));
+
+export function useMemoryList(status: MemoryStatus) {
+  return useQuery({ queryKey: ['memory', status], queryFn: () => api.listMemory(status), refetchInterval: 15000 });
+}
+
+// Bajo la misma raíz ['memory'] que la lista: confirmar o poner en cuarentena refresca también el mapa.
+export function useMemoryGraph() {
+  return useQuery({ queryKey: ['memory', 'graph'], queryFn: () => api.memoryGraph(), refetchInterval: 15000 });
+}
+
+export function useValidateMemory() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.validateMemory(id),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['memory'] }); },
+  });
+}
+
+export function useQuarantineMemory() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.quarantineMemory(id, reason),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['memory'] }); },
+  });
+}

@@ -10,16 +10,36 @@ import { scopeKey, tokenHash, transaction } from './database.js';
 import { RuntimeError } from './contracts.js';
 import { createOrder } from '../office/contracts.js';
 import { createOfficeWorkflow, OFFICE_WORKFLOW_VERSION } from '../office/workflow.js';
+import { budgetStatus } from '../office/budget.js';
+import type { ModelCallRecord } from '../office/models.js';
 import { officeRegistry } from '../office/registry.js';
-import { HumanAnswer } from '../office/runtime-contracts.js';
+import { HumanAnswer, ArchivistReply, IngestReply, AssistantReply, type AssistantContext } from '../office/runtime-contracts.js';
+import { loadPriceList, priceTokens, type PriceList } from '../office/prices.js';
 import type { OfficeIntelligence, HumanExchange } from '../office/runtime-contracts.js';
+import type { ModelUsage } from '../office/models.js';
+import type { WorkOrder } from '../office/contracts.js';
 import { fireOnce } from './scheduler.js';
+import { companyMemoryScope, type MemoryStore } from './memory-store.js';
+import { exportRecordToVault } from './memory-export.js';
+import { splitDocument, SECTION_MAX } from './memory-ingest.js';
 
 type Tx = PoolClient;
+const slug = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+ .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'memoria';
 type Auth = { principal: Principal; scope: AccessScope };
 const officeResource = (scope: AccessScope) => ({ type: 'workflow', id: 'office-pilot', scope });
+const MemoryStatus = z.enum(['proposed', 'validated', 'superseded', 'quarantined']);
 const StartInput = z.object({ objective: z.string().trim().min(1).max(4000) }).strict();
 const AnswerInput = z.object({ answer: HumanAnswer }).strict();
+const AskInput = z.object({ question: z.string().trim().min(1).max(4000), threadId: z.uuid().nullable().optional() }).strict();
+const QuarantineInput = z.object({ reason: z.string().trim().min(1).max(2000) }).strict();
+// Hasta ~200 mil caracteres por documento: más de eso conviene partirlo a mano en varias importaciones.
+const ImportPlanInput = z.object({ title: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(200000) }).strict();
+const ImportSectionInput = z.object({
+ title: z.string().trim().min(1).max(200), section: z.string().trim().min(1).max(400), text: z.string().trim().min(1).max(SECTION_MAX),
+ // Un documento escrito por quien lo importa puede entrar ya confirmado: es la confirmación humana.
+ confirm: z.boolean().default(false),
+}).strict();
 const ScheduleInput = z.object({
  name: z.string().trim().min(1).max(200),
  objective: z.string().trim().min(1).max(4000),
@@ -49,22 +69,77 @@ function nextRunOf(cronExpression: string, timezone: string): Date | null {
 // propio permiso otorgado vía runtime:provision (mismo patrón que content-orchestrator/
 // delivery-executor en runtime/service.ts).
 export const scheduler = { kind: 'service' as const, id: 'scheduler' };
+export const telegramBridge = { kind: 'service' as const, id: 'telegram-bridge' };
 
 // Reabre, bajo la misma sesión/autorización que runtime/, la ejecución real de office/ que
 // los comandos CLI office:run/resume/answer suspendieron (ver docs/runtime-pilot.md). A
 // diferencia de ContentRuntime, cada avance puede disparar varias llamadas reales de una sola
-// vez: el tope está en maxTurns del workflow, no en un presupuesto en dólares por expediente.
+// vez: el tope siempre presente es maxTurns del workflow; el presupuesto en dinero por expediente
+// (maxCostMicros, src/office/budget.ts) es opcional y solo se aplica si se configuró.
 export class OfficeRuntime {
  private readonly saver: PostgresSaver;
  constructor(
   private readonly pool: Pool, private readonly intelligence: OfficeIntelligence,
-  private readonly options: { maxTurns?: number; maxRejectedDecisions?: number; maxQuestions?: number } = {},
+  // maxCostMicros no es del workflow sino de cada expediente: se copia a order.limits al crearlo
+  // (VERIDIS_OFFICE_MAX_COST_MICROS), así cambiar la variable no reinterpreta expedientes ya en curso.
+  private readonly options: { maxTurns?: number; maxRejectedDecisions?: number; maxQuestions?: number; maxCostMicros?: number | null; priceList?: PriceList | null } = {},
+  private readonly memory?: MemoryStore,
+  // Ruta de un vault de Obsidian (VERIDIS_MEMORY_VAULT_PATH): si está presente, cada validación
+  // exitosa también espeja esa memoria a disco (ver src/runtime/memory-export.ts). Postgres sigue
+  // siendo la fuente de verdad; un fallo al escribir el archivo no revierte ni falla la validación.
+  private readonly memoryVaultPath?: string | null,
  ) {
   this.saver = new PostgresSaver(pool);
  }
  async setup() { await this.saver.setup(); }
  private graph() {
-  return createOfficeWorkflow(this.intelligence, officeRegistry, this.saver, this.options);
+  const { maxCostMicros: _perOrder, ...workflowOptions } = this.options;
+  return createOfficeWorkflow(this.intelligence, officeRegistry, this.saver, workflowOptions);
+ }
+ // Archivista (memoria automática, decisión 2026-10-31): al cerrar un expediente se destila, en
+ // segundo plano, lo que valga la pena recordar — sin retrasar la respuesta al humano ni poder
+ // fallar el expediente. settled() existe para que las pruebas esperen a que termine.
+ private readonly distilling = new Set<Promise<void>>();
+ async settled() { await Promise.allSettled([...this.distilling]); }
+ private scheduleDistill(auth: Auth, id: string, order: unknown) {
+  if (!this.memory || !this.intelligence.distill || (order as { status?: string }).status !== 'completed') return;
+  const run: Promise<void> = this.distill(auth, id, order as WorkOrder)
+   .catch((error: unknown) => this.audit(this.pool, auth, id, 'memory.distill_failed', { reason: error instanceof Error ? error.message : 'desconocido' }).catch(() => undefined))
+   .finally(() => { this.distilling.delete(run); });
+  this.distilling.add(run);
+ }
+ private async distill(auth: Auth, id: string, order: WorkOrder) {
+  const claimed = await this.pool.query(
+   'UPDATE veridis_runtime_v1.office_orders SET memory_distilled_at = clock_timestamp() WHERE id = $1 AND memory_distilled_at IS NULL RETURNING id', [id]);
+  if (!claimed.rows.length) return;
+  // Mismo ámbito fijo que usan memory.write/memory.query de los agentes (configureMemory en cli.ts).
+  const scope = companyMemoryScope();
+  const existing = await this.memory!.query(scope, order.objective, { limit: 8, track: false });
+  // Solo lo producido de verdad: entregas de tareas completadas, recortadas para no mandar un
+  // expediente enorme a un modelo barato.
+  const deliverables = order.tasks.filter((t) => t.status === 'completed' && t.submission)
+   .map((t) => ({ task: t.title, agentId: t.assignedAgentId, summary: t.submission!.summary.slice(0, 3000) }));
+  if (!deliverables.length) return;
+  let usage: ModelUsage | null = null;
+  const reply = ArchivistReply.parse(await this.intelligence.distill!({
+   objective: order.objective, deliverables,
+   existing: existing.map((r) => ({ id: r.record.id, entityType: r.record.entityType, entityId: r.record.entityId, content: r.record.content, confirmed: r.record.status === 'validated' })),
+  }, (u) => { usage = u; }));
+  const knownIds = new Set(existing.map((r) => r.record.id));
+  const saved: string[] = [];
+  for (const memory of reply.memories) {
+   const record = await this.memory!.propose(scope, {
+    entityType: memory.entityType, entityId: slug(memory.entityId), content: memory.content, kind: memory.kind,
+    provenance: [{ reference: `expediente://${id} (archivista)`, observedAt: new Date().toISOString() }],
+    trust: 'internal_unverified',
+    // Solo se acepta refutar algo que el archivista de verdad vio: nunca un id inventado.
+    contradicts: memory.contradicts && knownIds.has(memory.contradicts) ? memory.contradicts : null,
+   });
+   saved.push(record.id);
+  }
+  const counted = usage as ModelUsage | null;
+  // Fuera del presupuesto del expediente (ya cerró): queda en la auditoría con su consumo real.
+  await this.audit(this.pool, auth, id, 'memory.distilled', { memoryIds: saved, inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null });
  }
  private async auth(tx: Tx, token: string): Promise<Auth> {
   if (!token || token.length > 200) throw new RuntimeError(401, 'Sesión inválida');
@@ -116,9 +191,11 @@ export class OfficeRuntime {
  ) {
   const pendingQuestion = snapshot.tasks.flatMap((t) => t.interrupts ?? [])
    .map((i) => i.value as { question?: string } | undefined).find((v) => v?.question)?.question ?? null;
+  const order = state.order as { limits?: { maxCostMicros?: number | null } };
   return { order: state.order, turns: state.turns, rejectedDecisions: state.rejectedDecisions, lastError: state.lastError,
    modelCalls: state.modelCalls, exchanges: state.exchanges, interrupted: snapshot.next.length > 0, pendingQuestion,
-   limits: { maxTurns: this.options.maxTurns ?? 100, maxRejectedDecisions: this.options.maxRejectedDecisions ?? 3, maxQuestions: this.options.maxQuestions ?? 5 } };
+   limits: { maxTurns: this.options.maxTurns ?? 100, maxRejectedDecisions: this.options.maxRejectedDecisions ?? 3, maxQuestions: this.options.maxQuestions ?? 5 },
+   budget: budgetStatus(state.modelCalls as ModelCallRecord[], order.limits?.maxCostMicros) };
  }
  // Cuerpo real de "iniciar", ya resuelto el Auth — lo reusan tanto start() (sesión humana vía
  // token) como startScheduled() (disparo automático, sin token). id es opcional para que un
@@ -130,7 +207,7 @@ export class OfficeRuntime {
   const order = createOrder({
    id, workspaceId: auth.scope.workspaceId, objective,
    criteria: [{ id: 'delivery', description: 'Entregable que responde al objetivo, con evidencias y revisión independiente.' }],
-   limits: { maxTasks: 10, maxSteps: 60, maxRevisionsPerTask: 2 },
+   limits: { maxTasks: 10, maxSteps: 60, maxRevisionsPerTask: 2, maxCostMicros: this.options.maxCostMicros ?? null },
   });
   await this.syncIndex(id, auth.scope, objective, 'active', options.scheduleId ?? null);
   const config = { configurable: { thread_id: threadId }, recursionLimit: 300 };
@@ -138,6 +215,7 @@ export class OfficeRuntime {
   const snapshot = await this.graph().getState(config);
   const state = snapshot.values as Parameters<typeof this.shape>[0];
   await this.syncIndex(id, auth.scope, objective, (state.order as { status: string }).status, options.scheduleId ?? null);
+  this.scheduleDistill(auth, id, state.order);
   await this.audit(this.pool, auth, id, 'office.started', { objective, ...(options.scheduleId ? { scheduleId: options.scheduleId } : {}) });
   return { id, ...this.shape(state, snapshot) };
  }
@@ -168,17 +246,26 @@ export class OfficeRuntime {
    return { orders: rows.rows };
   });
  }
- async get(token: string, id: string) {
-  const { auth, threadId } = await transaction(this.pool, async (tx) => {
-   const auth = await this.auth(tx, token);
+ // Cuerpo real de "leer" (solo getState(), sin invoke(): nunca dispara una llamada real de IA),
+ // ya resuelto el Auth — lo reusan tanto get() (sesión humana) como getAsService() (el puente de
+ // Telegram, para poder contestar el estado al instante sin esperar a que termine lo pesado).
+ private async getWithAuth(auth: Auth, id: string) {
+  const threadId = await transaction(this.pool, async (tx) => {
    const threadId = await this.indexRow(tx, auth, id);
    await this.permit(tx, auth, id, 'data.read');
-   return { auth, threadId };
+   return threadId;
   });
   const config = { configurable: { thread_id: threadId }, recursionLimit: 300 };
   const snapshot = await this.graph().getState(config);
   if (!snapshot.values.order) throw new RuntimeError(404, 'Expediente no disponible');
   return { id, ...this.shape(snapshot.values as Parameters<typeof this.shape>[0], snapshot) };
+ }
+ async get(token: string, id: string) {
+  const auth = await transaction(this.pool, async (tx) => this.auth(tx, token));
+  return this.getWithAuth(auth, id);
+ }
+ async getAsService(principal: Principal, scope: AccessScope, id: string) {
+  return this.getWithAuth({ principal, scope }, id);
  }
  async advance(token: string, id: string) {
   const { auth, threadId } = await transaction(this.pool, async (tx) => {
@@ -192,6 +279,7 @@ export class OfficeRuntime {
   const snapshot = await this.graph().getState(config);
   const state = snapshot.values as Parameters<typeof this.shape>[0];
   await this.syncIndex(id, auth.scope, (state.order as { objective: string }).objective, (state.order as { status: string }).status);
+  this.scheduleDistill(auth, id, state.order);
   await this.audit(this.pool, auth, id, 'office.advanced', {});
   return { id, ...this.shape(state, snapshot) };
  }
@@ -317,13 +405,243 @@ export class OfficeRuntime {
    return { filename: file.filename, contentType: file.content_type, content: file.content };
   });
  }
- async answer(token: string, id: string, raw: unknown) {
-  const input = AnswerInput.parse(raw);
-  const { auth, threadId } = await transaction(this.pool, async (tx) => {
+ // Memoria automática: lo que proponen agentes o el archivista ya está vigente sin confirmar; aquí
+ // un humano lo confirma (validateMemory) o lo descarta (quarantineMemory). El ámbito fijo de
+ // memoria corporativa (companyMemoryScope, src/runtime/memory-store.ts) significa que solo una
+ // sesión aprovisionada exactamente con ese scope puede ver o decidir algo aquí — una sesión de
+ // cliente normal no lo alcanza, igual que sameScope() exige en el resto de la autorización.
+ async listMemory(token: string, rawStatus: unknown) {
+  const status = MemoryStatus.catch('proposed').parse(rawStatus);
+  return transaction(this.pool, async (tx) => {
    const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   if (!this.memory) throw new RuntimeError(409, 'La memoria corporativa no está configurada en este servidor');
+   return { records: await this.memory.listByStatus(auth.scope, status) };
+  });
+ }
+ // Importar un documento a memoria, paso 1: partirlo en secciones (sin IA, determinista). La
+ // interfaz manda después cada sección a ingestMemorySection para mostrar avance real.
+ async planMemoryImport(token: string, raw: unknown) {
+  const { title, text } = ImportPlanInput.parse(raw);
+  await transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.write');
+  });
+  return { title, sections: splitDocument(text) };
+ }
+ // Paso 2: una sección -> hasta 12 memorias, vigentes sin confirmar como todo lo automático. Lo que
+ // ya existe con el mismo sentido se le muestra al modelo para que no lo duplique.
+ async ingestMemorySection(token: string, raw: unknown) {
+  const input = ImportSectionInput.parse(raw);
+  const auth = await transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.write');
+   return auth;
+  });
+  if (!this.memory) throw new RuntimeError(409, 'La memoria corporativa no está configurada en este servidor');
+  if (!this.intelligence.ingest) throw new RuntimeError(409, 'Este servidor no tiene un modelo configurado para importar memoria');
+  const existing = await this.memory.query(auth.scope, `${input.section}\n${input.text.slice(0, 600)}`, { limit: 10, track: false });
+  let usage: ModelUsage | null = null;
+  const reply = IngestReply.parse(await this.intelligence.ingest({
+   title: input.title, section: input.section, text: input.text,
+   existing: existing.map((r) => ({ id: r.record.id, entityType: r.record.entityType, entityId: r.record.entityId, content: r.record.content, confirmed: r.record.status === 'validated' })),
+  }, (u) => { usage = u; }));
+  const knownIds = new Set(existing.map((r) => r.record.id));
+  const saved = [];
+  for (const memory of reply.memories) {
+   const record = await this.memory.propose(auth.scope, {
+    entityType: memory.entityType, entityId: slug(memory.entityId), content: memory.content, kind: memory.kind,
+    provenance: [{ reference: `documento: ${input.title} § ${input.section} (importado por ${auth.principal.id}${input.confirm ? ', confirmado al importar' : ''})`, observedAt: new Date().toISOString() }],
+    trust: 'internal_unverified',
+    contradicts: memory.contradicts && knownIds.has(memory.contradicts) ? memory.contradicts : null,
+   });
+   saved.push(input.confirm ? await this.memory.validate(auth.scope, record.id) : record);
+  }
+  const counted = usage as ModelUsage | null;
+  await this.audit(this.pool, auth, null, 'memory.ingested', { title: input.title, section: input.section, memoryIds: saved.map((r) => r.id), inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null });
+  return { section: input.section, memories: saved, inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null };
+ }
+ // Respuesta rápida del chat: una llamada con la memoria ya consultada, en segundos, en vez de un
+ // expediente completo (CEO, área, especialistas, revisor) que tarda de 30 s a varios minutos.
+ // Si lo pedido es trabajo, devuelve mode "order" con el encargo redactado y la UI lo abre como
+ // expediente con start() — que exige su propio permiso (draft.create); aquí basta data.read.
+ async ask(token: string, raw: unknown) {
+  const input = AskInput.parse(raw);
+  const auth = await transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   return auth;
+  });
+  if (!this.intelligence.ask) throw new RuntimeError(409, 'Este servidor no tiene un modelo configurado para el asistente');
+  const key = scopeKey(auth.scope);
+  const threadId = input.threadId ?? randomUUID();
+  const previous = input.threadId
+   ? (await this.pool.query<{ question: string; answer: string }>(
+    `SELECT question, answer FROM veridis_runtime_v1.assistant_messages
+     WHERE scope_key=$1 AND thread_id=$2 ORDER BY created_at DESC LIMIT 6`, [key, threadId])).rows.reverse()
+   : [];
+  if (input.threadId && !previous.length) throw new RuntimeError(404, 'Conversación no disponible');
+  const started = Date.now();
+  // Mismo ámbito que la memoria de los agentes. La pregunta anterior entra en la búsqueda para que
+  // un seguimiento corto ("¿y cuánto cuesta?") encuentre el tema de la conversación.
+  let memories: AssistantContext['memories'] = [];
+  if (this.memory) {
+   const memoryScope = companyMemoryScope();
+   const search = [previous.at(-1)?.question, input.question].filter(Boolean).join('\n');
+   try {
+    memories = (await this.memory.query(memoryScope, search, { limit: 8, track: false })).map((r) => ({
+     id: r.record.id, entityType: r.record.entityType, entityId: r.record.entityId, kind: r.record.kind ?? 'fact',
+     content: r.record.content, confirmed: r.record.status === 'validated',
+    }));
+   } catch {
+    // Sin embeddings o sin memoria: se responde igual, sin ella.
+   }
+  }
+  let usage: ModelUsage | null = null;
+  const reply = AssistantReply.parse(await this.intelligence.ask({ question: input.question, history: previous, memories }, (u) => { usage = u; }));
+  const counted = usage as ModelUsage | null;
+  // Solo cuentan las memorias que el modelo dice haber usado y que de verdad se le dieron.
+  const usedIds = [...new Set(reply.memoryIds)].filter((id) => memories.some((m) => m.id === id));
+  const used = memories.filter((m) => usedIds.includes(m.id));
+  if (this.memory && usedIds.length) await this.memory.recordRecalls(companyMemoryScope(), usedIds).catch(() => undefined);
+  const mode = reply.mode === 'order' && reply.objective?.trim() ? 'order' : 'answer';
+  const objective = mode === 'order' ? reply.objective!.trim() : null;
+  const selection = this.intelligence.selectModel?.({ stage: 'execute', agentId: 'assistant', capability: 'assistant.answer' });
+  const price = priceTokens(this.priceList(), selection?.provider ?? 'unknown', selection?.model ?? 'unknown', counted ?? { inputTokens: null, outputTokens: null });
+  const id = randomUUID();
+  const latencyMs = Date.now() - started;
+  const row = await this.pool.query<{ created_at: Date }>(
+   `INSERT INTO veridis_runtime_v1.assistant_messages(id,thread_id,scope_key,principal,question,answer,mode,objective,memories,provider,model,input_tokens,output_tokens,cost_micros,latency_ms)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING created_at`,
+   [id, threadId, key, auth.principal, input.question, reply.answer, mode, objective, JSON.stringify(used),
+    selection?.provider ?? 'unknown', selection?.model ?? 'unknown', counted?.inputTokens ?? null, counted?.outputTokens ?? null, price.costMicros, latencyMs],
+  );
+  await this.audit(this.pool, auth, null, 'assistant.answered', { messageId: id, threadId, mode, memoryIds: usedIds,
+   inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null, costMicros: price.costMicros, latencyMs });
+  return { id, threadId, question: input.question, answer: reply.answer, mode, objective, memories: used,
+   inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null,
+   costMicros: price.costMicros, costStatus: price.costStatus, latencyMs, createdAt: row.rows[0]!.created_at };
+ }
+ private cachedPriceList: PriceList | null | undefined;
+ private priceList(): PriceList | null {
+  if (this.options.priceList !== undefined) return this.options.priceList;
+  if (this.cachedPriceList === undefined) {
+   try { this.cachedPriceList = loadPriceList(); } catch { this.cachedPriceList = null; }
+  }
+  return this.cachedPriceList;
+ }
+ async assistantThreads(token: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   const rows = await tx.query(
+    `SELECT thread_id AS "threadId", (array_agg(question ORDER BY created_at))[1] AS title, count(*)::int AS messages,
+      bool_and(mode = 'order') AS "onlyHandoffs", min(created_at) AS "createdAt", max(created_at) AS "updatedAt"
+     FROM veridis_runtime_v1.assistant_messages WHERE scope_key=$1
+     GROUP BY thread_id ORDER BY max(created_at) DESC LIMIT 50`, [scopeKey(auth.scope)]);
+   return { threads: rows.rows };
+  });
+ }
+ async assistantThread(token: string, threadId: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   const rows = await tx.query(
+    `SELECT id, thread_id AS "threadId", question, answer, mode, objective, memories, input_tokens AS "inputTokens",
+      output_tokens AS "outputTokens", cost_micros::float8 AS "costMicros", latency_ms AS "latencyMs", created_at AS "createdAt"
+     FROM veridis_runtime_v1.assistant_messages WHERE scope_key=$1 AND thread_id=$2 ORDER BY created_at`,
+    [scopeKey(auth.scope), z.uuid().parse(threadId)]);
+   if (!rows.rows.length) throw new RuntimeError(404, 'Conversación no disponible');
+   return { threadId, messages: rows.rows };
+  });
+ }
+ // Datos del mapa de memoria: nodos con su uso real y enlaces por similitud (MemoryStore.graph).
+ async memoryGraph(token: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   if (!this.memory) throw new RuntimeError(409, 'La memoria corporativa no está configurada en este servidor');
+   return this.memory.graph(auth.scope);
+  });
+ }
+ async validateMemory(token: string, raw_id: string) {
+  const id = z.uuid().parse(raw_id);
+  const { auth, validated } = await transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'approval.decide');
+   if (!this.memory) throw new RuntimeError(409, 'La memoria corporativa no está configurada en este servidor');
+   // "No encontrada en este ámbito" (incluida una de otro ámbito) es 404, igual que getFile();
+   // cualquier otro motivo (ya validada, ya sustituida) es una transición inválida real y debe
+   // seguir el camino genérico de abajo (409, mismo patrón que decideApproval en runtime/service.ts).
+   const validated = await this.memory.validate(auth.scope, id).catch((error) => {
+    if (error instanceof Error && error.message.includes('no encontrada')) throw new RuntimeError(404, error.message);
+    throw error;
+   });
+   await this.audit(tx, auth, null, 'memory.validated', { memoryId: id, entityType: validated.entityType, entityId: validated.entityId, version: validated.version });
+   return { auth, validated };
+  });
+  // Fuera de la transacción a propósito: escribir a disco no debe mantenerla abierta, y un fallo
+  // aquí no debe revertir una validación que ya ocurrió de verdad en Postgres (la fuente de verdad).
+  if (this.memoryVaultPath) {
+   // Si esta validación puso otra memoria en cuarentena (contradicts), su archivo también se
+   // reescribe: si no, Obsidian seguiría mostrando como vigente un dato ya refutado.
+   const mirrored = [validated];
+   if (validated.contradicts) {
+    const target = await this.memory!.get(auth.scope, validated.contradicts).catch(() => null);
+    if (target?.status === 'quarantined') mirrored.push(target);
+   }
+   for (const record of mirrored) {
+    try {
+     const filePath = exportRecordToVault(this.memoryVaultPath, record);
+     await this.audit(this.pool, auth, null, 'memory.vault_exported', { memoryId: record.id, filePath });
+    } catch (error) {
+     await this.audit(this.pool, auth, null, 'memory.vault_export_failed', { memoryId: record.id, reason: error instanceof Error ? error.message : 'desconocido' });
+    }
+   }
+  }
+  return validated;
+ }
+ // Mismo permiso y forma que validateMemory: poner en cuarentena también es una decisión humana de
+ // gobierno sobre memoria corporativa, nunca algo que un agente pueda hacer por sí mismo. El motivo
+ // es obligatorio (QuarantineInput): a diferencia de "nunca se valida" para una propuesta mala, aquí
+ // SÍ hace falta justificar por qué algo que ya era vigente deja de serlo.
+ async quarantineMemory(token: string, raw_id: string, raw: unknown) {
+  const id = z.uuid().parse(raw_id);
+  const { reason } = QuarantineInput.parse(raw);
+  const { auth, quarantined } = await transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'approval.decide');
+   if (!this.memory) throw new RuntimeError(409, 'La memoria corporativa no está configurada en este servidor');
+   const quarantined = await this.memory.quarantine(auth.scope, id, reason).catch((error) => {
+    if (error instanceof Error && error.message.includes('no encontrada')) throw new RuntimeError(404, error.message);
+    throw error;
+   });
+   await this.audit(tx, auth, null, 'memory.quarantined', { memoryId: id, entityType: quarantined.entityType, entityId: quarantined.entityId, version: quarantined.version, reason });
+   return { auth, quarantined };
+  });
+  if (this.memoryVaultPath) {
+   try {
+    const filePath = exportRecordToVault(this.memoryVaultPath, quarantined);
+    await this.audit(this.pool, auth, null, 'memory.vault_exported', { memoryId: id, filePath });
+   } catch (error) {
+    await this.audit(this.pool, auth, null, 'memory.vault_export_failed', { memoryId: id, reason: error instanceof Error ? error.message : 'desconocido' });
+   }
+  }
+  return quarantined;
+ }
+ async answer(token: string, id: string, raw: unknown) {
+  const auth = await transaction(this.pool, async (tx) => this.auth(tx, token));
+  return this.answerWithAuth(auth, id, raw);
+ }
+ // Compartido con answer(): un llamador de confianza dentro del mismo proceso (sin sesión/token)
+ // construye su propio Auth directo, igual que startScheduled() ya hace para el scheduler — el
+ // permiso real sigue viniendo de un grant real en la tabla grants, nunca de confiar en quien llama.
+ private async answerWithAuth(auth: Auth, id: string, raw: unknown) {
+  const input = AnswerInput.parse(raw);
+  const threadId = await transaction(this.pool, async (tx) => {
    const threadId = await this.indexRow(tx, auth, id);
    await this.permit(tx, auth, id, 'draft.create');
-   return { auth, threadId };
+   return threadId;
   });
   const config = { configurable: { thread_id: threadId }, recursionLimit: 300 };
   const before = await this.graph().getState(config);
@@ -332,7 +650,19 @@ export class OfficeRuntime {
   const snapshot = await this.graph().getState(config);
   const state = snapshot.values as Parameters<typeof this.shape>[0];
   await this.syncIndex(id, auth.scope, (state.order as { objective: string }).objective, (state.order as { status: string }).status);
+  this.scheduleDistill(auth, id, state.order);
   await this.audit(this.pool, auth, id, 'office.answered', {});
   return { id, ...this.shape(state, snapshot) };
+ }
+ // Mismo patrón que startScheduled(): un llamador interno de confianza (el puente de Telegram,
+ // src/runtime/telegram.ts) actúa con su propio principal de servicio, nunca con el de quien le
+ // escribió — el mensaje de Telegram es un dato de entrada (el objective), no una identidad.
+ async startAsService(principal: Principal, scope: AccessScope, objective: string) {
+  const auth: Auth = { principal, scope };
+  await transaction(this.pool, async (tx) => { await this.permit(tx, auth, null, 'draft.create'); });
+  return this.startWithAuth(auth, objective);
+ }
+ async answerAsService(principal: Principal, scope: AccessScope, id: string, raw: unknown) {
+  return this.answerWithAuth({ principal, scope }, id, raw);
  }
 }

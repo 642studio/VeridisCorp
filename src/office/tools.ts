@@ -6,6 +6,9 @@ import { z } from 'zod';
 import type { OAuth2Client } from 'google-auth-library';
 import { createProfileModel } from './model-providers.js';
 import type { ResolvedProfile } from './models.js';
+import type { AccessScope, CorporateMemoryRecord } from '../governance/contracts.js';
+import type { MemoryQueryResult } from '../runtime/memory-store.js';
+import { REPO_TOOLS } from './repo-tools.js';
 
 // Catálogo de herramientas reales que un agente puede usar durante execute(), siempre acotado
 // por su allowedTools (agents/<id>/config.json). El id aquí es el mismo que allowedTools declara;
@@ -179,8 +182,12 @@ export const cveLookupTool = tool(
   },
 );
 
-const SANDBOX_IMAGES: Record<'javascript' | 'python', { image: string; command: string[] }> = {
-  javascript: { image: 'node:22-slim', command: ['sh', '-c', 'cat > main.js && node --experimental-strip-types main.js'] },
+export type SandboxLanguage = 'javascript' | 'typescript' | 'python';
+// TypeScript va en main.ts: Node solo quita tipos en archivos .ts (en main.js un ": number" es error
+// de sintaxis — así falló en vivo). transform-types cubre también enum y namespace.
+const SANDBOX_IMAGES: Record<SandboxLanguage, { image: string; command: string[] }> = {
+  javascript: { image: 'node:22-slim', command: ['sh', '-c', 'cat > main.js && node main.js'] },
+  typescript: { image: 'node:22-slim', command: ['sh', '-c', 'cat > main.ts && node --no-warnings --experimental-transform-types main.ts'] },
   python: { image: 'python:3.12-slim', command: ['sh', '-c', 'cat > main.py && python3 main.py'] },
 };
 
@@ -192,7 +199,7 @@ const SANDBOX_IMAGES: Record<'javascript' | 'python', { image: string; command: 
 // 60s por defecto: no porque el código deba tardar tanto, sino porque la primera ejecución en un
 // host nuevo paga el costo único de bajar la imagen (probado en vivo: ~15s se quedó corto).
 export function runSandboxed(
-  language: 'javascript' | 'python', code: string, timeoutMs = 60000,
+  language: SandboxLanguage, code: string, timeoutMs = 60000,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const { image, command } = SANDBOX_IMAGES[language];
   return new Promise((resolve, reject) => {
@@ -214,7 +221,7 @@ export function runSandboxed(
 }
 
 const codeSandboxSchema = z.object({
-  language: z.enum(['javascript', 'python']),
+  language: z.enum(['javascript', 'typescript', 'python']).describe('typescript si el código lleva tipos'),
   code: z.string().trim().min(1).max(8000).describe('Código completo de un solo archivo, listo para ejecutar'),
 });
 export const codeSandboxTool = tool(
@@ -224,7 +231,7 @@ export const codeSandboxTool = tool(
   },
   {
     name: 'run_code',
-    description: 'Ejecuta un snippet de código (javascript o python) en un contenedor aislado, '
+    description: 'Ejecuta un snippet de código (javascript, typescript o python) en un contenedor aislado, '
       + 'sin red ni acceso al host, y devuelve exitCode, stdout y stderr reales. Úsala para '
       + 'verificar que el código propuesto realmente corre antes de entregarlo como resultado.',
     schema: codeSandboxSchema,
@@ -431,6 +438,96 @@ export const clickupTool = tool(
     description: 'Busca tareas reales en ClickUp (solo lectura) por palabra clave y devuelve id, '
       + 'nombre, estado y URL real. No crea, mueve ni cierra ninguna tarea.',
     schema: clickupSchema,
+  },
+);
+
+// Memoria corporativa (CorporateMemoryRecord, src/governance/contracts.ts; implementación real en
+// src/runtime/memory-store.ts). Mismo patrón de inyección que configureGmail: un único acceso
+// compartido, fijado una vez al arrancar (src/runtime/cli.ts), nunca por llamada — igual que Gmail
+// usa una sola cuenta para cualquier expediente sin importar su cliente, memory.write/memory.query
+// no están aisladas todavía por el AccessScope propio del expediente (ese cableado no existe hoy
+// en execute()/review()); son corporativas en el sentido más literal: un solo ámbito fijo para
+// todo el despliegue (VERIDIS_MEMORY_WORKSPACE_ID/COMPANY_ID/DIVISION_ID en .env). Aislamiento real
+// por cliente exigiría propagar el scope del expediente hasta aquí, que queda pendiente explícito.
+export interface MemoryAccess {
+  propose(scope: AccessScope, input: {
+    entityType: CorporateMemoryRecord['entityType']; entityId: string; content: string;
+    provenance: CorporateMemoryRecord['provenance']; trust: CorporateMemoryRecord['trust'];
+    kind?: CorporateMemoryRecord['kind']; contradicts?: string | null;
+  }): Promise<CorporateMemoryRecord>;
+  query(scope: AccessScope, question: string, options?: { limit?: number; track?: boolean }): Promise<MemoryQueryResult[]>;
+}
+let memoryAccess: { access: MemoryAccess; scope: AccessScope } | null = null;
+export function configureMemory(access: MemoryAccess | null, scope?: AccessScope): void {
+  memoryAccess = access && scope ? { access, scope } : null;
+}
+
+// Lo usan memory_query y la consulta automática que el motor hace antes de cada tarea
+// (gatherToolResults en intelligence.ts). null = sin memoria configurada o sin resultados.
+export async function recallCorporateMemory(question: string, options: { limit: number; track?: boolean }): Promise<string | null> {
+  if (!memoryAccess) return null;
+  const results = await memoryAccess.access.query(memoryAccess.scope, question.slice(0, 2000), options);
+  if (!results.length) return null;
+  // id es el único dato que memory_write acepta en contradictsMemoryId: sin él, un agente no
+  // tiene forma de señalar qué memoria refuta (entityId es un slug compartido entre versiones).
+  return JSON.stringify(results.map((r) => ({
+    id: r.record.id, entityType: r.record.entityType, entityId: r.record.entityId, content: r.record.content,
+    confirmed: r.record.status === 'validated', kind: r.record.kind ?? 'fact',
+    version: r.record.version, updatedAt: r.record.updatedAt, distance: r.distance,
+  })));
+}
+
+const MEMORY_ENTITY_TYPES = ['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision'] as const;
+const memoryWriteSchema = z.object({
+  entityType: z.enum(MEMORY_ENTITY_TYPES).describe('Qué tipo de entidad describe esta memoria'),
+  entityId: z.string().trim().min(1).max(120).describe('Identificador corto y estable de ESTE conocimiento, con su tema (p. ej. "cliente-acme-tono-de-marca", no solo "cliente-acme"): '
+    + 'repetir el entityId de otra memoria la reemplaza.'),
+  content: z.string().trim().min(1).max(16000).describe('El conocimiento en sí, en prosa clara y autocontenida — nunca una referencia a "ver la tarea X"'),
+  sourceReference: z.string().trim().min(1).max(2000).describe('De dónde sale este conocimiento (una tarea, una conversación, un documento concreto)'),
+  kind: z.enum(['decision', 'fact', 'preference', 'question']).optional()
+    .describe('Qué clase de conocimiento es: decision (algo que se decidió), fact (un dato), preference (cómo prefiere algo una persona o la empresa), question (algo abierto que falta resolver)'),
+  contradictsMemoryId: z.string().trim().min(1).max(120).optional()
+    .describe('El campo "id" exacto (no el entityId) de una memoria que devolvió memory_query y que esta refuta. '
+      + 'Si esa memoria estaba sin confirmar, pasa a cuarentena en el acto; si un humano ya la había confirmado, solo cuando un humano confirme esta. Déjalo vacío si no refuta nada concreto.'),
+});
+export const memoryWriteTool = tool(
+  async ({ entityType, entityId, content, sourceReference, kind, contradictsMemoryId }: z.infer<typeof memoryWriteSchema>) => {
+    if (!memoryAccess) throw new Error('La memoria corporativa no está configurada en este servidor');
+    const record = await memoryAccess.access.propose(memoryAccess.scope, {
+      entityType, entityId, content,
+      provenance: [{ reference: sourceReference, observedAt: new Date().toISOString() }],
+      trust: 'internal_unverified',
+      ...(kind ? { kind } : {}),
+      contradicts: contradictsMemoryId ?? null,
+    });
+    return JSON.stringify({ id: record.id, entityType: record.entityType, entityId: record.entityId, version: record.version, status: record.status });
+  },
+  {
+    name: 'memory_write',
+    description: 'Guarda una memoria corporativa nueva (conocimiento sobre la empresa, un cliente, un proyecto, una decisión, etc.). '
+      + 'Queda vigente SIN CONFIRMAR: memory_query ya la encuentra (marcada como tal) y un humano puede confirmarla o descartarla después. '
+      + 'Reemplaza a la versión anterior sin confirmar de la misma entidad. No la uses para notas efímeras de una sola tarea. '
+      + 'Si refuta una memoria existente, pasa su id en contradictsMemoryId.',
+    schema: memoryWriteSchema,
+  },
+);
+
+const memoryQuerySchema = z.object({
+  question: z.string().trim().min(1).max(500).describe('La pregunta o tema a buscar en la memoria corporativa'),
+  limit: z.number().int().min(1).max(20).default(5).describe('Máximo de resultados a devolver'),
+});
+export const memoryQueryTool = tool(
+  async ({ question, limit }: z.infer<typeof memoryQuerySchema>) => {
+    if (!memoryAccess) throw new Error('La memoria corporativa no está configurada en este servidor');
+    return (await recallCorporateMemory(question, { limit })) ?? 'Sin memorias relevantes para esa consulta.';
+  },
+  {
+    name: 'memory_query',
+    description: 'Busca en la memoria corporativa (por significado, no solo palabras exactas) y devuelve el contenido real de las memorias más relevantes. '
+      + 'Cada resultado dice si un humano ya lo confirmó ("confirmed": true) o sigue sin confirmar: trata lo no confirmado como información probable, no como hecho comprobado. '
+      + 'Úsala antes de afirmar algo que dependa de conocimiento previo de la empresa, un cliente o una decisión, en vez de inventarlo o asumirlo. '
+      + 'Cada resultado trae su "id": es el valor que va en contradictsMemoryId de memory_write si propones una corrección que la refuta.',
+    schema: memoryQuerySchema,
   },
 );
 
@@ -685,12 +782,15 @@ export const slidesCreateTool = tool(
   },
 );
 
-const OFFICE_TOOLS: Record<string, StructuredToolInterface> = {
+// Un id de allowedTools puede abrir varias herramientas (repo.read = git log/show/diff/status, buscar, leer, listar).
+const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInterface[]> = {
   'web.search': webSearchTool,
   calculator: calculatorTool,
   'cve.lookup': cveLookupTool,
   'code.sandbox': codeSandboxTool,
   'clickup.read': clickupTool,
+  'memory.write': memoryWriteTool,
+  'memory.query': memoryQueryTool,
   'pdf.generate': pdfGenerateTool,
   'email.draft': gmailDraftTool,
   'email.read': gmailReadTool,
@@ -699,12 +799,11 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface> = {
   'sheets.create': sheetsCreateTool,
   'meet.create_space': meetCreateSpaceTool,
   'slides.create': slidesCreateTool,
+  'repo.read': REPO_TOOLS,
 };
 
 export function toolsFor(allowedTools: readonly string[]): StructuredToolInterface[] {
-  return allowedTools
-    .map((id) => OFFICE_TOOLS[id])
-    .filter((found): found is StructuredToolInterface => Boolean(found));
+  return allowedTools.flatMap((id) => OFFICE_TOOLS[id] ?? []);
 }
 
 // Grounding real con la búsqueda nativa de Google (requiere el perfil 'search-google': Gemini +

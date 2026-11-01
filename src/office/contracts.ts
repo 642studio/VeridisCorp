@@ -57,7 +57,7 @@ export const TaskSpec = z.object({
 export const WorkTask = TaskSpec.extend({
   departmentId: Id.optional(),
   accountableAgentId: Id.optional(),
-  status: z.enum(['pending', 'running', 'blocked', 'in_review', 'completed', 'failed']),
+  status: z.enum(['pending', 'running', 'blocked', 'in_review', 'completed', 'failed', 'cancelled']),
   revisions: z.number().int().nonnegative(),
   blocker: Text.optional(),
   submission: Submission.optional(),
@@ -77,6 +77,7 @@ export const CoordinatorCommand = z.discriminatedUnion('type', [
   }).strict(),
   z.object({ type: z.literal('close_order'), assessments: z.array(Assessment).min(1) }).strict(),
   z.object({ type: z.literal('pause_order'), reason: Text }).strict(),
+  z.object({ type: z.literal('cancel_task'), taskId: Id, reason: Text }).strict(),
 ]);
 export const OfficeCommand = z.discriminatedUnion('type', [
   ...CoordinatorCommand.options,
@@ -108,6 +109,10 @@ export const WorkOrder = z.object({
     maxTasks: z.number().int().positive().max(100),
     maxSteps: z.number().int().positive().max(10000),
     maxRevisionsPerTask: z.number().int().nonnegative().max(20),
+    // Presupuesto en micros de la moneda de VERIDIS_PRICES_FILE (misma unidad que costMicros,
+    // src/office/prices.ts). Opcional:
+    // sin él, el expediente solo está acotado por pasos y turnos, como siempre. Ver budget.ts.
+    maxCostMicros: z.number().int().positive().safe().nullable().optional(),
   }).strict(),
   revision: z.number().int().nonnegative(),
   tasks: z.array(WorkTask),

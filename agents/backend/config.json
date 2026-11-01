@@ -6,7 +6,8 @@
     "software.backend"
   ],
   "allowedTools": [
-    "code.sandbox"
+    "code.sandbox",
+    "repo.read"
   ],
   "organization": {
     "title": "Ingeniería backend",

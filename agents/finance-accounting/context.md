@@ -10,4 +10,4 @@
 
 ## Información por completar
 
-Objetivos, procedimientos, responsables humanos, fuentes y permisos concretos se definirán con Adrián. No hay herramientas externas habilitadas para este perfil.
+Objetivos, procedimientos, responsables humanos, fuentes y permisos concretos se definirán con Adrián. Herramientas reales: ver `allowedTools` en `config.json`.

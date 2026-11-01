@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Command, MemorySaver } from '@langchain/langgraph';
 import { ModelRouter, loadModelRouter, type ModelPolicyInput } from '../src/office/models.js';
-import { createProfileModel, type StructuredInvoker, type StructuredRequest } from '../src/office/model-providers.js';
+import { createProfileModel, extractUsage, recoverStructured, type StructuredInvoker, type StructuredRequest } from '../src/office/model-providers.js';
 import { createOfficeIntelligence } from '../src/office/intelligence.js';
 import { createOfficeWorkflow } from '../src/office/workflow.js';
 import { officeRegistry } from '../src/office/registry.js';
 import { createDemoOfficeIntelligence, createDemoOrder } from '../src/office/workflow-demo.js';
 import type { CoordinatorContext, SpecialistContext } from '../src/office/runtime-contracts.js';
+import type { PriceList } from '../src/office/prices.js';
+import { configureMemory, type MemoryAccess } from '../src/office/tools.js';
+import { OutputParserException } from '@langchain/core/output_parsers';
 
 function policy(): ModelPolicyInput {
   return {
@@ -92,25 +95,32 @@ test('crea los tres adaptadores sin enviar solicitudes y exige la credencial sel
   }
 });
 
+// Usage fijo y nunca null a propósito: así una prueba que compare modelCalls contra esto puede
+// deepEqual exacto sin tener que descartar campos — ninguna respuesta real tendría 0/0 exactos.
+const NO_USAGE = { inputTokens: null, outputTokens: null };
 function fakeInvoker(calls: StructuredRequest[], askFirst = false): StructuredInvoker {
   const demo = createDemoOfficeIntelligence({ askFirst });
   return async (request) => {
     calls.push(request);
     const context = JSON.parse(request.messages[1]!.content);
-    if (request.schemaName === 'office_decision') return { decision: await demo.coordinate(context as CoordinatorContext) };
-    if (request.schemaName === 'office_worker') return { reply: await demo.execute(context as SpecialistContext) };
-    return demo.review(context as SpecialistContext);
+    if (request.schemaName === 'office_decision') return { parsed: { decision: await demo.coordinate(context as CoordinatorContext) }, usage: NO_USAGE };
+    if (request.schemaName === 'office_worker') return { parsed: { reply: await demo.execute(context as SpecialistContext) }, usage: NO_USAGE };
+    return { parsed: await demo.review(context as SpecialistContext), usage: NO_USAGE };
   };
 }
 
 test('el workflow usa el modelo seleccionado para cada rol y conserva su registro', async () => {
   const calls: StructuredRequest[] = [];
   const intelligence = createOfficeIntelligence({ router: new ModelRouter(policy()), invoker: fakeInvoker(calls) });
-  const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver());
+  // priceList: null explícito (no depender de que VERIDIS_PRICES_FILE esté vacío en este proceso):
+  // sin lista de precios, costStatus siempre queda 'unknown', determinista para la prueba.
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver(), { priceList: null });
   const result = await graph.invoke({ order: createDemoOrder() }, { configurable: { thread_id: 'routed' }, recursionLimit: 500 });
   assert.equal(result.order.status, 'completed');
   assert.equal(result.modelCalls.length, calls.length);
-  assert.deepEqual(result.modelCalls, calls.map((c) => c.selection));
+  // modelCalls guarda la selección más tokens/costo de cada llamada real; el fake nunca reporta
+  // tokens (NO_USAGE), así que todo entra como costStatus:'unknown', nunca inventado.
+  assert.deepEqual(result.modelCalls, calls.map((c) => ({ ...c.selection, inputTokens: null, outputTokens: null, costMicros: null, costStatus: 'unknown' })));
   assert(calls.some((c) => c.selection.agentId === 'network' && c.selection.model === 'test-planning'));
   assert(calls.some((c) => c.selection.agentId === 'research' && c.selection.model === 'test-research'));
   assert(calls.some((c) => c.selection.stage === 'review' && c.selection.provider === 'google'));
@@ -133,25 +143,29 @@ test('corrige una decisión del coordinador anidada por error dentro de command 
   // delegate/dispatch/review/ask_user dentro de 'command', que solo admite add_task,
   // resolve_block, close_order o pause_order.
   const invoker: StructuredInvoker = async () => ({
-    decision: { type: 'command', command: { type: 'delegate', managerId: 'cto', request: 'Prueba', dependsOn: [] } },
+    parsed: { decision: { type: 'command', command: { type: 'delegate', managerId: 'cto', request: 'Prueba', dependsOn: [] } } },
+    usage: NO_USAGE,
   });
   const intelligence = createOfficeIntelligence({ router: new ModelRouter(policy()), invoker });
   const { events, ...order } = createDemoOrder();
-  const decision = await intelligence.coordinate({ order, recentEvents: events, agents: [], exchanges: [], lastError: null });
+  const decision = await intelligence.coordinate({ order, recentEvents: events, agents: [], exchanges: [], lastError: null, readyTaskIds: [], blockedTasks: [] });
   assert.deepEqual(decision, { type: 'delegate', managerId: 'cto', request: 'Prueba', dependsOn: [] });
 });
 
 test('el adaptador valida la respuesta aunque el proveedor entregue un formato incorrecto', async () => {
-  const intelligence = createOfficeIntelligence({ router: new ModelRouter(policy()), invoker: async () => ({ actor: 'inventado' }) });
+  const intelligence = createOfficeIntelligence({ router: new ModelRouter(policy()), invoker: async () => ({ parsed: { actor: 'inventado' }, usage: NO_USAGE }) });
   const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver());
   // Una respuesta que ni siquiera tiene la forma esperada no tumba la ejecución (antes sí):
   // se trata como una decisión rechazada más, igual que una regla de negocio inválida, y tres
   // rechazos acumulados pausan el expediente — el mismo límite documentado para el resto de casos.
   const result = await graph.invoke({ order: createDemoOrder() }, { configurable: { thread_id: 'bad-provider' }, recursionLimit: 500 });
   assert.equal(result.order.status, 'paused');
-  assert.equal(result.order.pauseReason, 'Demasiadas decisiones rechazadas');
+  // El motivo de pausa ahora incluye el lastError real, no solo la etiqueta genérica — para que el
+  // expediente pausado diga qué pasó en vez de obligar a adivinarlo.
+  assert(result.order.pauseReason?.startsWith('Demasiadas decisiones rechazadas: '));
   assert.equal(result.rejectedDecisions, 3);
   assert(result.lastError && result.lastError.length > 0);
+  assert(result.order.pauseReason?.includes(result.lastError!));
 });
 
 test('la política OpenAI/DeepSeek separa credenciales y selecciona proveedor compatible por etapa', async () => {
@@ -174,9 +188,21 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
     OPENAI_MODEL: 'gpt-5.4-mini-2026-03-17', OPENAI_COMPLEX_MODEL: 'gpt-5.4-2026-03-05',
     DEEPSEEK_MODEL: 'deepseek-flash', DEEPSEEK_REASONING_MODEL: 'deepseek-v4-pro',
     OLLAMA_MODEL: 'huihui_ai/qwen3-coder-abliterated:30b', OLLAMA_API_KEY: 'ollama',
+    OLLAMA_GENERAL_MODEL: 'huihui_ai/qwen3-abliterated:8b',
     GEMINI_MODEL: 'gemini-3.8-flash',
   });
-  assert.equal(router.select({ agentId: 'content', stage: 'execute', capability: 'content.draft' }).model, 'deepseek-flash');
+  // content tiene siete herramientas reales, incluida calendar.create_event (notifica a
+  // invitados reales sin revisión humana) — se subió de 'routine' a 'analysis', mismo tier de
+  // razonamiento que ya usan los responsables de departamento, no el más barato/rápido.
+  assert.equal(router.select({ agentId: 'content', stage: 'execute', capability: 'content.draft' }).model, 'deepseek-v4-pro');
+  // research ganó drive.upload (efecto real) y queda en el mismo tier que market-research, que
+  // ya usaba 'analysis' por su capacidad.
+  assert.equal(router.select({ agentId: 'research', stage: 'execute', capability: 'news.research' }).profileId, 'analysis');
+  // Perfil local nuevo (modelo general, no el de código) para especialistas sin ninguna
+  // herramienta real: una salida peor ahí es barata — review() la detecta, nada externo se toca.
+  assert.equal(router.select({ agentId: 'workforce', stage: 'execute', capability: 'people.capacity' }).profileId, 'local-general');
+  assert.equal(router.profile('local-general').model, 'huihui_ai/qwen3-abliterated:8b');
+  assert.equal(router.profile('local-general').baseURL, 'http://127.0.0.1:11434/v1');
   assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).model, 'gpt-5.4-mini-2026-03-17');
   assert.equal(router.select({ agentId: 'ceo', stage: 'coordinate', capability: 'company.strategy' }).profileId, 'complex');
   // Coordinación departamental en un perfil más barato que el del CEO, no en el modelo completo.
@@ -201,4 +227,74 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   const model = createProfileModel(profile, { DEEPSEEK_API_KEY: 'test-only-placeholder' });
   assert.equal((model as any).modelKwargs.thinking.type, 'disabled');
   assert.equal(profile.structuredOutputMethod, 'jsonMode');
+});
+
+test('extractUsage lee usage_metadata sin inventar un conteo que el proveedor no mandó', () => {
+  assert.deepEqual(extractUsage(undefined), { inputTokens: null, outputTokens: null });
+  assert.deepEqual(extractUsage({}), { inputTokens: null, outputTokens: null });
+  assert.deepEqual(extractUsage({ usage_metadata: {} }), { inputTokens: null, outputTokens: null });
+  // Un campo con el tipo equivocado (p. ej. un proveedor que mande texto) se trata igual que
+  // ausente, nunca se usa tal cual.
+  assert.deepEqual(extractUsage({ usage_metadata: { input_tokens: '12' as unknown as number, output_tokens: 7 } }), { inputTokens: null, outputTokens: 7 });
+  assert.deepEqual(extractUsage({ usage_metadata: { input_tokens: 120, output_tokens: 45 } }), { inputTokens: 120, outputTokens: 45 });
+  // Cero es un conteo real (un prompt vacío), nunca debe tratarse como "ausente".
+  assert.deepEqual(extractUsage({ usage_metadata: { input_tokens: 0, output_tokens: 3 } }), { inputTokens: 0, outputTokens: 3 });
+});
+
+test('modelCalls queda costStatus:unknown si el provider:model no está en la lista de precios', async () => {
+  const invoker: StructuredInvoker = async () => ({
+    parsed: { decision: { type: 'ask_user', question: '¿qué hacemos?' } },
+    usage: { inputTokens: 200, outputTokens: 50 },
+  });
+  const router = new ModelRouter({ version: 1, defaultProfile: 'base', profiles: {
+    base: { provider: 'openai', model: 'test-base', apiKeyEnv: 'TEST_KEY' },
+  } });
+  const intelligence = createOfficeIntelligence({ router, invoker });
+  const emptyPriceList: PriceList = { version: 1, currency: 'USD', prices: {} };
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver(), { priceList: emptyPriceList });
+  const result = await graph.invoke({ order: createDemoOrder() }, { configurable: { thread_id: 'sin-precio' }, recursionLimit: 10 });
+  assert.equal(result.modelCalls.length, 1);
+  assert.equal(result.modelCalls[0]!.inputTokens, 200);
+  assert.equal(result.modelCalls[0]!.outputTokens, 50);
+  assert.equal(result.modelCalls[0]!.costStatus, 'unknown');
+  assert.equal(result.modelCalls[0]!.costMicros, null);
+});
+
+test('recoverStructured rescata la salida cuando LangChain la tira a null, para que el error diga qué falló', () => {
+  assert.deepEqual(recoverStructured({ tool_calls: [{ args: { reply: { status: 'x' } } }] }), { reply: { status: 'x' } });
+  assert.deepEqual(recoverStructured({ content: '```json\n{"a":1}\n```' }), { a: 1 });
+  assert.throws(() => recoverStructured({ content: '{"a":', response_metadata: { finish_reason: 'length' } }), /límite de salida/);
+  assert.deepEqual(recoverStructured({ content: [{ text: '{"b":' }, { text: '2}' }] }), { b: 2 });
+  assert.throws(() => recoverStructured({ content: '' }), /salida vacía/);
+  assert.throws(() => recoverStructured({ content: 'no es json' }), (e: Error) => e instanceof OutputParserException && /parece truncado/.test(e.message));
+});
+
+test('el motor consulta la memoria antes de cada tarea, para cualquier agente, y el revisor la relee sin contarla como uso', async () => {
+  const scope = { workspaceId: 'ws', companyId: 'co', divisionId: 'div', clientId: null, projectId: null };
+  const tracked: (boolean | undefined)[] = [];
+  const access: MemoryAccess = {
+    async propose() { throw new Error('no se usa'); },
+    async query(_scope, _question, options) {
+      tracked.push(options?.track);
+      return [{ distance: 0.1, record: {
+        schemaVersion: 1, id: 'mem-1', scope, entityType: 'company', entityId: 'grupo-642-sedes', version: 1,
+        content: 'Grupo 642 opera en Mexicali.', status: 'validated', kind: 'fact',
+        provenance: [{ reference: 'test://1', observedAt: new Date().toISOString() }],
+        updatedAt: new Date().toISOString(), validUntil: null, trust: 'internal_unverified',
+      } }];
+    },
+  };
+  configureMemory(access, scope);
+  try {
+    const calls: StructuredRequest[] = [];
+    const intelligence = createOfficeIntelligence({ router: new ModelRouter(policy()), invoker: fakeInvoker(calls), registry: officeRegistry });
+    const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver(), { priceList: null });
+    const result = await graph.invoke({ order: createDemoOrder() }, { configurable: { thread_id: 'memory-recall' }, recursionLimit: 500 });
+    assert.equal(result.order.status, 'completed');
+    const recalledIn = (schemaName: string) => calls.filter((c) => c.schemaName === schemaName).map((c) => JSON.parse(c.messages[1]!.content).toolResults)
+      .filter((results: { tool: string; output: string }[]) => results?.some((r) => r.tool === 'memory_query' && r.output.includes('Mexicali')));
+    assert(recalledIn('office_worker').length > 0, 'el especialista no recibió la memoria');
+    assert(recalledIn('office_review').length > 0, 'el revisor no recibió la memoria');
+    assert(tracked.includes(true) && tracked.includes(false));
+  } finally { configureMemory(null); }
 });

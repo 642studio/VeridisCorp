@@ -6,7 +6,8 @@
     "security.appsec"
   ],
   "allowedTools": [
-    "cve.lookup"
+    "cve.lookup",
+    "repo.read"
   ],
   "organization": {
     "title": "Seguridad de aplicaciones",

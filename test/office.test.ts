@@ -132,6 +132,40 @@ test('límites de tareas, pasos y revisiones detienen crecimiento indefinido', (
   assert.equal(limited.get().status, 'paused');
 });
 
+test('cancel_task retira tareas huérfanas: exige que nada activo dependa de ella, nunca cuenta sola para cerrar', () => {
+  const f = fixture();
+  f.add('a');
+  f.add('b', ['a']);
+  f.send(specialist('network'), { type: 'start_task', taskId: 'a' });
+  f.send(specialist('network'), { type: 'request_support', taskId: 'a', capability: 'network.audit', question: '¿confirmas alcance?' });
+  assert.equal(f.get().tasks.find((t) => t.id === 'a')!.status, 'blocked');
+  // b (pendiente) todavía depende de a: no se puede cancelar a primero.
+  assert.throws(() => f.send(coordinator, { type: 'cancel_task', taskId: 'a', reason: 'resuelto de otra forma' }), /depende/);
+  f.send(coordinator, { type: 'cancel_task', taskId: 'b', reason: 'redundante' });
+  f.send(coordinator, { type: 'cancel_task', taskId: 'a', reason: 'resuelto de otra forma' });
+  assert.equal(f.get().tasks.find((t) => t.id === 'a')!.status, 'cancelled');
+  assert.equal(f.get().tasks.find((t) => t.id === 'b')!.status, 'cancelled');
+  // Solo canceladas, ninguna completada: cerrar sigue rechazado.
+  assert.throws(() => f.send(coordinator, { type: 'close_order', assessments: [
+    { criterionId: 'goal', accepted: true, evidenceIds: [], explanation: 'x' },
+  ] }), /completar/);
+  // Ya cancelada: no se puede volver a cancelar.
+  assert.throws(() => f.send(coordinator, { type: 'cancel_task', taskId: 'a', reason: 'x' }), /pendiente o bloqueada/);
+  // Con una tarea real completada aparte, cerrar funciona aunque queden canceladas.
+  f.add('c');
+  f.send(specialist('network'), { type: 'start_task', taskId: 'c' });
+  f.send(specialist('network'), { type: 'submit_result', taskId: 'c', submission: {
+    summary: 'Resultado real', evidence: [{ id: 'evidence-c', kind: 'observation', reference: 'demo://c', summary: 'Observación' }],
+  } });
+  f.send(specialist('review'), { type: 'review_task', taskId: 'c', assessments: [
+    { criterionId: 'criterion', accepted: true, evidenceIds: ['evidence-c'], explanation: 'ok' },
+  ] });
+  f.send(coordinator, { type: 'close_order', assessments: [
+    { criterionId: 'goal', accepted: true, evidenceIds: ['evidence-c'], explanation: 'Cumplido con la tarea c; a y b se cancelaron.' },
+  ] });
+  assert.equal(f.get().status, 'completed');
+});
+
 test('no permite cerrar con tareas pendientes ni modificar un expediente cerrado', () => {
   const f = fixture();
   f.add();

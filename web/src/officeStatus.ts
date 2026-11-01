@@ -13,4 +13,5 @@ export const TASK_STATUS: Record<OfficeTaskStatus, { label: string; tone: string
   in_review: { label: 'en revisión', tone: 'progress' },
   completed: { label: 'completada', tone: 'done' },
   failed: { label: 'falló', tone: 'attention' },
+  cancelled: { label: 'cancelada', tone: 'neutral' },
 };

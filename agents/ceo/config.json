@@ -7,7 +7,7 @@
     "company.prioritize",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": ["memory.write", "memory.query"],
   "organization": {
     "title": "CEO",
     "departmentId": "executive",

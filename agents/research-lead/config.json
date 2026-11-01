@@ -6,7 +6,7 @@
     "research.plan",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": ["memory.write", "memory.query"],
   "organization": {
     "title": "DireccionInvestigacion",
     "departmentId": "intelligence",

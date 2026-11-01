@@ -190,7 +190,7 @@ export interface AgentDetail extends AgentSummary {
 // Tipos que reflejan src/office/contracts.ts y runtime/office-runtime.ts.
 
 export type OfficeOrderStatus = 'active' | 'paused' | 'completed';
-export type OfficeTaskStatus = 'pending' | 'running' | 'blocked' | 'in_review' | 'completed' | 'failed';
+export type OfficeTaskStatus = 'pending' | 'running' | 'blocked' | 'in_review' | 'completed' | 'failed' | 'cancelled';
 
 export interface OfficeOrderSummary {
   id: string;
@@ -254,7 +254,7 @@ export interface OfficeWorkOrder {
   objective: string;
   criteria: OfficeCriterion[];
   status: OfficeOrderStatus;
-  limits: { maxTasks: number; maxSteps: number; maxRevisionsPerTask: number };
+  limits: { maxTasks: number; maxSteps: number; maxRevisionsPerTask: number; maxCostMicros?: number | null };
   revision: number;
   tasks: OfficeTask[];
   events: OfficeEventRow[];
@@ -269,6 +269,10 @@ export interface OfficeModelCall {
   profileId: string;
   provider: string;
   model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costMicros: number | null;
+  costStatus: 'estimated' | 'unknown';
 }
 
 export interface OfficeWorkflowLimits {
@@ -282,6 +286,15 @@ export interface OfficeExchange {
   answer: string;
 }
 
+// Refleja BudgetStatus de src/office/budget.ts tal como lo arma office-runtime.ts (shape()).
+export interface OfficeBudget {
+  maxCostMicros: number | null;
+  spentMicros: number;
+  unpricedCalls: number;
+  projectedNextMicros: number | null;
+  level: 'none' | 'ok' | 'warning' | 'critical' | 'exceeded';
+}
+
 export interface OfficeOrderDetail {
   id: string;
   order: OfficeWorkOrder;
@@ -293,6 +306,7 @@ export interface OfficeOrderDetail {
   interrupted: boolean;
   pendingQuestion: string | null;
   limits: OfficeWorkflowLimits;
+  budget: OfficeBudget;
 }
 
 // Tipos que reflejan src/runtime/office-runtime.ts (shapeSchedule) y src/runtime/scheduler.ts.
@@ -321,4 +335,91 @@ export type FireScheduleResult = 'fired' | 'skipped-overlap' | 'skipped-rate-lim
 
 export interface FireScheduleResponse extends OfficeSchedule {
   result: FireScheduleResult;
+}
+
+// Tipos que reflejan src/governance/contracts.ts (CorporateMemoryRecord) tal como los devuelve
+// src/runtime/office-runtime.ts (listMemory/validateMemory) — sin transformación, el mismo objeto
+// validado por zod que se guarda en memory_records.data.
+
+export type MemoryEntityType = 'company' | 'division' | 'client' | 'brand' | 'project' | 'contract' | 'person' | 'product' | 'decision';
+export type MemoryStatus = 'proposed' | 'validated' | 'superseded' | 'quarantined';
+export type MemoryTrust = 'external_untrusted' | 'internal_unverified' | 'verified';
+
+export interface MemoryProvenance {
+  reference: string;
+  observedAt: string;
+}
+
+export interface CorporateMemoryRecord {
+  schemaVersion: 1;
+  id: string;
+  entityType: MemoryEntityType;
+  entityId: string;
+  version: number;
+  content: string;
+  status: MemoryStatus;
+  provenance: MemoryProvenance[];
+  updatedAt: string;
+  validUntil: string | null;
+  trust: MemoryTrust;
+  kind?: MemoryKind;
+  contradicts?: string | null;
+  quarantineReason?: string | null;
+}
+
+export type MemoryKind = 'decision' | 'fact' | 'preference' | 'question';
+
+// Refleja MemoryStore.graph() (src/runtime/memory-store.ts) vía GET /office/memory/graph.
+export interface MemoryGraphNode {
+  record: CorporateMemoryRecord;
+  recalls: number;
+  lastRecalledAt: string | null;
+}
+export interface MemoryGraphLink {
+  source: string;
+  target: string;
+  similarity: number | null;
+  kind: 'similar' | 'contradicts';
+}
+export interface MemoryGraph {
+  nodes: MemoryGraphNode[];
+  links: MemoryGraphLink[];
+}
+
+export interface MemoryListResponse {
+  records: CorporateMemoryRecord[];
+}
+
+// Respuesta rápida del chat (POST /office/assistant/ask): una llamada con memoria, sin expediente.
+export interface AssistantMemory {
+  id: string;
+  entityType: string;
+  entityId: string;
+  kind: string;
+  content: string;
+  confirmed: boolean;
+}
+export interface AssistantMessage {
+  id: string;
+  threadId: string;
+  question: string;
+  answer: string;
+  // 'order': lo pedido era trabajo; objective es el encargo redactado para la oficina.
+  mode: 'answer' | 'order';
+  objective: string | null;
+  memories: AssistantMemory[];
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costMicros: number | null;
+  latencyMs: number;
+  createdAt: string;
+}
+export interface AssistantThreadSummary {
+  threadId: string;
+  title: string;
+  messages: number;
+  // Solo traspasos a la oficina: la conversación real es el expediente, no hace falta listarla.
+  onlyHandoffs: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

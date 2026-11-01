@@ -7,7 +7,7 @@
       "baseURL": "https://api.deepseek.com",
       "modelEnv": "DEEPSEEK_MODEL",
       "apiKeyEnv": "DEEPSEEK_API_KEY",
-      "maxOutputTokens": 2000,
+      "maxOutputTokens": 4000,
       "timeoutMs": 30000,
       "maxRetries": 0,
       "structuredOutputMethod": "jsonMode",
@@ -39,7 +39,7 @@
       "provider": "openai",
       "modelEnv": "OPENAI_MODEL",
       "apiKeyEnv": "OPENAI_API_KEY",
-      "maxOutputTokens": 2000,
+      "maxOutputTokens": 4000,
       "timeoutMs": 30000,
       "maxRetries": 0,
       "structuredOutputMethod": "functionCalling",
@@ -67,6 +67,16 @@
       "provider": "openai",
       "baseURL": "http://127.0.0.1:11434/v1",
       "modelEnv": "OLLAMA_MODEL",
+      "apiKeyEnv": "OLLAMA_API_KEY",
+      "maxOutputTokens": 2000,
+      "timeoutMs": 120000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonSchema"
+    },
+    "local-general": {
+      "provider": "openai",
+      "baseURL": "http://127.0.0.1:11434/v1",
+      "modelEnv": "OLLAMA_GENERAL_MODEL",
       "apiKeyEnv": "OLLAMA_API_KEY",
       "maxOutputTokens": 2000,
       "timeoutMs": 120000,
@@ -131,7 +141,10 @@
       "coordinate": "analysis"
     },
     "content": {
-      "execute": "routine"
+      "execute": "analysis"
+    },
+    "research": {
+      "execute": "analysis"
     },
     "review": {
       "review": "review"
@@ -148,6 +161,20 @@
     "data-analyst": {
       "execute": "analysis"
     },
+    "automation": { "execute": "local-general" },
+    "campaigns": { "execute": "local-general" },
+    "continuity": { "execute": "local-general" },
+    "creative-strategy": { "execute": "local-general" },
+    "data-engineer": { "execute": "local-general" },
+    "devops": { "execute": "local-general" },
+    "network": { "execute": "local-general" },
+    "onboarding": { "execute": "local-general" },
+    "operations": { "execute": "local-general" },
+    "people-development": { "execute": "local-general" },
+    "procurement": { "execute": "local-general" },
+    "recruiting": { "execute": "local-general" },
+    "social-analyst": { "execute": "local-general" },
+    "workforce": { "execute": "local-general" },
     "finance-budget": {
       "execute": "analysis"
     }

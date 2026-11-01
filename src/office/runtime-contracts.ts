@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Assessment, Id, CoordinatorCommand, Submission, TaskSpec, type WorkOrder, type WorkTask, type AgentDefinition } from './contracts.js';
-import type { ModelRequest, ModelSelection } from './models.js';
+import type { ModelRequest, ModelSelection, ModelUsage } from './models.js';
 import type { OrganizationDefinition } from './organization.js';
 export const CoordinatorDecision = z.discriminatedUnion('type', [
   z.object({ type: z.literal('command'), command: CoordinatorCommand }).strict(),
@@ -17,6 +17,48 @@ export const WorkerReply = z.discriminatedUnion('type', [
 export const ReviewReply = z.object({ assessments: z.array(Assessment).min(1).max(20) }).strict();
 export const DepartmentReply = z.object({ tasks: z.array(TaskSpec).min(1).max(6) }).strict();
 export const HumanAnswer = z.string().trim().min(1).max(16000);
+// Lo que el archivista destila de un expediente cerrado (ver OfficeRuntime.distill): pocas memorias,
+// cortas y autocontenidas — vacío es la respuesta correcta cuando nada vale la pena recordar.
+export const ArchivistReply = z.object({
+  memories: z.array(z.object({
+    kind: z.enum(['decision', 'fact', 'preference', 'question']),
+    entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision']),
+    // Tolerante a propósito (el runtime lo normaliza a slug): una mayúscula o un espacio no debe
+    // tirar a la basura todas las memorias de la respuesta.
+    entityId: z.string().trim().min(1).max(120),
+    content: z.string().trim().min(1).max(600),
+    contradicts: z.string().trim().max(120).nullable().optional(),
+  }).strict()).max(5),
+}).strict();
+export type ArchivistReply = z.infer<typeof ArchivistReply>;
+// Importar un documento que pegó un humano: a diferencia del archivista (lo poco que vale la pena de
+// un expediente), aquí casi todo es conocimiento a conservar — hasta 12 memorias por sección.
+export const IngestReply = z.object({ memories: ArchivistReply.shape.memories.element.array().max(12) }).strict();
+// Respuesta rápida del chat (OfficeRuntime.ask): una sola llamada con la memoria ya consultada. "order"
+// significa que lo pedido es trabajo para la oficina; entonces "objective" es el encargo ya redactado.
+export const AssistantReply = z.object({
+  mode: z.enum(['answer', 'order']),
+  answer: z.string().trim().min(1).max(8000),
+  objective: z.string().trim().max(4000).nullable(),
+  memoryIds: z.array(z.string().trim().min(1).max(120)).max(12),
+}).strict();
+export type AssistantReply = z.infer<typeof AssistantReply>;
+export type AssistantContext = {
+  question: string;
+  history: { question: string; answer: string }[];
+  memories: { id: string; entityType: string; entityId: string; kind: string; content: string; confirmed: boolean }[];
+};
+export type IngestContext = {
+  title: string;
+  section: string;
+  text: string;
+  existing: ArchivistContext['existing'];
+};
+export type ArchivistContext = {
+  objective: string;
+  deliverables: { task: string; agentId: string; summary: string }[];
+  existing: { id: string; entityType: string; entityId: string; content: string; confirmed: boolean }[];
+};
 export type HumanExchange = { question: string; answer: string };
 export type CoordinatorContext = {
   order: Omit<WorkOrder, 'events'>;
@@ -26,6 +68,11 @@ export type CoordinatorContext = {
   lastError: string | null;
   coordinator?: AgentDefinition;
   organization?: OrganizationDefinition;
+  // Calculados por el motor (workflow.ts), no por el modelo: listos para dispatch ahora mismo, y
+  // cuáles siguen bloqueados y por qué dependencia exacta — evita que el coordinador tenga que
+  // cruzar dependsOn contra el status de cada tarea a mano bajo presión.
+  readyTaskIds: string[];
+  blockedTasks: { id: string; waitingOn: { id: string; status: string }[] }[];
 };
 export type DepartmentContext = {
   objective: string;
@@ -49,11 +96,23 @@ export type SpecialistContext = {
 };
 
 // Las respuestas no incluyen Actor. La identidad la establece el runtime.
+// onUsage: callback opcional que recibe el conteo real de tokens de ESTA llamada, si el
+// proveedor lo reportó. No es un valor de retorno aparte a propósito: una sola instancia de
+// OfficeIntelligence se reusa entre expedientes concurrentes (ver office-runtime.ts), así que
+// guardar "el último usage" en un campo del closure mezclaría el consumo de llamadas de
+// expedientes distintos corriendo a la vez. El callback captura por cierre en cada llamada de
+// workflow.ts, sin estado compartido entre invocaciones.
 export interface OfficeIntelligence {
   readonly modelPolicyFingerprint?: string;
   selectModel?(request: ModelRequest): ModelSelection;
-  coordinate(context: CoordinatorContext): Promise<unknown>;
-  execute(context: SpecialistContext): Promise<unknown>;
-  review(context: SpecialistContext): Promise<unknown>;
-  delegate?(context: DepartmentContext): Promise<unknown>;
+  coordinate(context: CoordinatorContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
+  execute(context: SpecialistContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
+  review(context: SpecialistContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
+  delegate?(context: DepartmentContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
+  // Archivista: fuera del workflow, después de que un expediente cerró (OfficeRuntime).
+  distill?(context: ArchivistContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
+  // Importación de documentos a memoria (OfficeRuntime.ingestMemorySection).
+  ingest?(context: IngestContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
+  // Respuesta rápida del chat, fuera del workflow (OfficeRuntime.ask).
+  ask?(context: AssistantContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
 }

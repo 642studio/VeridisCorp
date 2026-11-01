@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_orders (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS runtime_office_orders_scope ON veridis_runtime_v1.office_orders(scope_key, created_at DESC);
+-- El archivista destila memoria una sola vez por expediente cerrado: quien logra poner esta marca
+-- (UPDATE ... WHERE memory_distilled_at IS NULL) es el único que destila, aunque avance dos veces.
+ALTER TABLE veridis_runtime_v1.office_orders ADD COLUMN IF NOT EXISTS memory_distilled_at timestamptz NULL;
 -- Marca qué expedientes nació de un disparo automático, no de un humano. Sin referencia a
 -- scheduled_tasks(id): esta columna solo sirve para mostrar/filtrar, igual que el resto de
 -- punteros entre tablas de este archivo (runs/tasks es la excepción, no la regla).
@@ -99,6 +102,47 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.gmail_accounts (
  account_email text PRIMARY KEY, refresh_token_encrypted bytea NOT NULL, scope text NOT NULL,
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
+-- Memoria corporativa (CorporateMemoryRecord, src/governance/contracts.ts): una fila por versión de
+-- lo que se sabe sobre una entidad. embedding guarda el vector de similitud semántica (ver
+-- src/runtime/embeddings.ts); dimensión fija en 768 porque el perfil por defecto es Ollama local
+-- nomic-embed-text — cambiar de proveedor de embeddings exige migrar esta columna y reembeber todo.
+-- Sin índice ANN todavía (ivfflat/hnsw): al tamaño actual del corpus el escaneo secuencial alcanza;
+-- se añade cuando el volumen lo justifique, no antes. Requiere la extensión pgvector instalada en
+-- el servidor (brew install pgvector en Mac; paquete postgresql-16-pgvector del repo PGDG en Linux).
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.memory_records (
+ id uuid PRIMARY KEY, scope_key text NOT NULL, data jsonb NOT NULL,
+ embedding vector(768) NULL, embedding_model text NULL, embedded_at timestamptz NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+ALTER TABLE veridis_runtime_v1.memory_records ADD COLUMN IF NOT EXISTS entity_type text GENERATED ALWAYS AS (data->>'entityType') STORED;
+ALTER TABLE veridis_runtime_v1.memory_records ADD COLUMN IF NOT EXISTS entity_id text GENERATED ALWAYS AS (data->>'entityId') STORED;
+ALTER TABLE veridis_runtime_v1.memory_records ADD COLUMN IF NOT EXISTS version integer GENERATED ALWAYS AS ((data->>'version')::integer) STORED;
+ALTER TABLE veridis_runtime_v1.memory_records ADD COLUMN IF NOT EXISTS status text GENERATED ALWAYS AS (data->>'status') STORED;
+-- Búsqueda léxica exacta (ids, códigos, nombres propios) como respaldo del vector: el coseno solo
+-- captura similitud semántica y no es confiable para coincidencias exactas de un término raro.
+ALTER TABLE veridis_runtime_v1.memory_records ADD COLUMN IF NOT EXISTS search tsvector GENERATED ALWAYS AS (to_tsvector('spanish', data->>'content')) STORED;
+CREATE UNIQUE INDEX IF NOT EXISTS runtime_memory_entity_version ON veridis_runtime_v1.memory_records(scope_key, entity_type, entity_id, version);
+CREATE INDEX IF NOT EXISTS runtime_memory_scope_status ON veridis_runtime_v1.memory_records(scope_key, status);
+CREATE INDEX IF NOT EXISTS runtime_memory_search ON veridis_runtime_v1.memory_records USING GIN(search);
+-- Cada vez que memory.query devuelve una memoria a un agente: alimenta el mapa (qué memorias "se
+-- encienden" porque de verdad se usan) y su contador de uso. Solo id y hora, nunca la pregunta.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.memory_recalls (
+ id bigserial PRIMARY KEY, memory_id uuid NOT NULL, scope_key text NOT NULL,
+ recalled_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS runtime_memory_recalls_memory ON veridis_runtime_v1.memory_recalls(scope_key, memory_id);
+-- Respuestas rápidas del chat (OfficeRuntime.ask): una fila por pregunta, agrupadas por thread_id.
+-- mode='order' guarda el encargo que se pasó a la oficina; el expediente vive en office_orders.
+-- memories es una copia de las memorias usadas tal como estaban al responder (pueden cambiar después).
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.assistant_messages (
+ id uuid PRIMARY KEY, thread_id uuid NOT NULL, scope_key text NOT NULL, principal jsonb NOT NULL,
+ question text NOT NULL, answer text NOT NULL, mode text NOT NULL CHECK (mode IN ('answer','order')),
+ objective text NULL, memories jsonb NOT NULL DEFAULT '[]', provider text NOT NULL, model text NOT NULL,
+ input_tokens integer NULL, output_tokens integer NULL, cost_micros bigint NULL, latency_ms integer NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS runtime_assistant_messages_thread ON veridis_runtime_v1.assistant_messages(scope_key, thread_id, created_at);
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

@@ -13,9 +13,14 @@ import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
 import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
-import { configureGmail } from '../office/tools.js';
+import { configureGmail, configureMemory } from '../office/tools.js';
+import { configureRepos, parseRepos } from '../office/repo-tools.js';
 import { officeRegistry } from '../office/registry.js';
 import { AccessScope, Principal, Operation } from '../governance/contracts.js';
+import { MemoryStore, companyMemoryScope } from './memory-store.js';
+import { createEmbedder, embeddingProfileFromEnv } from './embeddings.js';
+import { exportAllValidatedToVault, vaultPathFromEnv } from './memory-export.js';
+import { startTelegramBridge, telegramConfigFromEnv } from './telegram.js';
 
 // Un solo cliente OAuth2, un solo listener de autorización, un solo refresh token guardado
 // (gmail_accounts — el nombre quedó corto a propósito: ya hay una fila real autorizada y
@@ -123,14 +128,28 @@ async function main() {
   });
   // office/ ejecuta de verdad solo si se habilita explícitamente: reabre una ruta que
   // office:run/resume/answer tenían suspendida, y una sola invocación puede disparar varias
-  // llamadas reales (no tiene presupuesto en dólares propio, solo el tope de turnos).
+  // llamadas reales (tope de turnos siempre; presupuesto en dinero por expediente solo con
+  // VERIDIS_OFFICE_MAX_COST_MICROS, que además exige precios en VERIDIS_PRICES_FILE).
   let office: OfficeRuntime | undefined;
   if (process.env.VERIDIS_OFFICE_ENABLED === 'true') {
+   // Mismo criterio que Gmail: no bloquea el arranque si el proveedor de embeddings no responde;
+   // memory_write/memory_query (herramientas) y /office/memory (endpoint humano) simplemente
+   // fallarán en su primera llamada real.
+   const embeddingProfile = embeddingProfileFromEnv();
+   const memoryStore = new MemoryStore(pool, createEmbedder(embeddingProfile), embeddingProfile.model);
    office = new OfficeRuntime(pool, createOfficeIntelligence({ registry: officeRegistry, pool }), {
     maxTurns: z.coerce.number().int().positive().max(100).parse(process.env.VERIDIS_OFFICE_MAX_TURNS ?? '5'),
     maxRejectedDecisions: 3, maxQuestions: 2,
-   });
+    maxCostMicros: process.env.VERIDIS_OFFICE_MAX_COST_MICROS
+     ? z.coerce.number().int().positive().safe().parse(process.env.VERIDIS_OFFICE_MAX_COST_MICROS) : null,
+   }, memoryStore, vaultPathFromEnv());
    await office.setup();
+   const serviceScope = companyMemoryScope();
+   configureMemory(memoryStore, serviceScope);
+   // Repos git que los puestos de software pueden leer (solo lectura): VERIDIS_REPOS="nombre=/ruta,...".
+   configureRepos(parseRepos(process.env.VERIDIS_REPOS));
+   const telegramConfig = telegramConfigFromEnv(serviceScope);
+   if (telegramConfig) startTelegramBridge(office, telegramConfig);
   }
   await loadGmailClient(pool);
   // Las tareas programadas disparan expedientes reales sin que nadie le dé clic a nada; solo
@@ -151,7 +170,16 @@ async function main() {
  try {
   if (command === 'migrate') { await migrate(pool); return; }
   if (command === 'gmail-authorize') { await gmailAuthorize(pool); return; }
-  if (command !== 'provision' || !configFile || !tokenFile) throw new Error('Uso: migrate | serve | provision config.json archivo-de-token | gmail-authorize');
+  if (command === 'export-memory') {
+   const vaultPath = vaultPathFromEnv(process.env);
+   if (!vaultPath) throw new Error('Falta VERIDIS_MEMORY_VAULT_PATH');
+   const embeddingProfile = embeddingProfileFromEnv();
+   const memoryStore = new MemoryStore(pool, createEmbedder(embeddingProfile), embeddingProfile.model);
+   const written = await exportAllValidatedToVault(memoryStore, companyMemoryScope(), vaultPath);
+   process.stderr.write(`Exportadas ${written.length} memorias validadas a ${vaultPath}\n`);
+   return;
+  }
+  if (command !== 'provision' || !configFile || !tokenFile) throw new Error('Uso: migrate | serve | provision config.json archivo-de-token | gmail-authorize | export-memory');
   const config = z.object({ principal: Principal, scope: AccessScope, expiresAt: z.iso.datetime({ offset: true }),
    permissions: z.array(z.object({ principal: Principal, operations: z.array(Operation).min(1), resourceType: z.string(), resourceIds: z.array(z.string()).min(1) }).strict()),
   }).strict().parse(JSON.parse(readFileSync(configFile, 'utf8')));
@@ -162,4 +190,14 @@ async function main() {
   process.stderr.write('Sesión creada; token guardado en el archivo privado indicado.\n');
  } finally { await pool.end(); }
 }
-main().catch(() => { process.stderr.write('No se pudo iniciar la operación. Revisa configuración, permisos y conexión.\n'); process.exitCode = 1; });
+// El mensaje genérico es a propósito (un error de pg o de un proveedor puede traer secretos). Solo
+// se muestran los errores de configuración de modelos que arma src/office/models.ts y
+// model-providers.ts: nombran la variable que falta, nunca su valor, y sin ellos no hay forma de
+// saber por qué no arranca el servidor.
+const SAFE_CONFIG_ERRORS = ['Falta el modelo del perfil', 'Falta la credencial', 'Perfil de modelo inexistente'];
+main().catch((error: unknown) => {
+ const message = error instanceof Error ? error.message : '';
+ const safe = SAFE_CONFIG_ERRORS.some((prefix) => message.startsWith(prefix));
+ process.stderr.write(safe ? `No se pudo iniciar: ${message}\n` : 'No se pudo iniciar la operación. Revisa configuración, permisos y conexión.\n');
+ process.exitCode = 1;
+});

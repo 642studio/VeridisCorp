@@ -6,6 +6,8 @@ import { AgentRegistry, officeRegistry } from '../src/office/registry.js';
 import { createDemoOfficeIntelligence, createDemoOrder } from '../src/office/workflow-demo.js';
 import type { OfficeIntelligence } from '../src/office/runtime-contracts.js';
 import { WorkOrder } from '../src/office/contracts.js';
+import { ModelRouter } from '../src/office/models.js';
+import type { PriceList } from '../src/office/prices.js';
 
 const config = (threadId: string) => ({ configurable: { thread_id: threadId }, recursionLimit: 500 });
 
@@ -115,7 +117,49 @@ test('no se aceptan actores inventados dentro de una decisión del modelo', asyn
   };
   const result = await createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver(), { maxRejectedDecisions: 1 })
     .invoke({ order: createDemoOrder() }, config('office-actor'));
-  assert.equal(result.order.pauseReason, 'Demasiadas decisiones rechazadas');
+  assert(result.order.pauseReason?.startsWith('Demasiadas decisiones rechazadas: '));
+});
+
+test('execute() pausa en vez de dejar escapar sin capturar un choque con una regla del motor', async () => {
+  // Una entrega con forma válida pero que reutiliza un id de evidencia de otra tarea (regla del
+  // motor, no un problema de formato) no debe tumbar graph.invoke() sin capturar — antes lo hacía,
+  // y dejaba el expediente atascado: cada reintento repetía el mismo choque, sin pausar ni avanzar.
+  const order = createDemoOrder();
+  const intelligence: OfficeIntelligence = {
+    async coordinate({ order }) {
+      const a = order.tasks.find((t) => t.id === 'a');
+      const b = order.tasks.find((t) => t.id === 'b');
+      if (!a) return { type: 'command', command: { type: 'add_task', task: {
+        id: 'a', title: 'Primera tarea', assignedAgentId: 'network', capability: 'network.audit', dependsOn: [],
+        criteria: [{ id: 'c1', description: 'Evidencia revisada' }],
+      } } };
+      if (a.status === 'pending') return { type: 'dispatch', taskId: 'a' };
+      if (a.status === 'in_review') return { type: 'review', taskId: 'a', reviewerId: 'review' };
+      if (!b) return { type: 'command', command: { type: 'add_task', task: {
+        id: 'b', title: 'Segunda tarea', assignedAgentId: 'network', capability: 'network.audit', dependsOn: [],
+        criteria: [{ id: 'c1', description: 'Evidencia revisada' }],
+      } } };
+      return { type: 'dispatch', taskId: 'b' };
+    },
+    async execute({ task }) {
+      // 'b' reutiliza el mismo id de evidencia que 'a' ya registró: forma válida, regla del motor violada.
+      const evidenceId = task.id === 'a' ? 'shared-evidence' : 'shared-evidence';
+      return { type: 'result', submission: {
+        summary: `Entrega de ${task.id}`,
+        evidence: [{ id: evidenceId, kind: 'observation', reference: `demo://${task.id}`, summary: 'Observación' }],
+      } };
+    },
+    async review({ task }) {
+      return { assessments: task.criteria.map((c) => ({
+        criterionId: c.id, accepted: true, evidenceIds: task.submission!.evidence.map((e) => e.id), explanation: 'ok',
+      })) };
+    },
+  };
+  const result = await createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver(), { maxRejectedDecisions: 1 })
+    .invoke({ order }, config('office-execute-engine-violation'));
+  assert.equal(result.order.status, 'paused');
+  assert(result.order.pauseReason?.includes('Evidencia ya registrada en otra tarea'));
+  assert.equal(result.order.tasks.find((t) => t.id === 'b')!.status, 'running');
 });
 
 test('el límite de turnos pausa aunque el coordinador no produzca avances', async () => {
@@ -177,6 +221,49 @@ test('execute() reintenta internamente una entrega mal formada antes de rendirse
   assert.equal(result.lastError, null);
 });
 
+test('modelCalls registra tokens y costo de cada intento real, incluido el mal formado que se reintentó', async () => {
+  const saver = new MemorySaver();
+  const demo = createDemoOfficeIntelligence();
+  const router = new ModelRouter({ version: 1, defaultProfile: 'base', profiles: {
+    base: { provider: 'openai', model: 'test-model', apiKeyEnv: 'TEST_KEY' },
+  } });
+  // Mismo patrón que la prueba anterior (solo el primer execute() de toda la corrida es mal
+  // formado) — ya probado ahí que el expediente igual completa; aquí además se verifica que
+  // CADA llamada real a execute(), la mal formada incluida, queda contabilizada con su propio
+  // consumo y costo, no solo la que finalmente tuvo éxito.
+  let attempts = 0;
+  const intelligence: OfficeIntelligence = {
+    ...demo,
+    selectModel: (request) => router.select(request),
+    async execute(context, onUsage) {
+      attempts += 1;
+      onUsage?.({ inputTokens: 100 * attempts, outputTokens: 10 * attempts });
+      if (attempts === 1) return { type: 'result', submission: { summary: 'Inventado', evidence: [] } };
+      return demo.execute(context);
+    },
+  };
+  const priceList: PriceList = { version: 1, currency: 'USD', prices: {
+    'openai:test-model': { inputMicrosPerMillionTokens: 1_000_000, outputMicrosPerMillionTokens: 4_000_000 },
+  } };
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, saver, { priceList });
+  const result = await graph.invoke({ order: createDemoOrder() }, config('office-execute-retry-cost'));
+  assert.equal(result.order.status, 'completed');
+  // 1-2: audit (mal formada + reintento que pide apoyo), 3: research, 4: audit con apoyo ya
+  // resuelto (primera revisión del demo siempre la rechaza para forzar una corrección — ver la
+  // prueba "LangGraph coordina apoyo..."), 5: audit corregida, ya aceptada.
+  assert.equal(attempts, 5);
+  const executeCalls = result.modelCalls.filter((c) => c.stage === 'execute');
+  assert.equal(executeCalls.length, 5);
+  for (const [i, call] of executeCalls.entries()) {
+    const n = i + 1;
+    assert.equal(call.inputTokens, 100 * n);
+    assert.equal(call.outputTokens, 10 * n);
+    assert.equal(call.costStatus, 'estimated');
+    // (input/1e6 * 1_000_000) + (output/1e6 * 4_000_000), sin redondeo a mitad de camino aquí.
+    assert.equal(call.costMicros, 100 * n + 40 * n);
+  }
+});
+
 test('un revisor que cita una evidencia inexistente se trata como decisión rechazada, no tumba el nodo', async () => {
   const saver = new MemorySaver();
   const demo = createDemoOfficeIntelligence();
@@ -216,7 +303,7 @@ test('un revisor que siempre cita evidencia inexistente pausa en vez de tumbar e
   assert.match(result.lastError!, /[Ee]videncia/);
 });
 
-test('execute() se rinde tras dos intentos mal formados seguidos, sin un tercero', async () => {
+test('execute() se rinde tras tres intentos mal formados seguidos, sin un cuarto', async () => {
   const saver = new MemorySaver();
   const demo = createDemoOfficeIntelligence();
   let attempts = 0;
@@ -230,7 +317,7 @@ test('execute() se rinde tras dos intentos mal formados seguidos, sin un tercero
   const graph = createOfficeWorkflow(intelligence, officeRegistry, saver);
   const result = await graph.invoke({ order: createDemoOrder() }, config('office-execute-giveup'));
   assert.equal(result.order.status, 'paused');
-  assert.equal(attempts, 2);
+  assert.equal(attempts, 3);
 });
 
 test('reserva los pasos de inicio y entrega antes de asignar trabajo', async () => {

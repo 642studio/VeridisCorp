@@ -5,9 +5,45 @@ import { SessionExpired } from '../components/SessionExpired';
 import { InvolvedAgents } from '../components/InvolvedAgents';
 import { useElapsedSeconds } from '../useElapsedSeconds';
 import { ORDER_STATUS, TASK_STATUS } from '../officeStatus';
-import type { OfficeAssessment, OfficeEvidence } from '../api/types';
+import type { OfficeAssessment, OfficeBudget, OfficeEventRow, OfficeEvidence } from '../api/types';
 
 const OFFICE_FILE_PREFIX = 'office-file://';
+const EVENT_LABELS: Record<string, string> = {
+  add_task: 'Nueva tarea', start_task: 'Inicia tarea', request_support: 'Pide apoyo',
+  submit_result: 'Entrega resultado', review_task: 'Revisión', resolve_block: 'Desbloquea',
+  cancel_task: 'Cancela tarea', pause_order: 'Pausa', close_order: 'Cierra expediente',
+};
+
+function truncate(text: string, max = 280): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+// El tipo de evento a solas ("submit_result", "pause_order"...) no dice nada de lo que realmente
+// pasó; esta función saca el texto real (pregunta, motivo, resumen) para cada tipo de comando.
+function eventDetail(event: OfficeEventRow): string | null {
+  const command = event.command as Record<string, unknown>;
+  switch (command.type) {
+    case 'add_task': {
+      const task = command.task as { title?: string; assignedAgentId?: string } | undefined;
+      return task?.title ? `${task.title}${task.assignedAgentId ? ` → ${task.assignedAgentId}` : ''}` : null;
+    }
+    case 'request_support': return typeof command.question === 'string' ? truncate(command.question) : null;
+    case 'submit_result': {
+      const submission = command.submission as { summary?: string } | undefined;
+      return submission?.summary ? truncate(submission.summary) : null;
+    }
+    case 'review_task': {
+      const assessments = command.assessments as { accepted?: boolean }[] | undefined;
+      if (!assessments) return null;
+      const accepted = assessments.filter((a) => a.accepted).length;
+      return `${accepted}/${assessments.length} criterios aceptados`;
+    }
+    case 'resolve_block': return typeof command.resolution === 'string' ? truncate(command.resolution) : null;
+    case 'cancel_task':
+    case 'pause_order': return typeof command.reason === 'string' ? truncate(command.reason) : null;
+    default: return null;
+  }
+}
 
 function EvidenceFileDownload({ fileId }: { fileId: string }) {
   const [state, setState] = useState<'idle' | 'pending' | 'error'>('idle');
@@ -90,6 +126,38 @@ function LimitsGauge({ turns, maxTurns, rejectedDecisions, maxRejectedDecisions 
   );
 }
 
+const money = (micros: number) => `$${(micros / 1_000_000).toFixed(4)}`;
+const BUDGET_NOTE: Record<OfficeBudget['level'], string> = {
+  none: '', ok: '', warning: '80% del presupuesto usado', critical: '90% del presupuesto usado — puede pausarse pronto', exceeded: '[ ! ] presupuesto agotado',
+};
+
+// Mismo molde visual que LimitsGauge. Sin presupuesto configurado solo informa lo gastado; nunca
+// presenta como total un gasto que excluye llamadas sin precio sin decirlo.
+function BudgetLine({ budget }: { budget: OfficeBudget }) {
+  const unpriced = budget.unpricedCalls > 0
+    ? ` · ${budget.unpricedCalls} llamada${budget.unpricedCalls === 1 ? '' : 's'} sin precio, no incluida${budget.unpricedCalls === 1 ? '' : 's'}`
+    : '';
+  if (budget.maxCostMicros === null) {
+    return <p className="muted">Gasto estimado: {money(budget.spentMicros)} (sin presupuesto configurado){unpriced}</p>;
+  }
+  const ratio = Math.min(1, budget.spentMicros / budget.maxCostMicros);
+  return (
+    <div className="budget-gauge">
+      <div className="budget-gauge__row">
+        <span>Presupuesto usado</span>
+        <span>{money(budget.spentMicros)} / {money(budget.maxCostMicros)}</span>
+      </div>
+      <div className="budget-gauge__bar"><div className="budget-gauge__fill" style={{ width: `${ratio * 100}%` }} /></div>
+      <div className="budget-gauge__row budget-gauge__row--small">
+        <span>
+          Próxima llamada estimada: {budget.projectedNextMicros === null ? 'sin historial todavía' : money(budget.projectedNextMicros)}{unpriced}
+        </span>
+        <span className="muted" title="Se pausa antes de una llamada que rebasaría el presupuesto">{BUDGET_NOTE[budget.level]}</span>
+      </div>
+    </div>
+  );
+}
+
 export function OfficeOrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const query = useOfficeOrder(id);
   const advance = useAdvanceOfficeOrder();
@@ -105,7 +173,7 @@ export function OfficeOrderDetail({ id, onBack }: { id: string; onBack: () => vo
   if (query.error) return <p className="error">No se pudo cargar: {(query.error as Error).message}</p>;
   if (!query.data) return null;
 
-  const { order, turns, rejectedDecisions, interrupted, pendingQuestion, modelCalls, limits } = query.data;
+  const { order, turns, rejectedDecisions, interrupted, pendingQuestion, modelCalls, limits, budget } = query.data;
   const canAdvance = order.status === 'active' && !interrupted;
   const orderStatus = ORDER_STATUS[order.status];
 
@@ -123,6 +191,7 @@ export function OfficeOrderDetail({ id, onBack }: { id: string; onBack: () => vo
           <span className="muted">Llamadas reales: {modelCalls.length}</span>
         </div>
         <LimitsGauge turns={turns} maxTurns={limits.maxTurns} rejectedDecisions={rejectedDecisions} maxRejectedDecisions={limits.maxRejectedDecisions} />
+        <BudgetLine budget={budget} />
         {order.pauseReason && <p className="task-panel__alert">[ ! ] Pausado: {order.pauseReason}</p>}
       </header>
 
@@ -192,13 +261,17 @@ export function OfficeOrderDetail({ id, onBack }: { id: string; onBack: () => vo
         <div className="run-detail__side">
           <p className="panel-title">EVENTOS</p>
           <ul className="audit-timeline__list">
-            {[...order.events].reverse().map((event) => (
-              <li key={event.sequence} className="audit-timeline__item">
-                {event.occurredAt && <span className="audit-timeline__time">{new Date(event.occurredAt).toLocaleString()}</span>}
-                <span className="audit-timeline__event">{event.command.type}</span>
-                <span className="audit-timeline__who">{event.actor.role === 'agent' ? event.actor.agentId : 'coordinador'}</span>
-              </li>
-            ))}
+            {[...order.events].reverse().map((event) => {
+              const detail = eventDetail(event);
+              return (
+                <li key={event.sequence} className="audit-timeline__item">
+                  {event.occurredAt && <span className="audit-timeline__time">{new Date(event.occurredAt).toLocaleString()}</span>}
+                  <span className="audit-timeline__event">{EVENT_LABELS[event.command.type] ?? event.command.type}</span>
+                  <span className="audit-timeline__who">{event.actor.role === 'agent' ? event.actor.agentId : 'coordinador'}</span>
+                  {detail && <p className="muted" style={{ margin: '2px 0 0' }}>{detail}</p>}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>

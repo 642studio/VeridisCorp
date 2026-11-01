@@ -87,10 +87,25 @@ export const CorporateMemoryRecord = z.object({
   schemaVersion: z.literal(1), id: Id, scope: AccessScope,
   entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision']),
   entityId: Id, version: z.number().int().positive(), content: Text,
-  status: z.enum(['proposed', 'validated', 'superseded']),
+  // Modelo automático (decisión 2026-10-31, ver docs/runtime-pilot.md): 'proposed' = vigente SIN
+  // CONFIRMAR — query() ya la usa; 'validated' = confirmada por un humano; 'quarantined' = un humano
+  // la descartó o una corrección la refutó (se conserva para que nadie la vuelva a proponer igual);
+  // 'superseded' = una versión más nueva de la misma entidad la reemplazó.
+  status: z.enum(['proposed', 'validated', 'superseded', 'quarantined']),
+  // Qué clase de conocimiento es (la leyenda del mapa de memoria). Opcional: los registros
+  // anteriores a este campo no lo tienen y se tratan como 'fact'.
+  kind: z.enum(['decision', 'fact', 'preference', 'question']).optional(),
   provenance: z.array(z.object({ reference: Text, observedAt: Timestamp }).strict()).min(1),
   updatedAt: Timestamp, validUntil: Timestamp.nullable(),
   trust: z.enum(['external_untrusted', 'internal_unverified', 'verified']),
+  // Id de otra CorporateMemoryRecord que esta memoria refuta. Opcional para que un registro guardado
+  // antes de este campo siga parseando igual. Si la refutada está sin confirmar, cae a cuarentena
+  // al proponerse esta; si un humano la había confirmado, solo cuando un humano confirme esta
+  // (src/runtime/memory-store.ts).
+  contradicts: Id.nullable().optional(),
+  // Motivo de la cuarentena (automático, citando la memoria que la refutó, o escrito a mano por
+  // quien la pone en cuarentena manualmente). Solo tiene sentido con status:'quarantined'.
+  quarantineReason: Text.nullable().optional(),
 }).strict();
 export type CorporateMemoryRecord = z.infer<typeof CorporateMemoryRecord>;
 

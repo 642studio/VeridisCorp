@@ -5,11 +5,12 @@ import type { OfficeRuntime } from './office-runtime.js';
 import type { Scheduler } from './scheduler.js';
 import { RuntimeError } from './contracts.js';
 
-async function body(req: IncomingMessage): Promise<unknown> {
+// 32 KB por defecto; solo la importación de documentos a memoria pide más (maxBytes).
+async function body(req: IncomingMessage, maxBytes = 32768): Promise<unknown> {
  if (!req.headers['content-type']?.startsWith('application/json')) throw new RuntimeError(415, 'Se requiere JSON');
  let size = 0; const chunks: Buffer[] = [];
  for await (const chunk of req) {
-  size += chunk.length; if (size > 32768) throw new RuntimeError(413, 'Solicitud demasiado grande');
+  size += chunk.length; if (size > maxBytes) throw new RuntimeError(413, 'Solicitud demasiado grande');
   chunks.push(chunk);
  }
  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
@@ -64,6 +65,24 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     res.writeHead(200);
     res.end(file.content);
     return;
+   } else if (office && req.method === 'POST' && path === '/office/assistant/ask') {
+    result = await office.ask(token, await body(req));
+   } else if (office && req.method === 'GET' && path === '/office/assistant/threads') {
+    result = await office.assistantThreads(token);
+   } else if (office && req.method === 'GET' && /^\/office\/assistant\/threads\/([0-9a-f-]{36})$/.test(path)) {
+    result = await office.assistantThread(token, /^\/office\/assistant\/threads\/([0-9a-f-]{36})$/.exec(path)![1]!);
+   } else if (office && req.method === 'POST' && path === '/office/memory/import/plan') {
+    result = await office.planMemoryImport(token, await body(req, 1024 * 1024));
+   } else if (office && req.method === 'POST' && path === '/office/memory/import/section') {
+    result = await office.ingestMemorySection(token, await body(req, 64 * 1024));
+   } else if (office && req.method === 'GET' && path === '/office/memory/graph') {
+    result = await office.memoryGraph(token);
+   } else if (office && req.method === 'GET' && path === '/office/memory') {
+    result = await office.listMemory(token, url.searchParams.get('status'));
+   } else if (office && req.method === 'POST' && /^\/office\/memory\/([0-9a-f-]{36})\/validate$/.test(path)) {
+    result = await office.validateMemory(token, /^\/office\/memory\/([0-9a-f-]{36})\/validate$/.exec(path)![1]!);
+   } else if (office && req.method === 'POST' && /^\/office\/memory\/([0-9a-f-]{36})\/quarantine$/.test(path)) {
+    result = await office.quarantineMemory(token, /^\/office\/memory\/([0-9a-f-]{36})\/quarantine$/.exec(path)![1]!, await body(req));
    } else if (office && req.method === 'POST' && path === '/office/schedules') {
     result = await office.createSchedule(token, await body(req));
     scheduler?.register({ id: (result as { id: string }).id, cron_expression: (result as { cronExpression: string }).cronExpression, timezone: (result as { timezone: string }).timezone });

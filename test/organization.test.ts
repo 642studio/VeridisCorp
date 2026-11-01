@@ -121,17 +121,18 @@ test('cada responsable de departamento usa su propia política de modelos para p
     general: { provider: 'openai', model: 'test-general', apiKeyEnv: 'TEST_KEY' },
     finance: { provider: 'anthropic', model: 'test-finance', apiKeyEnv: 'TEST_KEY' },
   }, agents: { cfo: { coordinate: 'finance' } } });
+  const usage = { inputTokens: null, outputTokens: null };
   const intelligence = createOfficeIntelligence({ router, invoker: async (request) => {
     calls.push(request);
     const context = JSON.parse(request.messages[1]!.content);
     switch (request.schemaName) {
-      case 'office_decision': return { decision: await demo.coordinate(context as CoordinatorContext) };
-      case 'office_department_plan': return demo.delegate!(context as DepartmentContext);
-      case 'office_worker': return { reply: await demo.execute(context as SpecialistContext) };
-      default: return demo.review(context as SpecialistContext);
+      case 'office_decision': return { parsed: { decision: await demo.coordinate(context as CoordinatorContext) }, usage };
+      case 'office_department_plan': return { parsed: await demo.delegate!(context as DepartmentContext), usage };
+      case 'office_worker': return { parsed: { reply: await demo.execute(context as SpecialistContext) }, usage };
+      default: return { parsed: await demo.review(context as SpecialistContext), usage };
     }
   } });
-  const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver());
+  const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver(), { priceList: null });
   const result = await graph.invoke({ order: createCompanyDemoOrder() }, cfg('company-models'));
   assert.equal(result.order.status, 'completed');
   assert(calls.some((c) => c.selection.agentId === 'ceo' && c.selection.stage === 'coordinate'));

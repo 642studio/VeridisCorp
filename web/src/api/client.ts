@@ -1,5 +1,6 @@
 import type {
-  AgentDetail, FireScheduleResponse, OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
+  AgentDetail, AssistantMessage, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
+  OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
   OfficeSchedulesListResponse, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus,
 } from './types';
 
@@ -112,6 +113,34 @@ export const api = {
   },
   fireSchedule(id: string) {
     return request<FireScheduleResponse>(`/office/schedules/${id}/fire`, { method: 'POST', body: '{}' });
+  },
+  listMemory(status: MemoryStatus) {
+    return request<MemoryListResponse>(`/office/memory?status=${status}`);
+  },
+  memoryGraph() {
+    return request<MemoryGraph>('/office/memory/graph');
+  },
+  planMemoryImport(title: string, text: string) {
+    return request<{ title: string; sections: { section: string; text: string }[] }>('/office/memory/import/plan', { method: 'POST', body: JSON.stringify({ title, text }) });
+  },
+  askAssistant(question: string, threadId: string | null) {
+    return request<AssistantMessage>('/office/assistant/ask', { method: 'POST', body: JSON.stringify(threadId ? { question, threadId } : { question }) });
+  },
+  listAssistantThreads() {
+    return request<{ threads: AssistantThreadSummary[] }>('/office/assistant/threads');
+  },
+  getAssistantThread(threadId: string) {
+    return request<{ threadId: string; messages: AssistantMessage[] }>(`/office/assistant/threads/${threadId}`);
+  },
+  importMemorySection(title: string, section: string, text: string, confirm = false) {
+    return request<{ section: string; memories: CorporateMemoryRecord[]; inputTokens: number | null; outputTokens: number | null }>(
+      '/office/memory/import/section', { method: 'POST', body: JSON.stringify({ title, section, text, confirm }) });
+  },
+  validateMemory(id: string) {
+    return request<CorporateMemoryRecord>(`/office/memory/${id}/validate`, { method: 'POST', body: '{}' });
+  },
+  quarantineMemory(id: string, reason: string) {
+    return request<CorporateMemoryRecord>(`/office/memory/${id}/quarantine`, { method: 'POST', body: JSON.stringify({ reason }) });
   },
   // La sesión usa token Bearer, no cookie — no puede ser un <a href> plano (el navegador no
   // mandaría la cabecera). Se pide el archivo con fetch autenticado y se dispara la descarga

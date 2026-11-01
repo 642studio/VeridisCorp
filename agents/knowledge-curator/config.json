@@ -6,7 +6,9 @@
     "research.knowledge"
   ],
   "allowedTools": [
-    "web.search"
+    "web.search",
+    "memory.write",
+    "memory.query"
   ],
   "organization": {
     "title": "Gestión de conocimiento",

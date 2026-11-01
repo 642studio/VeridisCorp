@@ -8,15 +8,17 @@ import { OfficeOrders } from './screens/OfficeOrders';
 import { OfficeOrderDetail } from './screens/OfficeOrderDetail';
 import { OfficeChat } from './screens/OfficeChat';
 import { Schedules } from './screens/Schedules';
+import { Memory } from './screens/Memory';
 import { clearToken } from './api/client';
 
-type View = 'chat' | 'runs' | 'office' | 'schedules' | 'organization' | 'agents';
+type View = 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'organization' | 'agents';
 
 const NAV: { id: View; label: string }[] = [
   { id: 'chat', label: 'ASISTENTE' },
   { id: 'runs', label: 'EXPEDIENTES' },
   { id: 'office', label: 'OFICINA' },
   { id: 'schedules', label: 'TAREAS PROGRAMADAS' },
+  { id: 'memory', label: 'MEMORIA' },
   { id: 'organization', label: 'ORGANIGRAMA' },
   { id: 'agents', label: 'AGENTES' },
 ];
@@ -30,6 +32,7 @@ export function App() {
     : view === 'runs' ? (selectedId ? `EXPEDIENTES / ${selectedId.slice(0, 8)}` : 'EXPEDIENTES')
     : view === 'office' ? (selectedOfficeId ? `OFICINA / ${selectedOfficeId.slice(0, 8)}` : 'OFICINA')
     : view === 'schedules' ? 'TAREAS PROGRAMADAS'
+    : view === 'memory' ? 'MEMORIA'
     : view === 'organization' ? 'ORGANIGRAMA' : 'AGENTES';
 
   return (
@@ -77,6 +80,7 @@ export function App() {
             {view === 'schedules' && (
               <Schedules onOpenOrder={(id) => { setSelectedOfficeId(id); setView('office'); }} />
             )}
+            {view === 'memory' && <Memory />}
             {view === 'runs' && (
               selectedId
                 ? <RunDetail id={selectedId} onBack={() => setSelectedId(null)} />

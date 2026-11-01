@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createServer, type Server } from 'node:http';
 import { fork } from 'node:child_process';
 import { once } from 'node:events';
@@ -15,6 +18,8 @@ import type { AccessScope, Principal } from '../src/governance/contracts.js';
 import type { ModelGateway, DeliveryConnector } from '../src/runtime/providers.js';
 import type { OfficeIntelligence } from '../src/office/runtime-contracts.js';
 import { persistGeneratedPdf } from '../src/office/intelligence.js';
+import { MemoryStore } from '../src/runtime/memory-store.js';
+import { MEMORY_EMBEDDING_DIMENSIONS, type Embedder } from '../src/runtime/embeddings.js';
 
 // Determinista, sin IA real: crea una tarea, la despacha, la revisa y cierra el expediente.
 function officeTestIntelligence(): OfficeIntelligence {
@@ -360,6 +365,11 @@ test('office/ real sobre HTTP: crear, avanzar y listar un expediente con varios 
    const id = started.data.id;
    const got = await request(base, token, `/office/orders/${id}`);
    assert.equal(got.status, 200); assert.equal(got.data.order.status, 'completed');
+   // Sin VERIDIS_OFFICE_MAX_COST_MICROS el expediente no tiene presupuesto: la API igual informa
+   // el estado (nivel 'none'), en vez de omitir el campo y dejar a la UI adivinarlo.
+   assert.equal(got.data.budget.level, 'none');
+   assert.equal(got.data.budget.maxCostMicros, null);
+   assert.equal(got.data.order.limits.maxCostMicros, null);
    const listed = await request(base, token, '/office/orders');
    assert.equal(listed.status, 200);
    assert(listed.data.orders.some((o: any) => o.id === id && o.status === 'completed'));
@@ -506,5 +516,288 @@ test('office_files (pdf.generate): persiste con deduplicación real y aislamient
    const response = await fetch(`${base}/office/files/${randomUUID()}`, { headers: { authorization: `Bearer ${token}` } });
    assert.equal(response.status, 404);
   });
+ } finally { await close(server); await pool.end(); }
+});
+
+function unitVector(index: number): number[] {
+ const vector = new Array(MEMORY_EMBEDDING_DIMENSIONS).fill(0);
+ vector[index] = 1;
+ return vector;
+}
+const fakeMemoryEmbedder: Embedder = { dimensions: MEMORY_EMBEDDING_DIMENSIONS, async embed(text) { return unitVector(text.includes('postgres') ? 0 : 1); } };
+
+test('memoria corporativa sobre HTTP: solo validate() la vuelve buscable, y el ámbito es real', { skip: !connectionString, timeout: 30000 }, async (t) => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const memory = new MemoryStore(pool, fakeMemoryEmbedder, 'fake-test-embedder');
+ const vault = mkdtempSync(join(tmpdir(), 'veridis-vault-'));
+ const office = new OfficeRuntime(pool, officeTestIntelligence(), { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2 }, memory, vault);
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ // Mismo ámbito que companyMemoryScope() produce con sus valores por defecto (ver
+ // src/runtime/memory-store.ts): una sesión real de memoria corporativa debe aprovisionarse
+ // exactamente así, no con un scope de cliente cualquiera.
+ const memoryScope: AccessScope = { workspaceId: 'veridiscorp', companyId: '642-studio', divisionId: 'general', clientId: null, projectId: null };
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope: memoryScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['data.read', 'approval.decide'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  let proposedId = '';
+  await t.test('memory.write (simulada) guarda y memory.query ya la encuentra, marcada sin confirmar', async () => {
+   const proposed = await memory.propose(memoryScope, {
+    entityType: 'project', entityId: 'veridiscorp', content: 'Configuración de acceso remoto a postgres.',
+    provenance: [{ reference: 'test://1', observedAt: new Date().toISOString() }], trust: 'internal_unverified',
+   });
+   proposedId = proposed.id;
+   const found = await memory.query(memoryScope, 'postgres');
+   assert.equal(found[0]?.record.id, proposedId);
+   assert.equal(found[0]?.record.status, 'proposed');
+  });
+  await t.test('GET /office/memory?status=proposed la lista', async () => {
+   const listed = await request(base, token, '/office/memory?status=proposed');
+   assert.equal(listed.status, 200, JSON.stringify(listed.data));
+   assert.ok(listed.data.records.some((r: { id: string }) => r.id === proposedId));
+  });
+  await t.test('POST /office/memory/{id}/validate la deja vigente y buscable, y espeja al vault de Obsidian', async () => {
+   const validated = await request(base, token, `/office/memory/${proposedId}/validate`, {});
+   assert.equal(validated.status, 200, JSON.stringify(validated.data));
+   assert.equal(validated.data.status, 'validated');
+   const found = await memory.query(memoryScope, 'postgres remoto');
+   assert.equal(found[0]?.record.id, proposedId);
+   const exported = readFileSync(join(vault, 'project', 'veridiscorp.md'), 'utf8');
+   assert.match(exported, /Configuración de acceso remoto a postgres\./);
+   assert.match(exported, /#veridis #memoria #project/);
+  });
+  await t.test('validar de nuevo la misma propuesta responde 409, no 200', async () => {
+   const second = await request(base, token, `/office/memory/${proposedId}/validate`, {});
+   assert.equal(second.status, 409);
+  });
+  await t.test('POST /office/memory/{id}/quarantine exige un motivo y solo aplica a una memoria vigente', async () => {
+   const withoutReason = await request(base, token, `/office/memory/${proposedId}/quarantine`, {});
+   assert.equal(withoutReason.status, 400);
+   const quarantined = await request(base, token, `/office/memory/${proposedId}/quarantine`, { reason: 'Dato obsoleto tras migrar el servidor.' });
+   assert.equal(quarantined.status, 200, JSON.stringify(quarantined.data));
+   assert.equal(quarantined.data.status, 'quarantined');
+   assert.equal(quarantined.data.quarantineReason, 'Dato obsoleto tras migrar el servidor.');
+   assert.deepEqual(await memory.query(memoryScope, 'postgres remoto'), []);
+   const exported = readFileSync(join(vault, 'project', 'veridiscorp.md'), 'utf8');
+   assert.match(exported, /Estado: quarantined/);
+   assert.match(exported, /Motivo de cuarentena: Dato obsoleto tras migrar el servidor\./);
+  });
+  await t.test('poner en cuarentena una segunda vez responde 409, no 200', async () => {
+   const second = await request(base, token, `/office/memory/${proposedId}/quarantine`, { reason: 'otra vez' });
+   assert.equal(second.status, 409);
+  });
+  await t.test('validar una corrección (contradicts) también reescribe en el vault la memoria que pasó a cuarentena', async () => {
+   // Bug encontrado en una prueba local real: solo se exportaba la corrección, y Obsidian seguía
+   // mostrando como "validated" la memoria refutada.
+   const original = await memory.propose(memoryScope, {
+    entityType: 'company', entityId: 'respaldo', content: 'El respaldo corre a las 03:00.',
+    provenance: [{ reference: 'test://3', observedAt: new Date().toISOString() }], trust: 'internal_unverified',
+   });
+   assert.equal((await request(base, token, `/office/memory/${original.id}/validate`, {})).status, 200);
+   const correction = await memory.propose(memoryScope, {
+    entityType: 'company', entityId: 'respaldo-correccion', content: 'El respaldo corre a las 04:00.',
+    provenance: [{ reference: 'test://4', observedAt: new Date().toISOString() }], trust: 'verified', contradicts: original.id,
+   });
+   assert.equal((await request(base, token, `/office/memory/${correction.id}/validate`, {})).status, 200);
+   const exported = readFileSync(join(vault, 'company', 'respaldo.md'), 'utf8');
+   assert.match(exported, /Estado: quarantined/);
+   assert.match(exported, /Motivo de cuarentena: Contradicha por company\/respaldo-correccion v1/);
+  });
+  await t.test('una propuesta de otro ámbito es invisible e invalidable desde el ámbito de memoria corporativa', async () => {
+   const otherScope: AccessScope = { ...memoryScope, clientId: 'otro-cliente' };
+   const otherProposed = await memory.propose(otherScope, {
+    entityType: 'project', entityId: 'otro', content: 'Nota de otro ámbito.',
+    provenance: [{ reference: 'test://2', observedAt: new Date().toISOString() }], trust: 'internal_unverified',
+   });
+   // token está aprovisionada en memoryScope: ni ve ni puede validar algo que vive en otherScope.
+   const listedFromMemoryScope = await request(base, token, '/office/memory?status=proposed');
+   assert.ok(!listedFromMemoryScope.data.records.some((r: { id: string }) => r.id === otherProposed.id));
+   const response = await request(base, token, `/office/memory/${otherProposed.id}/validate`, {});
+   assert.equal(response.status, 404);
+  });
+ } finally { await close(server); await pool.end(); rmSync(vault, { recursive: true, force: true }); }
+});
+
+test('el archivista destila memoria al cerrar un expediente, una sola vez, y el mapa la expone', { skip: !connectionString, timeout: 30000 }, async () => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const memory = new MemoryStore(pool, fakeMemoryEmbedder, 'fake-test-embedder');
+ let distills = 0;
+ const intelligence: OfficeIntelligence = {
+  ...officeTestIntelligence(),
+  async distill(context, onUsage) {
+   distills += 1;
+   onUsage?.({ inputTokens: 50, outputTokens: 20 });
+   assert.equal(context.deliverables[0]?.summary, 'Entrega de prueba');
+   // entityId sin normalizar y un contradicts inventado: el runtime normaliza uno y descarta el otro.
+   return { memories: [{ kind: 'decision', entityType: 'company', entityId: 'Política de Respaldo', content: 'Se decidió respaldar postgres a diario.', contradicts: 'id-inventado' }] };
+  },
+ };
+ const office = new OfficeRuntime(pool, intelligence, { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2 }, memory);
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ const memoryScope: AccessScope = { workspaceId: 'veridiscorp', companyId: '642-studio', divisionId: 'general', clientId: null, projectId: null };
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope: memoryScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['draft.create', 'data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  const started = await request(base, token, '/office/orders', { objective: 'Definir la política de respaldo' });
+  assert.equal(started.status, 200, JSON.stringify(started.data));
+  assert.equal(started.data.order.status, 'completed');
+  await office.settled();
+  const found = (await memory.query(memoryScope, 'postgres', { track: false })).find((r) => r.record.entityId === 'politica-de-respaldo');
+  assert(found, 'el archivista no guardó la memoria');
+  assert.equal(found.record.kind, 'decision');
+  assert.equal(found.record.status, 'proposed');
+  assert.equal(found.record.contradicts, null);
+  assert.match(found.record.provenance[0]!.reference, new RegExp(`expediente://${started.data.id}`));
+  // Avanzar un expediente ya cerrado no vuelve a destilar.
+  await request(base, token, `/office/orders/${started.data.id}/advance`, {});
+  await office.settled();
+  assert.equal(distills, 1);
+  const graph = await request(base, token, '/office/memory/graph');
+  assert.equal(graph.status, 200, JSON.stringify(graph.data));
+  assert(graph.data.nodes.some((n: { record: { id: string } }) => n.record.id === found.record.id));
+ } finally { await close(server); await pool.end(); }
+});
+
+test('importar un documento a memoria: plan sin IA, secciones con IA, todo sin confirmar y con su origen', { skip: !connectionString, timeout: 30000 }, async () => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const memory = new MemoryStore(pool, fakeMemoryEmbedder, 'fake-test-embedder');
+ const seen: string[] = [];
+ const intelligence: OfficeIntelligence = {
+  ...officeTestIntelligence(),
+  async ingest(context, onUsage) {
+   seen.push(context.section);
+   onUsage?.({ inputTokens: 300, outputTokens: 90 });
+   return { memories: [{ kind: 'fact', entityType: 'company', entityId: `Dato ${context.section}`, content: `Sobre ${context.section}: el respaldo de postgres es diario.`, contradicts: null }] };
+  },
+ };
+ const office = new OfficeRuntime(pool, intelligence, { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2 }, memory);
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ const memoryScope: AccessScope = { workspaceId: 'veridiscorp', companyId: '642-studio', divisionId: 'general', clientId: null, projectId: null };
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope: memoryScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['data.read', 'data.write'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ // Otra persona: los permisos se resuelven por ámbito y principal, no por token.
+ const reader: Principal = { kind: 'human', id: randomUUID() };
+ const readOnly = await provisionSession(pool, { principal: reader, scope: memoryScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: reader, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  // Más grande que el límite general de 32 KB: el plan acepta documentos largos.
+  const doc = `1. PERFIL\n${'Texto del perfil.\n'.repeat(2000)}\n2. NEGOCIO\n${'Texto del negocio.\n'.repeat(300)}`;
+  assert(Buffer.byteLength(doc) > 32768);
+  const plan = await request(base, token, '/office/memory/import/plan', { title: 'Contexto de prueba', text: doc });
+  assert.equal(plan.status, 200, JSON.stringify(plan.data));
+  assert(plan.data.sections.length >= 2);
+  assert.equal((await request(base, readOnly, '/office/memory/import/plan', { title: 'x', text: 'y' })).status, 403);
+  const first = plan.data.sections[0];
+  const imported = await request(base, token, '/office/memory/import/section', { title: 'Contexto de prueba', section: first.section, text: first.text });
+  assert.equal(imported.status, 200, JSON.stringify(imported.data));
+  assert.equal(seen[0], first.section);
+  const record = imported.data.memories[0];
+  assert.equal(record.status, 'proposed');
+  assert.equal(record.kind, 'fact');
+  assert.match(record.entityId, /^[a-z0-9-]+$/);
+  assert.match(record.provenance[0].reference, /^documento: Contexto de prueba § /);
+  assert.equal(imported.data.inputTokens, 300);
+  // Quien escribió el documento puede importarlo ya confirmado.
+  const confirmed = await request(base, token, '/office/memory/import/section', { title: 'Contexto propio', section: first.section, text: first.text, confirm: true });
+  assert.equal(confirmed.status, 200, JSON.stringify(confirmed.data));
+  assert.equal(confirmed.data.memories[0].status, 'validated');
+  assert.match(confirmed.data.memories[0].provenance[0].reference, /confirmado al importar/);
+ } finally { await close(server); await pool.end(); }
+});
+
+test('asistente rápido: responde con memoria en una llamada, guarda la conversación y pasa el trabajo a la oficina', { skip: !connectionString, timeout: 30000 }, async () => {
+ const pool = new Pool({ connectionString, max: 6 }); await migrate(pool);
+ const memory = new MemoryStore(pool, fakeMemoryEmbedder, 'fake-test-embedder');
+ const memoryScope: AccessScope = { workspaceId: 'veridiscorp', companyId: '642-studio', divisionId: 'general', clientId: null, projectId: null };
+ const marker = randomUUID().slice(0, 8);
+ const backup = await memory.propose(memoryScope, {
+  entityType: 'decision', entityId: `respaldo-${marker}`, content: `El respaldo de postgres ${marker} es diario a las 3 am.`,
+  provenance: [{ reference: 'test://asistente', observedAt: new Date().toISOString() }], trust: 'internal_unverified',
+ });
+ const contexts: Parameters<NonNullable<OfficeIntelligence['ask']>>[0][] = [];
+ const intelligence: OfficeIntelligence = {
+  ...officeTestIntelligence(),
+  async ask(context, onUsage) {
+   contexts.push(context);
+   onUsage?.({ inputTokens: 120, outputTokens: 40 });
+   if (context.question.includes('cotización')) return { mode: 'order', answer: 'Lo paso a la oficina.', objective: 'Preparar una cotización de redes sociales.', memoryIds: [] };
+   if (context.question.includes('sin encargo')) return { mode: 'order', answer: 'Lo paso a la oficina.', objective: '  ', memoryIds: [] };
+   const used = context.memories.find((m) => m.content.includes(marker));
+   return { mode: 'answer', answer: used ? `Diario a las 3 am.` : 'No lo sé.', objective: null, memoryIds: used ? [used.id, 'id-inventado'] : [] };
+  },
+ };
+ const office = new OfficeRuntime(pool, intelligence, { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2, priceList: null }, memory);
+ await office.setup();
+ const content = new ContentRuntime(pool, {
+  identify: () => ({ provider: 'test', model: 'deterministic' }),
+  async invoke() { return { output: { text: 'no usado' }, inputTokens: 0, outputTokens: 0 }; },
+ }, { async send() { throw new Error('no usado'); }, async lookup() { return null; } });
+ const server = createRuntimeServer(content, office); const base = await listen(server);
+ const human: Principal = { kind: 'human', id: randomUUID() };
+ const token = await provisionSession(pool, { principal: human, scope: memoryScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: human, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ const otherScope: AccessScope = { ...memoryScope, divisionId: `otra-${marker}` };
+ const outsider: Principal = { kind: 'human', id: randomUUID() };
+ const outsiderToken = await provisionSession(pool, { principal: outsider, scope: otherScope, expiresAt: new Date(Date.now() + 3600000).toISOString(), permissions: [
+  { principal: outsider, operations: ['data.read'], resourceType: 'workflow', resourceIds: ['office-pilot'] },
+ ] });
+ try {
+  const first = await request(base, token, '/office/assistant/ask', { question: '¿Cada cuánto respaldamos postgres?' });
+  assert.equal(first.status, 200, JSON.stringify(first.data));
+  assert.equal(first.data.mode, 'answer');
+  assert.equal(first.data.objective, null);
+  // Solo la memoria usada y real: el id inventado por el modelo se descarta.
+  assert.deepEqual(first.data.memories.map((m: { id: string }) => m.id), [backup.id]);
+  assert.equal(first.data.inputTokens, 120);
+  assert.equal(first.data.costStatus, 'unknown');
+  const recalls = await pool.query('SELECT count(*)::int AS n FROM veridis_runtime_v1.memory_recalls WHERE memory_id=$1', [backup.id]);
+  assert.equal(recalls.rows[0].n, 1);
+
+  const second = await request(base, token, '/office/assistant/ask', { question: '¿y a qué hora?', threadId: first.data.threadId });
+  assert.equal(second.status, 200, JSON.stringify(second.data));
+  assert.equal(second.data.threadId, first.data.threadId);
+  assert.deepEqual(contexts.at(-1)!.history, [{ question: '¿Cada cuánto respaldamos postgres?', answer: 'Diario a las 3 am.' }]);
+
+  const order = await request(base, token, '/office/assistant/ask', { question: 'Prepara una cotización', threadId: first.data.threadId });
+  assert.equal(order.data.mode, 'order');
+  assert.equal(order.data.objective, 'Preparar una cotización de redes sociales.');
+  // "order" sin encargo redactado no puede abrir un expediente vacío: queda como respuesta.
+  const empty = await request(base, token, '/office/assistant/ask', { question: 'algo sin encargo' });
+  assert.equal(empty.data.mode, 'answer');
+
+  const threads = await request(base, token, '/office/assistant/threads');
+  const thread = threads.data.threads.find((t: { threadId: string }) => t.threadId === first.data.threadId);
+  assert.equal(thread.messages, 3);
+  assert.equal(thread.title, '¿Cada cuánto respaldamos postgres?');
+  const detail = await request(base, token, `/office/assistant/threads/${first.data.threadId}`);
+  assert.deepEqual(detail.data.messages.map((m: { mode: string }) => m.mode), ['answer', 'answer', 'order']);
+  assert.equal(detail.data.messages[0].memories[0].id, backup.id);
+
+  assert.equal((await request(base, token, '/office/assistant/ask', { question: 'hola', threadId: randomUUID() })).status, 404);
+  // Otro ámbito no ve ni continúa la conversación.
+  assert.equal((await request(base, outsiderToken, `/office/assistant/threads/${first.data.threadId}`)).status, 404);
+  assert.equal((await request(base, outsiderToken, '/office/assistant/ask', { question: 'hola', threadId: first.data.threadId })).status, 404);
  } finally { await close(server); await pool.end(); }
 });

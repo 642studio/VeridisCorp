@@ -76,6 +76,12 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
 - `calculator` (agentes de `finance-*` y `data-analyst`): evaluador aritmético propio, sin `eval()`, solo dígitos y `+ - * / % ^ ()`.
 - `cve.lookup` (agentes de `cybersecurity`): API oficial del NIST (NVD), sin credenciales.
 - `code.sandbox` (agentes de `software`): corre código en un contenedor Docker efímero (`--network none`, sin credenciales del host, tmpfs propio, tope de memoria/CPU/tiempo); el código llega por stdin, nunca se monta el filesystem del host.
+- `repo.read` (development, backend, frontend, devops, security-appsec, security-audit): lectura de los repositorios git declarados en `VERIDIS_REPOS` (`src/office/repo-tools.ts`). Herramientas: `git_log`, `git_show`, `git_diff`, `git_status`, `repo_search`, `repo_read_file` y `repo_list_files`.
+  - git corre con `execFile`, sin shell, con referencias y rutas validadas, y sin textconv ni ext-diff.
+  - Nunca escribe, ni hace fetch, checkout o push.
+  - Solo lee archivos versionados: un `.env` o una llave ignorados no existen para el agente.
+  - La salida se recorta y se tapan cadenas con forma de credencial.
+  - Al especialista se le dice qué repos hay, con su rama y último commit, y tiene hasta 6 llamadas.
 - `clickup.read` (agentes de `projects`): lista tareas reales de ClickUp por palabra clave, sin crear ni modificar nada.
 - `email.read` (ver abajo): lee mensajes reales de la cuenta de Gmail del sistema, sin modificar nada.
 

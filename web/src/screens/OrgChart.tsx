@@ -3,6 +3,7 @@ import { useOrganization } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { AgentDetailPanel } from '../components/AgentDetailPanel';
 import { SessionExpired } from '../components/SessionExpired';
+import { OrgGraph } from './OrgGraph';
 import type { AgentSummary, Department, OrganizationResponse } from '../api/types';
 
 // content y review además corren en el pipeline de contenido de runtime/ (src/runtime/service.ts),
@@ -32,6 +33,7 @@ function groupData(data: OrganizationResponse) {
 }
 
 export function OrgChart() {
+  const [mode, setMode] = useState<'list' | 'graph'>('list');
   const query = useOrganization();
   const [search, setSearch] = useState('');
   // Ids cuyo estado por defecto (abierto en el nivel superior, cerrado más abajo) el usuario invirtió.
@@ -40,9 +42,18 @@ export function OrgChart() {
 
   const grouped = useMemo(() => (query.data ? groupData(query.data) : null), [query.data]);
 
-  if (query.isLoading) return <p className="muted">Cargando organigrama…</p>;
+  const modeToggle = (
+    <div className="org-chart__mode-toggle">
+      <button type="button" className={`shell__nav-item ${mode === 'list' ? 'shell__nav-item--active' : ''}`} onClick={() => setMode('list')}>LISTA</button>
+      <button type="button" className={`shell__nav-item ${mode === 'graph' ? 'shell__nav-item--active' : ''}`} onClick={() => setMode('graph')}>GRAFO</button>
+    </div>
+  );
+
+  if (mode === 'graph') return <div className="org-chart">{modeToggle}<OrgGraph /></div>;
+
+  if (query.isLoading) return <div className="org-chart">{modeToggle}<p className="muted">Cargando organigrama…</p></div>;
   if (query.error instanceof ApiError && query.error.status === 401) return <SessionExpired />;
-  if (query.error) return <p className="error">No se pudo cargar: {(query.error as Error).message}</p>;
+  if (query.error) return <div className="org-chart">{modeToggle}<p className="error">No se pudo cargar: {(query.error as Error).message}</p></div>;
   if (!query.data || !grouped) return null;
 
   const data = query.data;
@@ -98,6 +109,7 @@ export function OrgChart() {
 
   return (
     <div className="org-chart">
+      {modeToggle}
       {executive && (
         <p className="org-chart__executive">
           Dirección general: <strong>{executive.name}</strong> <span className="muted">({executive.id})</span>

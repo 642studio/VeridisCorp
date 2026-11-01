@@ -9,7 +9,9 @@
     "web.search",
     "pdf.generate",
     "drive.upload",
-    "slides.create"
+    "slides.create",
+    "memory.write",
+    "memory.query"
   ],
   "organization": {
     "title": "Investigación de mercado y competencia",

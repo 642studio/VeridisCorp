@@ -140,9 +140,19 @@ export function applyCommand(
       }
       break;
     }
+    case 'cancel_task': {
+      coordinator();
+      const task = taskById(command.taskId);
+      assert(task.status === 'pending' || task.status === 'blocked', 'Solo se puede cancelar una tarea pendiente o bloqueada, nunca una ya en ejecución, en revisión o cerrada');
+      assert(!order.tasks.some((t) => t.dependsOn.includes(task.id) && t.status !== 'cancelled'), 'Otra tarea activa depende de esta; cancélala a ella primero o quítale la dependencia');
+      task.status = 'cancelled';
+      delete task.blocker;
+      break;
+    }
     case 'close_order': {
       coordinator();
-      assert(order.tasks.length > 0 && order.tasks.every((t) => t.status === 'completed'), 'Quedan tareas sin completar');
+      assert(order.tasks.length > 0 && order.tasks.some((t) => t.status === 'completed')
+        && order.tasks.every((t) => t.status === 'completed' || t.status === 'cancelled'), 'Quedan tareas sin completar ni cancelar');
       assert(validateAssessments(order.criteria, command.assessments,
         order.tasks.flatMap((t) => t.submission?.evidence.map((e) => e.id) || [])), 'El objetivo aún no cumple todos los criterios');
       order.assessments = command.assessments;

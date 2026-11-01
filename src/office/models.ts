@@ -46,6 +46,21 @@ export type ModelRequest = { stage: ModelStage; agentId: string; capability: str
 export type ModelSelection = ModelRequest & {
   profileId: string; provider: ResolvedProfile['provider']; model: string;
 };
+// Conteo real de tokens de una llamada (campo usage_metadata estándar de LangChain.js —
+// ChatOpenAI/ChatAnthropic/ChatGoogle lo pueblan). null en cualquier lado si el proveedor no lo
+// reportó esta vez — nunca un conteo inventado.
+export interface ModelUsage {
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+// Lo que workflow.ts guarda por cada llamada real en modelCalls: la selección (quién, para qué,
+// con qué perfil) más lo que costó, cuando se pudo saber. costStatus:'unknown' (costMicros null)
+// si falta el conteo de tokens o no hay precio configurado para ese provider:model — ver
+// src/office/prices.ts. Nunca un costo estimado a partir de un solo lado del conteo.
+export type ModelCallRecord = ModelSelection & {
+  inputTokens: number | null; outputTokens: number | null;
+  costMicros: number | null; costStatus: 'estimated' | 'unknown';
+};
 
 export class ModelRouter {
   private readonly policy: z.output<typeof ModelPolicy>;

@@ -8,7 +8,8 @@
     "software.document"
   ],
   "allowedTools": [
-    "code.sandbox"
+    "code.sandbox",
+    "repo.read"
   ],
   "organization": {
     "title": "Desarrollo",
