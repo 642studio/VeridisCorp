@@ -7,7 +7,7 @@
       "baseURL": "https://api.deepseek.com",
       "modelEnv": "DEEPSEEK_MODEL",
       "apiKeyEnv": "DEEPSEEK_API_KEY",
-      "maxOutputTokens": 8000,
+      "maxOutputTokens": 16000,
       "timeoutMs": 90000,
       "maxRetries": 0,
       "structuredOutputMethod": "jsonMode",

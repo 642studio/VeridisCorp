@@ -91,6 +91,11 @@ export type SpecialistContext = {
   agent: AgentDefinition;
   dependencies: WorkTask[];
   exchanges: HumanExchange[];
+  // Motivo del rechazo del intento anterior sobre ESTA misma tarea (p. ej. citó un id de evidencia
+  // que no existe), si lo hubo — mismo propósito que lastError ya tiene en CoordinatorContext: que
+  // el propio modelo se corrija en el siguiente turno en vez de repetir ciegamente el mismo error
+  // hasta agotar maxRejectedDecisions. null en el primer intento.
+  lastError: string | null;
   // Id del expediente (= office_orders.id en runtime/), no el AccessScope completo: lo único que
   // una herramienta con efecto persistente (pdf.generate) necesita para vincular lo que produce
   // a un expediente real — la verificación de scope sigue viviendo solo en runtime/office-runtime.ts.

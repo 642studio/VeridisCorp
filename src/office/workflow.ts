@@ -117,10 +117,16 @@ export function createOfficeWorkflow(
     if (!task) throw new Error('Tarea inexistente');
     return task;
   };
+  // No pasa por applyCommand a propósito: es una nota de bolsillo para el siguiente intento del
+  // mismo especialista o revisor sobre esta tarea (ver SpecialistContext.lastError), no una
+  // transición gobernada — no toca revision ni genera un evento.
+  const withTaskError = (order: WorkOrder, taskId: string, lastError: string | undefined): WorkOrder => ({
+    ...order, tasks: order.tasks.map((t) => (t.id === taskId ? { ...t, lastError } : t)),
+  });
   const specialistContext = (state: typeof OfficeState.State, task: WorkTask, agentId: string): SpecialistContext => structuredClone({
     objective: state.order.objective, task, agent: registry.get(agentId),
     dependencies: state.order.tasks.filter((t) => task.dependsOn.includes(t.id)),
-    exchanges: state.exchanges, orderId: state.order.id,
+    exchanges: state.exchanges, orderId: state.order.id, lastError: task.lastError ?? null,
   });
 
   return new StateGraph(OfficeState)
@@ -281,9 +287,12 @@ export function createOfficeWorkflow(
         const { value: reply } = await withRetries(async () =>
           ReviewReply.parse(await intelligence.review(specialistContext(state, task, decision.reviewerId), (u) => usages.push(u))), 3);
         try {
-          const order = applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
+          const applied = applyCommand(state.order, { role: 'agent', agentId: decision.reviewerId }, {
             type: 'review_task', taskId: task.id, assessments: reply.assessments,
           }, registry);
+          // Revisión aceptada con éxito: limpia la nota de intento anterior de esta tarea (si la
+          // hubo), aplique al especialista o al revisor — ya no aplica.
+          const order = withTaskError(applied, task.id, undefined);
           return { order, modelCalls: recordedCallsMany(state, selection, usages), lastError: null };
         } catch (error) {
           // applyCommand es puro y síncrono: cualquier error aquí es una evaluación con forma
@@ -292,8 +301,14 @@ export function createOfficeWorkflow(
           // decisión rechazada, con el motivo, en vez de tumbar el nodo.
           const rejectedDecisions = state.rejectedDecisions + 1;
           const lastError = error instanceof Error ? error.message : 'La evaluación del revisor no cumple las reglas del motor';
-          return { order: rejectedDecisions >= maxRejected ? pause(state.order, `Demasiadas decisiones rechazadas: ${lastError}`) : state.order,
-            rejectedDecisions, lastError, modelCalls: recordedCallsMany(state, selection, usages) };
+          // Se guarda en la propia tarea (no solo en el lastError transitorio del grafo): entre
+          // este rechazo y el siguiente intento de revisión siempre corre una vuelta de
+          // 'coordinate' (addEdge('review','coordinate')), que limpia su propio lastError al tomar
+          // una decisión válida — sin esto, el revisor vuelve a intentarlo sin saber qué citó mal.
+          const order = rejectedDecisions >= maxRejected
+            ? pause(state.order, `Demasiadas decisiones rechazadas: ${lastError}`)
+            : withTaskError(state.order, task.id, lastError);
+          return { order, rejectedDecisions, lastError, modelCalls: recordedCallsMany(state, selection, usages) };
         }
       } catch (error) {
         if (isModelUnavailable(error)) {

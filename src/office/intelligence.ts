@@ -397,6 +397,8 @@ contexto, la que revisas) — nunca inventes un id, nunca uses "toolResults" com
 verificar, no es evidencia citable), y nunca uses un id de "dependencies" (tareas previas, cada una con su
 propia evidencia): aunque describan la misma fuente, tienen ids distintos y el motor rechaza por completo la
 revisión si citas uno que no pertenece a "task.submission.evidence".
+Si "lastError" viene con algo, fue el motivo exacto por el que el motor rechazó tu evaluación anterior sobre esta
+misma tarea (típicamente un id de evidencia inventado o mal copiado) — corrígelo, no repitas el mismo id.
 Indica qué corregir y acepta solo criterios respaldados por las evidencias recibidas.`,
         { ...context, toolResults, now: new Date().toISOString() }, onUsage);
       return { assessments: result.assessments };

@@ -7,14 +7,16 @@ import { AgentsMenu } from './screens/AgentsMenu';
 import { OfficeOrders } from './screens/OfficeOrders';
 import { OfficeOrderDetail } from './screens/OfficeOrderDetail';
 import { OfficeChat } from './screens/OfficeChat';
+import { VoiceChat } from './screens/VoiceChat';
 import { Schedules } from './screens/Schedules';
 import { Memory } from './screens/Memory';
 import { Connections } from './screens/Connections';
 import { clearToken } from './api/client';
 
-type View = 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'connections' | 'organization' | 'agents';
+type View = 'voice' | 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'connections' | 'organization' | 'agents';
 
 const NAV: { id: View; label: string }[] = [
+  { id: 'voice', label: 'VOZ' },
   { id: 'chat', label: 'ASISTENTE' },
   { id: 'runs', label: 'EXPEDIENTES' },
   { id: 'office', label: 'OFICINA' },
@@ -26,11 +28,12 @@ const NAV: { id: View; label: string }[] = [
 ];
 
 export function App() {
-  const [view, setView] = useState<View>('chat');
+  const [view, setView] = useState<View>('voice');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
 
-  const section = view === 'chat' ? 'ASISTENTE'
+  const section = view === 'voice' ? 'VOZ'
+    : view === 'chat' ? 'ASISTENTE'
     : view === 'runs' ? (selectedId ? `EXPEDIENTES / ${selectedId.slice(0, 8)}` : 'EXPEDIENTES')
     : view === 'office' ? (selectedOfficeId ? `OFICINA / ${selectedOfficeId.slice(0, 8)}` : 'OFICINA')
     : view === 'schedules' ? 'TAREAS PROGRAMADAS'
@@ -70,6 +73,7 @@ export function App() {
             <span className="badge badge--ok">SESIÓN: ACTIVA</span>
           </header>
           <main className="shell__content">
+            {view === 'voice' && <VoiceChat />}
             {view === 'chat' && (
               <OfficeChat onOpenTechnical={(id) => { setSelectedOfficeId(id); setView('office'); }} />
             )}

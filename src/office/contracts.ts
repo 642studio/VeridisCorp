@@ -65,6 +65,12 @@ export const WorkTask = TaskSpec.extend({
   blocker: Text.optional(),
   submission: Submission.optional(),
   assessments: z.array(Assessment).optional(),
+  // Motivo del último intento rechazado sobre ESTA tarea (especialista o revisor), si lo hubo —
+  // vive en la tarea, no en el estado transitorio del grafo, porque entre un rechazo y el
+  // siguiente intento del mismo rol siempre corre una vuelta de 'coordinate' (ver workflow.ts),
+  // que ya limpia su propio lastError al tomar una decisión válida. Sin esto, el especialista o
+  // revisor nunca se entera de por qué falló y repite el mismo error hasta agotar los reintentos.
+  lastError: Text.optional(),
 });
 export const Actor = z.discriminatedUnion('role', [
   z.object({ role: z.literal('coordinator') }).strict(),
