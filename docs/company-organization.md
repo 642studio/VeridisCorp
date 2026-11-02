@@ -80,6 +80,8 @@ El contexto de un responsable contiene su equipo, las tareas existentes de ese e
 
 Una tarea pasa por revisión antes de completarse. El revisor debe ser distinto del autor, tener `work.review` y pertenecer al mismo departamento o al área de Calidad. La comprobación ocurre antes de enviarle el contenido al adaptador de revisión y también al registrar su evaluación. Los responsables de área no pueden declarar completado el expediente global mediante una respuesta de planificación.
 
+Para encargos de naturaleza ambigua o creativa — el caso típico de `creative-strategy`, `campaigns` y `content` — la plantilla de puesto (`agents/_template/instructions.md`) espera que el especialista presente 2 a 4 opciones con sus trade-offs antes de producir el entregable final, dejando la decisión al responsable humano o al revisor correspondiente. Es una convención de redacción del puesto, no una regla que el motor aplique: no sustituye la revisión por capacidad y departamento descrita arriba.
+
 Estos controles regulan la coordinación. Todavía no sustituyen autenticación, políticas de confidencialidad por departamento o permisos por recurso. La API multiusuario y los controles de acceso a datos siguen pendientes; los cargos por sí solos no habilitan herramientas.
 
 ## Modelos por puesto y actividad

@@ -81,6 +81,8 @@ Faltan diario persistente, transacciones, outbox, reservas de workers, conectore
 
 Los límites básicos de gasto y tiempo se conectarán antes de realizar llamadas reales, aunque la fase 5 amplíe su medición. No se activarán todos los departamentos y perfiles a la vez.
 
+Nota de diseño para la fase 2: al implementar el diario de auditoría/outbox de esa fase, conviene registrar el inicio y el fin de cada tarea de agente y verificar que el artefacto producido corresponde a los criterios declarados de la tarea antes de marcar su revisión como completa — contra `ArtifactVersion` y `UsageRecord`, ya definidos arriba, no mediante scripts nuevos. Es el mismo patrón de guardarraíles que usan los hooks de herramientas externas de tipo plantilla-de-agentes-sobre-Claude-Code; aquí se implementa en los contratos TypeScript que ya existen, no como scripts de shell sobre eventos de herramientas. Queda anotado para cuando se aborde esa fase; no es un cambio de comportamiento de esta entrega.
+
 ## Archivos de esta entrega
 
 - `src/governance/contracts.ts`: identidad, acceso, permisos, acciones, aprobaciones, tareas humanas, memoria, presupuesto, consumo y auditoría.

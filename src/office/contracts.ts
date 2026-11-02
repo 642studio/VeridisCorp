@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { RIGOR_LEVELS, resolveLimits } from './rigor.js';
 
 export const Id = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}$/);
+export const RigorLevel = z.enum(RIGOR_LEVELS);
+export type RigorLevel = z.infer<typeof RigorLevel>;
 const Text = z.string().trim().min(1).max(16000);
 export const AgentOrganization = z.object({
   departmentId: Id,
@@ -119,19 +122,30 @@ export const WorkOrder = z.object({
   events: z.array(OfficeEvent),
   assessments: z.array(Assessment).optional(),
   pauseReason: Text.optional(),
+  // Metadato informativo: qué nivel resolvió `limits` al crear el expediente. Un checkpoint
+  // anterior a este campo no lo trae; se trata como 'standard' donde haga falta mostrarlo.
+  // Ver docs/office-architecture.md, "Niveles de rigor".
+  rigor: RigorLevel.optional(),
 }).strict();
 export type WorkOrder = z.infer<typeof WorkOrder>;
 export type WorkTask = z.infer<typeof WorkTask>;
 export type Assessment = z.infer<typeof Assessment>;
 
 export const NewOrder = WorkOrder.pick({
-  id: true, workspaceId: true, objective: true, criteria: true, limits: true,
+  id: true, workspaceId: true, objective: true, criteria: true,
+}).extend({
+  // `limits` queda opcional: si se omite, se resuelve desde el preajuste de `rigor`
+  // (por defecto 'standard'). Un `limits` explícito siempre gana sobre el preajuste.
+  limits: WorkOrder.shape.limits.optional(),
+  rigor: RigorLevel.optional(),
 });
 
 export function createOrder(input: z.input<typeof NewOrder>): WorkOrder {
-  const initial = NewOrder.parse(input);
+  const { limits: explicitLimits, rigor: requestedRigor, ...initial } = NewOrder.parse(input);
   unique(initial.criteria.map((c) => c.id), 'Criterios duplicados');
-  return { ...initial, schemaVersion: 1, status: 'active', revision: 0, tasks: [], events: [] };
+  const rigor = requestedRigor ?? 'standard';
+  const limits = resolveLimits(rigor, explicitLimits);
+  return { ...initial, limits, rigor, schemaVersion: 1, status: 'active', revision: 0, tasks: [], events: [] };
 }
 
 export function unique(ids: string[], message: string): void {

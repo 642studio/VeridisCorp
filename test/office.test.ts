@@ -24,6 +24,39 @@ function fixture(limits = { maxTasks: 10, maxSteps: 100, maxRevisionsPerTask: 1 
   return { send, add, submit, get: () => order };
 }
 
+test('cada nivel de rigor resuelve sus propios límites cuando no se pasan límites explícitos', () => {
+  const minimal = createOrder({
+    id: 'rigor-minimal', workspaceId: '642-studio', objective: 'Prueba de rigor',
+    criteria: [{ id: 'goal', description: 'Entregable revisado' }], rigor: 'minimal',
+  });
+  assert.equal(minimal.rigor, 'minimal');
+  assert.deepEqual(minimal.limits, { maxTasks: 10, maxSteps: 200, maxRevisionsPerTask: 2 });
+
+  const full = createOrder({
+    id: 'rigor-full', workspaceId: '642-studio', objective: 'Prueba de rigor',
+    criteria: [{ id: 'goal', description: 'Entregable revisado' }], rigor: 'full',
+  });
+  assert.equal(full.rigor, 'full');
+  assert.deepEqual(full.limits, { maxTasks: 100, maxSteps: 10000, maxRevisionsPerTask: 20 });
+
+  const sinRigor = createOrder({
+    id: 'rigor-default', workspaceId: '642-studio', objective: 'Prueba de rigor',
+    criteria: [{ id: 'goal', description: 'Entregable revisado' }],
+  });
+  assert.equal(sinRigor.rigor, 'standard');
+  assert.deepEqual(sinRigor.limits, { maxTasks: 40, maxSteps: 2000, maxRevisionsPerTask: 5 });
+});
+
+test('un límite explícito siempre gana sobre el preajuste del nivel de rigor', () => {
+  const order = createOrder({
+    id: 'rigor-explicit', workspaceId: '642-studio', objective: 'Prueba de rigor',
+    criteria: [{ id: 'goal', description: 'Entregable revisado' }],
+    rigor: 'minimal', limits: { maxTasks: 99, maxSteps: 99, maxRevisionsPerTask: 9 },
+  });
+  assert.equal(order.rigor, 'minimal');
+  assert.deepEqual(order.limits, { maxTasks: 99, maxSteps: 99, maxRevisionsPerTask: 9 });
+});
+
 test('oficina completa apoyo entre agentes, corrección, revisión y cierre', () => {
   const order = runOfficeDemo();
   assert.equal(order.status, 'completed');

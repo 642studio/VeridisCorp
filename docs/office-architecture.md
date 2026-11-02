@@ -80,6 +80,9 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
   - git corre con `execFile`, sin shell, con referencias y rutas validadas, y sin textconv ni ext-diff.
   - Nunca escribe, ni hace fetch, checkout o push.
   - Solo lee archivos versionados: un `.env` o una llave ignorados no existen para el agente.
+- Knowledge de puesto: documentos de `agents/<id>/knowledge/` declarados en `config.json` (máx. 10 y 64 KB por
+  puesto). Van completos en el prompt de cada llamada, como datos. Hoy solo los puestos de marketing tienen
+  (adaptados de marketingskills, MIT; ver `docs/third-party-notices.md`). Qué falta para los demás: `docs/skills-libraries.md`.
 - Conexiones MCP (`src/office/mcp-client.ts`, `src/office/mcp-tools.ts`, `src/runtime/mcp-store.ts`). Tres ids:
   - `mcp.connect` (automation, devops): `mcp_connect` conecta un servidor MCP remoto o lo deja solicitado sin URL.
   - `mcp.use` (automation, devops, development, backend, research, knowledge-curator, human-task-coordinator):
@@ -132,6 +135,18 @@ Las tareas pasan de `pending` a `running`, luego a `in_review` y `completed`. Pu
 El núcleo limita tareas, pasos de coordinación y correcciones por tarea. Cuando se agotan los pasos, rechaza nuevos avances y permite al coordinador pausar con un motivo. La planificación y los reintentos del modelo necesitarán límites adicionales de tiempo, tokens y dinero. Un registro de comandos no sustituye esas mediciones.
 
 La pausa aún no tiene un comando para continuar o cambiar presupuestos. No hay cancelación, reasignación, mensajería general ni recuperación automática de tareas fallidas. La delegación departamental sí está implementada como decisión `delegate` del coordinador, y hay doce herramientas reales (ver la sección de arriba). Las demás funciones se añadirán con casos concretos y reglas explícitas.
+
+## Niveles de rigor
+
+`createOrder` (`src/office/contracts.ts`) acepta un `rigor` opcional — `minimal`, `standard` o `full` — que resuelve los tres límites numéricos del expediente (`maxTasks`, `maxSteps`, `maxRevisionsPerTask`) desde un preajuste en `src/office/rigor.ts`, en vez de tener que escribirlos a mano cada vez. Sin `rigor` el expediente usa `standard`. Un `limits` explícito en la misma llamada siempre gana sobre el preajuste del nivel, igual que una regla específica gana sobre una general en [model-routing.md](model-routing.md).
+
+| Nivel | `maxTasks` | `maxSteps` | `maxRevisionsPerTask` | Uso previsto |
+| --- | --- | --- | --- | --- |
+| `minimal` | 10 | 200 | 2 | Encargos acotados de bajo riesgo: una pieza, una consulta puntual. |
+| `standard` | 40 | 2000 | 5 | Valor por defecto; la mayoría de los encargos departamentales. |
+| `full` | 100 | 10000 | 20 | Iniciativas grandes con varias áreas y más margen de corrección. |
+
+Como con la selección de modelos, el nombre del nivel expresa una intención del operador sobre el alcance del proceso — no mide calidad del resultado, no concede permisos ni herramientas nuevas, y no sustituye el presupuesto monetario (`maxCostMicros`, ver `budget.ts`), que sigue siendo un ajuste explícito aparte. El expediente guarda el nivel resuelto en `WorkOrder.rigor` como metadato informativo; un checkpoint anterior a este campo no lo trae y se trata como `standard` donde haga falta mostrarlo. Pendiente, mencionado en [governance-foundation.md](governance-foundation.md): si en el futuro `full` debe exigir una segunda opinión (`request_support`) antes de cerrar tareas con capacidades de publicación o comunicación externa, eso es una regla adicional todavía sin implementar, no parte de este primer recorte.
 
 ## Integración con LangGraph implementada
 

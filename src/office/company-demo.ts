@@ -1,12 +1,16 @@
 import { createOrder } from './contracts.js';
+import type { Rigor } from './rigor.js';
 import type { OfficeIntelligence } from './runtime-contracts.js';
 
-export function createCompanyDemoOrder() {
+// Ver nota de `createDemoOrder` en workflow-demo.ts: `rigor` es opcional y los límites explícitos
+// de siempre no cambian por defecto.
+export function createCompanyDemoOrder(options: { rigor?: Rigor } = {}) {
   return createOrder({
     id: 'DEMO-COMPANY-001', workspaceId: '642-studio',
     objective: '[SIMULACIÓN] Preparar un plan técnico, de costos y de entrega para una herramienta interna.',
     criteria: [{ id: 'launch-plan', description: 'Plan conjunto revisado que incorpora las tres áreas.' }],
     limits: { maxTasks: 10, maxSteps: 80, maxRevisionsPerTask: 2 },
+    rigor: options.rigor,
   });
 }
 

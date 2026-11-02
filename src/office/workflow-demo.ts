@@ -1,12 +1,17 @@
 import { createOrder } from './contracts.js';
+import type { Rigor } from './rigor.js';
 import type { OfficeIntelligence, CoordinatorContext } from './runtime-contracts.js';
 
-export function createDemoOrder() {
+// `rigor` queda disponible para quien quiera reutilizar este expediente de demostración con otro
+// nivel (ver docs/office-architecture.md, "Niveles de rigor"); por defecto conserva los límites
+// explícitos de siempre, para no alterar ninguna prueba existente.
+export function createDemoOrder(options: { rigor?: Rigor } = {}) {
   return createOrder({
     id: 'DEMO-WORKFLOW-001', workspaceId: '642-studio',
     objective: '[SIMULACIÓN] Informe de infraestructura con apoyo de investigación.',
     criteria: [{ id: 'report', description: 'Informe simulado revisado con alcance declarado.' }],
     limits: { maxTasks: 10, maxSteps: 50, maxRevisionsPerTask: 2 },
+    rigor: options.rigor,
   });
 }
 
