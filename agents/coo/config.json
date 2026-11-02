@@ -13,5 +13,11 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-ritmo-operativo",
+      "title": "Ritmo operativo: semanal, mensual y trimestral",
+      "path": "ritmo-operativo.md"
+    }
+  ]
 }

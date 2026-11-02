@@ -17,5 +17,16 @@
     "level": "specialist",
     "reportsToId": "research-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-higiene-de-la-memoria",
+      "title": "Higiene de la memoria y notas enlazadas",
+      "path": "higiene-de-la-memoria.md"
+    },
+    {
+      "id": "kb-registro-de-decisiones",
+      "title": "Registro de decisiones",
+      "path": "registro-de-decisiones.md"
+    }
+  ]
 }

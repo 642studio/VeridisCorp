@@ -15,5 +15,11 @@
     "level": "head",
     "reportsToId": "cto"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-gobierno-de-seguridad",
+      "title": "Gobierno de seguridad para una empresa pequeña",
+      "path": "gobierno-de-seguridad.md"
+    }
+  ]
 }

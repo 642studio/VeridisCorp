@@ -14,5 +14,16 @@
     "level": "specialist",
     "reportsToId": "cfo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-flujo-de-caja-13-semanas",
+      "title": "Flujo de caja directo a 13 semanas",
+      "path": "flujo-de-caja-13-semanas.md"
+    },
+    {
+      "id": "kb-liquidez-y-pagos",
+      "title": "Liquidez, capital de trabajo y programación de pagos",
+      "path": "liquidez-y-pagos.md"
+    }
+  ]
 }

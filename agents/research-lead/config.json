@@ -6,12 +6,26 @@
     "research.plan",
     "department.plan"
   ],
-  "allowedTools": ["memory.write", "memory.query"],
+  "allowedTools": [
+    "memory.write",
+    "memory.query"
+  ],
   "organization": {
     "title": "DireccionInvestigacion",
     "departmentId": "intelligence",
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-encargo-de-investigacion",
+      "title": "Encargar y coordinar una investigación",
+      "path": "encargo-de-investigacion.md"
+    },
+    {
+      "id": "kb-informe-de-investigacion",
+      "title": "Informe de investigación",
+      "path": "informe-de-investigacion.md"
+    }
+  ]
 }

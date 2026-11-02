@@ -19,5 +19,11 @@
     "level": "specialist",
     "reportsToId": "research-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-competidores-y-clientes",
+      "title": "Competidores y clientes",
+      "path": "competidores-y-clientes.md"
+    }
+  ]
 }

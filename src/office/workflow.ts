@@ -68,6 +68,15 @@ export function createOfficeWorkflow(
   // como decisión rechazada y se reintenta. Cualquier otra cosa (p. ej. que el proceso muera a
   // mitad de una llamada) debe seguir propagándose para que la recuperación por checkpoint actúe.
   const isMalformedModelOutput = (error: unknown) => error instanceof OutputParserException || error instanceof ZodError;
+  // El modelo no respondió (tiempo agotado, red, proveedor saturado o caído): no es un error del motor
+  // ni del especialista. Visto en vivo con un modelo local lento: el TimeoutError escapaba del nodo,
+  // la petición respondía 409 genérico y la tarea quedaba 'running' para siempre. Se pausa con el
+  // motivo, para reanudar cuando el modelo esté disponible o asignar otro perfil.
+  const isModelUnavailable = (error: unknown) => error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'
+    || /timed? ?out|ECONNREFUSED|ECONNRESET|ETIMEDOUT|fetch failed|socket hang up|rate.?limit|overloaded|\b(429|50[0234])\b/i.test(error.message));
+  const unavailableReason = (who: string, selection: ModelSelection | undefined, error: unknown) =>
+    `El modelo ${selection ? `${selection.model} (perfil ${selection.profileId}) ` : ''}no respondió para ${who}: `
+    + `${error instanceof Error ? error.message.slice(0, 200) : 'error desconocido'}. Reanuda cuando esté disponible o asigna otro perfil.`;
   // Un especialista (no el coordinador) puede fallar la forma por una respuesta suelta del
   // modelo; reintentar aquí mismo, dentro del nodo, resuelve la mayoría de esos casos sin gastar
   // un turno del coordinador en un problema que no es suyo. maxAttempts incluye el primer intento.
@@ -246,6 +255,10 @@ export function createOfficeWorkflow(
         // tarea en 'running' sin entrega: el coordinador no tiene ninguna decisión legal para
         // retomarla (dispatch exige 'pending'), así que devolverle el turno solo gastaría intentos
         // de rechazo en un callejón sin salida. Se pausa aquí mismo con un motivo específico.
+        if (isModelUnavailable(error)) {
+          const lastError = unavailableReason(`el especialista de "${task.id}"`, selection, error);
+          return { order: pause(state.order, lastError), lastError, modelCalls: recordedCallsMany(state, selection, usages) };
+        }
         if (!isMalformedModelOutput(error)) throw error;
         const rejectedDecisions = state.rejectedDecisions + 1;
         const lastError = error instanceof Error ? error.message : 'El especialista no devolvió una respuesta con la forma esperada';
@@ -283,6 +296,10 @@ export function createOfficeWorkflow(
             rejectedDecisions, lastError, modelCalls: recordedCallsMany(state, selection, usages) };
         }
       } catch (error) {
+        if (isModelUnavailable(error)) {
+          const lastError = unavailableReason(`el revisor de "${task.id}"`, selection, error);
+          return { order: pause(state.order, lastError), lastError, modelCalls: recordedCallsMany(state, selection, usages) };
+        }
         if (!isMalformedModelOutput(error)) throw error;
         const rejectedDecisions = state.rejectedDecisions + 1;
         const lastError = error instanceof Error ? error.message : 'El revisor no devolvió una evaluación con la forma esperada';

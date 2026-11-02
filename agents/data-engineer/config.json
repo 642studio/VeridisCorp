@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "data-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-calidad-de-datos",
+      "title": "Calidad de datos: perfilar, probar y vigilar",
+      "path": "calidad-de-datos.md"
+    },
+    {
+      "id": "kb-pipelines-y-modelado",
+      "title": "Pipelines y modelado de datos",
+      "path": "pipelines-y-modelado.md"
+    }
+  ]
 }

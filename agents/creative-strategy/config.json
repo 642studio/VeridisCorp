@@ -12,5 +12,21 @@
     "level": "specialist",
     "reportsToId": "cmo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-angulos-creativos",
+      "title": "Ángulos creativos y sets de piezas",
+      "path": "angulos-creativos.md"
+    },
+    {
+      "id": "mkt-psicologia-de-compra",
+      "title": "Psicología de compra para campañas de marca",
+      "path": "psicologia-de-compra.md"
+    },
+    {
+      "id": "mkt-copywriting",
+      "title": "Copywriting de venta",
+      "path": "copywriting.md"
+    }
+  ]
 }

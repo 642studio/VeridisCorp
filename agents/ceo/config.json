@@ -7,11 +7,25 @@
     "company.prioritize",
     "department.plan"
   ],
-  "allowedTools": ["memory.write", "memory.query"],
+  "allowedTools": [
+    "memory.write",
+    "memory.query"
+  ],
   "organization": {
     "title": "CEO",
     "departmentId": "executive",
     "level": "executive"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-autoridad-y-revision",
+      "title": "Constructores, revisores y niveles de autoridad",
+      "path": "autoridad-y-revision.md"
+    },
+    {
+      "id": "kb-cadencia-de-direccion",
+      "title": "Prioridades, arbitraje y cadencia de dirección",
+      "path": "cadencia-de-direccion.md"
+    }
+  ]
 }

@@ -12,5 +12,16 @@
     "level": "reviewer",
     "reportsToId": "hr"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-checklist-revision-rh",
+      "title": "Qué revisar en una propuesta de RH y cuándo rechazarla",
+      "path": "checklist-revision-rh.md"
+    },
+    {
+      "id": "kb-evaluacion-del-desempeno",
+      "title": "Evaluación del desempeño justa",
+      "path": "evaluacion-del-desempeno.md"
+    }
+  ]
 }

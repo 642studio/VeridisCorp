@@ -13,5 +13,16 @@
     "level": "manager",
     "reportsToId": "cmo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-contenido-social",
+      "title": "Contenido para redes sociales",
+      "path": "contenido-social.md"
+    },
+    {
+      "id": "mkt-comunidad-e-influencers",
+      "title": "Comunidad y colaboraciones con creadores",
+      "path": "comunidad-e-influencers.md"
+    }
+  ]
 }

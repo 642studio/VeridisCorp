@@ -13,5 +13,16 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-cambio-organizacional",
+      "title": "Manejo de cambio organizacional",
+      "path": "cambio-organizacional.md"
+    },
+    {
+      "id": "kb-marco-rh-empresa-pequena",
+      "title": "Marco de RH para una empresa pequeña en México",
+      "path": "marco-rh-empresa-pequena.md"
+    }
+  ]
 }

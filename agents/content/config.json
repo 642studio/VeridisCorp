@@ -20,5 +20,16 @@
     "level": "specialist",
     "reportsToId": "cm"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-redaccion-y-edicion",
+      "title": "Redacción y edición de textos de marca",
+      "path": "redaccion-y-edicion.md"
+    },
+    {
+      "id": "mkt-email-y-whatsapp",
+      "title": "Correo y WhatsApp para marcas",
+      "path": "email-y-whatsapp.md"
+    }
+  ]
 }

@@ -13,5 +13,11 @@
     "level": "head",
     "reportsToId": "cto"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-revision-de-codigo",
+      "title": "Revisión de código por ejes y tamaño de cambio",
+      "path": "revision-de-codigo.md"
+    }
+  ]
 }

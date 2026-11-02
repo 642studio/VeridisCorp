@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "ciso"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-deteccion-y-monitoreo",
+      "title": "Detección y monitoreo",
+      "path": "deteccion-y-monitoreo.md"
+    },
+    {
+      "id": "kb-respuesta-a-incidentes",
+      "title": "Respuesta a incidentes de seguridad",
+      "path": "respuesta-a-incidentes.md"
+    }
+  ]
 }

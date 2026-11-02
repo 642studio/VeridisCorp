@@ -20,5 +20,16 @@
     "level": "specialist",
     "reportsToId": "research-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-metodo-de-investigacion",
+      "title": "Método de investigación",
+      "path": "metodo-de-investigacion.md"
+    },
+    {
+      "id": "kb-registro-de-evidencias",
+      "title": "Registro de evidencias y hallazgos",
+      "path": "registro-de-evidencias.md"
+    }
+  ]
 }

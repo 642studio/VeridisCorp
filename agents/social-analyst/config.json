@@ -12,5 +12,11 @@
     "level": "specialist",
     "reportsToId": "cm"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-metricas-sociales",
+      "title": "Métricas sociales y reporte mensual",
+      "path": "metricas-sociales.md"
+    }
+  ]
 }

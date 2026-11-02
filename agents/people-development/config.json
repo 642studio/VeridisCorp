@@ -12,5 +12,11 @@
     "level": "specialist",
     "reportsToId": "hr"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-necesidades-y-planes-de-formacion",
+      "title": "Detección de necesidades, planes de formación y medición",
+      "path": "necesidades-y-planes-de-formacion.md"
+    }
+  ]
 }

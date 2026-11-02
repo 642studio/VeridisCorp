@@ -12,5 +12,16 @@
     "level": "reviewer",
     "reportsToId": "software-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-estrategia-de-pruebas",
+      "title": "Estrategia de pruebas y huecos de cobertura",
+      "path": "estrategia-de-pruebas.md"
+    },
+    {
+      "id": "kb-evidencia-de-terminado",
+      "title": "Evidencia antes de dar algo por terminado",
+      "path": "evidencia-de-terminado.md"
+    }
+  ]
 }

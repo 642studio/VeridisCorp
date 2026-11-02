@@ -17,5 +17,21 @@
     "level": "specialist",
     "reportsToId": "infrastructure-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-despliegues-y-reversa",
+      "title": "Despliegues seguros con plan de reversa",
+      "path": "despliegues-y-reversa.md"
+    },
+    {
+      "id": "kb-incidentes-operativos",
+      "title": "Respuesta a incidentes operativos",
+      "path": "incidentes-operativos.md"
+    },
+    {
+      "id": "kb-slo-y-observabilidad",
+      "title": "SLO, alertas y observabilidad",
+      "path": "slo-y-observabilidad.md"
+    }
+  ]
 }

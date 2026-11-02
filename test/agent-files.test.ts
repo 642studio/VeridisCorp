@@ -30,7 +30,15 @@ test('los 56 perfiles se cargan desde sus carpetas con instrucciones y contexto'
   const agents = loadAgentCatalog(projectAgentDirectory());
   assert.equal(agents.length, 56);
   assert(agents.every((agent) => agent.instructions && agent.context && ['2.1.0', '2.2.0', '2.3.0'].includes(agent.version)));
-  assert(agents.every((agent) => agent.knowledge?.length === 0));
+  // Cada documento de knowledge dice de dónde sale en su primera línea (atribución de licencias:
+  // docs/third-party-notices.md) y el total por puesto queda lejos del tope de 64 KB, porque va
+  // completo en cada llamada.
+  assert(agents.filter((agent) => agent.knowledge?.length).length >= 40, 'casi todos los puestos deben tener knowledge');
+  for (const agent of agents) {
+    for (const doc of agent.knowledge ?? []) assert.match(doc.content, /^> (Adaptado de .+\(.+\)|Escrito para VeridisCorp)/, doc.reference);
+    const bytes = (agent.knowledge ?? []).reduce((sum, doc) => sum + Buffer.byteLength(doc.content), 0);
+    assert(bytes <= 24000, `${agent.id} carga ${bytes} bytes de knowledge en cada llamada`);
+  }
 });
 
 test('solo incorpora documentos declarados y registra un hash de contenido', () => {

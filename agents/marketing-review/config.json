@@ -12,5 +12,16 @@
     "level": "reviewer",
     "reportsToId": "cmo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-checklist-de-revision",
+      "title": "Lista de control para revisar entregas de campaña",
+      "path": "checklist-de-revision.md"
+    },
+    {
+      "id": "kb-afirmaciones-y-pruebas",
+      "title": "Afirmaciones publicitarias y la prueba que exige cada una",
+      "path": "afirmaciones-y-pruebas.md"
+    }
+  ]
 }

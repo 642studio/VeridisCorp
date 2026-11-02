@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "software-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-entidad-y-negocio-local",
+      "title": "Entidad de marca y negocio local",
+      "path": "entidad-y-negocio-local.md"
+    },
+    {
+      "id": "kb-seo-tecnico",
+      "title": "SEO técnico y visibilidad en respuestas de IA",
+      "path": "seo-tecnico.md"
+    }
+  ]
 }

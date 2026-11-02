@@ -12,5 +12,21 @@
     "level": "specialist",
     "reportsToId": "infrastructure-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-hardening-servidor-linux",
+      "title": "Hardening del servidor Linux y firewall",
+      "path": "hardening-servidor-linux.md"
+    },
+    {
+      "id": "kb-n8n-autoalojado",
+      "title": "n8n autoalojado con Docker Compose",
+      "path": "n8n-autoalojado.md"
+    },
+    {
+      "id": "kb-tls-y-proxy-inverso",
+      "title": "TLS y proxy inverso",
+      "path": "tls-y-proxy-inverso.md"
+    }
+  ]
 }

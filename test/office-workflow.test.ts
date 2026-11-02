@@ -347,3 +347,22 @@ test('los adaptadores reciben copias y no pueden modificar el expediente por ref
   assert(!result.order.tasks.some((t) => t.title === 'Mutación de prueba'));
   assert.equal(result.exchanges.length, 0);
 });
+
+test('un modelo que no responde a tiempo pausa el expediente con el motivo, sin reintentar ni tumbar la petición', async () => {
+  // Visto en vivo con un modelo local lento: el TimeoutError escapaba del nodo y la tarea quedaba
+  // 'running' para siempre detrás de un 409 genérico.
+  for (const stage of ['execute', 'review'] as const) {
+    const demo = createDemoOfficeIntelligence();
+    let attempts = 0;
+    const timeout = async () => {
+      attempts += 1;
+      throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+    };
+    const intelligence: OfficeIntelligence = { ...demo, ...(stage === 'execute' ? { execute: timeout } : { review: timeout }) };
+    const graph = createOfficeWorkflow(intelligence, officeRegistry, new MemorySaver());
+    const result = await graph.invoke({ order: createDemoOrder() }, config(`office-timeout-${stage}`));
+    assert.equal(result.order.status, 'paused', stage);
+    assert.equal(attempts, 1, `${stage}: un timeout no se reintenta en el acto`);
+    assert.match(result.lastError ?? '', /no respondió para el (especialista|revisor) de .*aborted due to timeout.*Reanuda/, stage);
+  }
+});

@@ -14,5 +14,16 @@
     "level": "specialist",
     "reportsToId": "cfo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-cierre-mensual",
+      "title": "Cierre mensual",
+      "path": "cierre-mensual.md"
+    },
+    {
+      "id": "kb-polizas-y-soporte-documental",
+      "title": "Pólizas, clasificación y soporte documental",
+      "path": "polizas-y-soporte-documental.md"
+    }
+  ]
 }

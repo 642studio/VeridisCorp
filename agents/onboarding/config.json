@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "hr"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-altas-y-bajas-accesos",
+      "title": "Altas y bajas: accesos, equipo y conocimiento",
+      "path": "altas-y-bajas-accesos.md"
+    },
+    {
+      "id": "kb-plan-30-60-90",
+      "title": "Plan de incorporación 30/60/90",
+      "path": "plan-30-60-90.md"
+    }
+  ]
 }

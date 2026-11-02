@@ -13,5 +13,16 @@
     "level": "head",
     "reportsToId": "cto"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-capacidad-y-costos",
+      "title": "Capacidad y costos de infraestructura",
+      "path": "capacidad-y-costos.md"
+    },
+    {
+      "id": "kb-gobierno-de-infraestructura",
+      "title": "Gobierno de la infraestructura en una empresa pequeña",
+      "path": "gobierno-de-infraestructura.md"
+    }
+  ]
 }

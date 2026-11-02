@@ -388,6 +388,53 @@ Pendiente:
 - Servidores locales por stdio, solo declarados por el operador.
 - Que las respuestas observadas sobrevivan a un reinicio de la API (hoy viven en memoria del proceso).
 
+## Hecho: conocimiento de marketing para diseñar campañas (2026-11-01)
+
+- 16 documentos de knowledge en español para los 8 puestos de marketing, adaptados de marketingskills
+  (Corey Haines, MIT): plan de marketing, ofertas, anuncios pagados, lanzamientos, medición y pruebas,
+  métricas sociales, ángulos creativos, psicología de compra, copywriting, redacción y edición, correo
+  y WhatsApp, contenido social, comunidad e influencers, competidores y clientes, y checklist de revisión.
+  Están pensados para negocios locales y servicios en México, no para SaaS, y sin cifras inventadas.
+  Pesan de 4 a 16 KB por puesto y van en cada llamada.
+- `docs/ficha-de-marca.md`: plantilla para llenar una ficha por marca e importarla a la memoria.
+  Los documentos le dicen al agente que la busque antes de proponer y que marque lo que falte.
+- `docs/skills-libraries.md`: lo que sirve de otras 5 bibliotecas para los puestos fuera de marketing.
+
+Prueba en vivo con la misma campaña (Glow Laser Spa, 4 semanas, $8,000 MXN):
+
+| Modelo del especialista | Resultado |
+|---|---|
+| `local-general` (Ollama, tope de 2,000 tokens), asignado a campaigns | Entregó un resumen de 1,300 caracteres sin calendario ni ganchos; el revisor lo rechazó tres veces y el expediente quedó preguntando |
+| DeepSeek (`routine`), por una copia local de la configuración de modelos | Completado en 4 turnos, $0.12: plan de 8 mil caracteres con 10 faltantes de marca, oferta con escasez solo si es real, 3 ángulos con ganchos por canal, calendario día por día y plan de medición |
+
+Pendiente: decidir el modelo de campaigns, creative-strategy y social-analyst (hoy `local-general`).
+
+## Hecho: knowledge para los demás puestos (2026-11-01)
+
+- 88 documentos más, para 47 puestos fuera de marketing (55 de 56 tienen knowledge; falta
+  investment-research). Fuentes con licencia que lo permite, resumidas y adaptadas a México:
+  headcount (la principal), n8n-skills, claude-skills, goose-skills, agentic-awesome-skills,
+  DevOps-Security-Agent-Skills, agent-skills y pm-skills. Avisos en `docs/third-party-notices.md`.
+- Lo legal y fiscal mexicano (CFDI, LFT, IMSS, LFPDPPP, PROFECO, COFEPRIS) va solo en términos
+  generales y marcado "verificar con el contador / abogado": ninguna biblioteca lo cubre. La facturación
+  es un documento propio.
+- Una prueba verifica que cada documento diga de dónde sale y que ningún puesto cargue más de 24 KB.
+- Corrección del motor: si el modelo de un especialista o revisor no responde (tiempo agotado, red,
+  proveedor saturado), el expediente se pausa con el motivo. Antes la petición respondía un 409
+  genérico y la tarea quedaba "en curso" para siempre.
+
+Prueba en vivo:
+
+| Encargo | Resultado |
+|---|---|
+| Revisar el diseño de las rutas de conexiones MCP del repo | Completado, $0.20, revisor aceptó; cita archivos y líneas |
+| Flujo n8n de cotizaciones con PostgreSQL y aviso por WhatsApp, con `local-general` | El modelo local no respondió a tiempo (la falla del motor de arriba) |
+| El mismo, con DeepSeek y tope de 4,000 tokens | Buena primera entrega, pero la corrección se cortó a los 12 mil caracteres |
+| El mismo, con DeepSeek, tope de 8,000 tokens y 90 s | Completado en 4 turnos, $0.15, 4 de 4 criterios aceptados: guardado sin duplicar, error workflow, plan de pruebas P0–P8 |
+
+Pendiente: el ruteo de modelos (`local-general` para campaigns, creative-strategy, social-analyst y
+automation; y el tope del perfil `routine`). Probado solo en una copia local de la configuración.
+
 ## Backlog validado, priorizado, pendiente de decisión
 
 1. **Reanudar un expediente pausado por presupuesto.** Hoy una pausa (por presupuesto o por

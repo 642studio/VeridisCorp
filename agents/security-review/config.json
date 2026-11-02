@@ -12,5 +12,11 @@
     "level": "reviewer",
     "reportsToId": "ciso"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-revision-de-seguridad",
+      "title": "Revisión de seguridad: qué revisar y cuándo rechazar",
+      "path": "revision-de-seguridad.md"
+    }
+  ]
 }

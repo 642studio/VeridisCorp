@@ -12,5 +12,11 @@
     "level": "reviewer",
     "reportsToId": "research-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-verificacion-de-investigacion",
+      "title": "Verificación de una investigación",
+      "path": "verificacion-de-investigacion.md"
+    }
+  ]
 }

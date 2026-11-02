@@ -10,7 +10,7 @@
 
 ## Herramientas habilitadas
 
-`web.search`, `memory.write` y `memory.query` (ver `src/office/tools.ts`). `memory.write` solo propone memorias nuevas (quedan en estado `proposed`); no hay todavía forma de que un humano las valide, así que `memory.query` no las encontrará hasta que ese paso exista.
+`web.search`, `memory.write` y `memory.query` (ver `src/office/tools.ts`). `memory.write` guarda memorias nuevas en estado `proposed` ("sin confirmar"). Desde 2026-10-31 la memoria es automática: `memory.query` y la consulta que el motor hace antes de cada tarea ya las usan, marcadas como sin confirmar, y un humano las confirma o las manda a cuarentena en la pantalla MEMORIA. También puede usar conexiones MCP con `mcp.use`.
 
 ## Información por completar
 

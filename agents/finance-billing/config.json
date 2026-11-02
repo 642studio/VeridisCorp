@@ -14,5 +14,16 @@
     "level": "specialist",
     "reportsToId": "cfo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-facturacion-y-cobranza",
+      "title": "Proceso de facturación y cobranza",
+      "path": "facturacion-y-cobranza.md"
+    },
+    {
+      "id": "kb-reconocimiento-de-ingresos",
+      "title": "Reconocimiento de ingresos en proyectos de agencia",
+      "path": "reconocimiento-de-ingresos.md"
+    }
+  ]
 }

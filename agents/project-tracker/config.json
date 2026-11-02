@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "pm"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-recomendaciones-y-beneficios",
+      "title": "Seguimiento de recomendaciones y beneficios logrados",
+      "path": "recomendaciones-y-beneficios.md"
+    },
+    {
+      "id": "kb-riesgos-y-dependencias",
+      "title": "Registro vivo de riesgos y dependencias",
+      "path": "riesgos-y-dependencias.md"
+    }
+  ]
 }

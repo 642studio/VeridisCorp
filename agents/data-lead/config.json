@@ -13,5 +13,11 @@
     "level": "head",
     "reportsToId": "cto"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-gobierno-de-datos",
+      "title": "Gobierno de datos y priorización",
+      "path": "gobierno-de-datos.md"
+    }
+  ]
 }

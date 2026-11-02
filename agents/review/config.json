@@ -12,5 +12,11 @@
     "level": "reviewer",
     "reportsToId": "quality-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-revision-con-evidencia",
+      "title": "Revisión con evidencia y severidades",
+      "path": "revision-con-evidencia.md"
+    }
+  ]
 }

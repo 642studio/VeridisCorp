@@ -17,5 +17,16 @@
     "level": "specialist",
     "reportsToId": "data-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-diagnostico-de-resultados",
+      "title": "Diagnóstico de resultados con evidencia",
+      "path": "diagnostico-de-resultados.md"
+    },
+    {
+      "id": "kb-tableros-por-kpi",
+      "title": "Tableros por KPI y árbol de métricas",
+      "path": "tableros-por-kpi.md"
+    }
+  ]
 }

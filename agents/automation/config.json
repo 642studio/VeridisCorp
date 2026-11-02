@@ -16,5 +16,21 @@
     "level": "specialist",
     "reportsToId": "data-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-errores-y-reintentos-n8n",
+      "title": "Manejo de errores, reintentos e idempotencia en n8n",
+      "path": "errores-y-reintentos-n8n.md"
+    },
+    {
+      "id": "kb-expresiones-n8n",
+      "title": "Expresiones de n8n y sus errores comunes",
+      "path": "expresiones-n8n.md"
+    },
+    {
+      "id": "kb-patrones-de-flujos-n8n",
+      "title": "Patrones de flujos en n8n",
+      "path": "patrones-de-flujos-n8n.md"
+    }
+  ]
 }

@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "ciso"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-accesos-e-identidades",
+      "title": "Accesos e identidades: mínimo privilegio, revisiones y bajas",
+      "path": "accesos-e-identidades.md"
+    },
+    {
+      "id": "kb-secretos-y-cuentas-de-servicio",
+      "title": "Secretos y cuentas de servicio",
+      "path": "secretos-y-cuentas-de-servicio.md"
+    }
+  ]
 }

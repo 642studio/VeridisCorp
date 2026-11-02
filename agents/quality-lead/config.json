@@ -13,5 +13,16 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-no-conformidades-y-acciones",
+      "title": "No conformidades y acciones correctivas",
+      "path": "no-conformidades-y-acciones.md"
+    },
+    {
+      "id": "kb-sistema-de-calidad",
+      "title": "Sistema de calidad para una agencia",
+      "path": "sistema-de-calidad.md"
+    }
+  ]
 }

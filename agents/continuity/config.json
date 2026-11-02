@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "infrastructure-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-impacto-rto-rpo-y-simulacros",
+      "title": "Análisis de impacto, RTO/RPO, plan y simulacros",
+      "path": "impacto-rto-rpo-y-simulacros.md"
+    },
+    {
+      "id": "kb-respaldos-y-restauracion",
+      "title": "Respaldos y pruebas de restauración",
+      "path": "respaldos-y-restauracion.md"
+    }
+  ]
 }

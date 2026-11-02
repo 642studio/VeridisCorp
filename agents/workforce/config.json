@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "hr"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-capacidad-contra-demanda",
+      "title": "Capacidad contra demanda en una agencia con proyectos",
+      "path": "capacidad-contra-demanda.md"
+    },
+    {
+      "id": "kb-plan-de-personal",
+      "title": "Plan de personal",
+      "path": "plan-de-personal.md"
+    }
+  ]
 }

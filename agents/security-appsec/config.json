@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "ciso"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-modelado-de-amenazas",
+      "title": "Modelado de amenazas en revisiones de diseño",
+      "path": "modelado-de-amenazas.md"
+    },
+    {
+      "id": "kb-seguridad-de-agentes-llm",
+      "title": "Seguridad de agentes LLM, herramientas y MCP",
+      "path": "seguridad-de-agentes-llm.md"
+    }
+  ]
 }

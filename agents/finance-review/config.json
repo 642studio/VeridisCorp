@@ -12,5 +12,16 @@
     "level": "reviewer",
     "reportsToId": "cfo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-controles-internos",
+      "title": "Controles internos en una empresa pequeña",
+      "path": "controles-internos.md"
+    },
+    {
+      "id": "kb-que-revisar-y-rechazar",
+      "title": "Qué revisar y cuándo rechazar",
+      "path": "que-revisar-y-rechazar.md"
+    }
+  ]
 }

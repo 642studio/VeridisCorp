@@ -13,5 +13,11 @@
     "level": "specialist",
     "reportsToId": "coo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-tablero-y-revision-semanal",
+      "title": "Tablero operativo y preparación de la revisión semanal",
+      "path": "tablero-y-revision-semanal.md"
+    }
+  ]
 }

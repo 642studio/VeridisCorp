@@ -13,5 +13,16 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-cambios-de-prompt-y-modelo",
+      "title": "Evaluar agentes antes de cambiar prompt o modelo, y costo por función",
+      "path": "cambios-de-prompt-y-modelo.md"
+    },
+    {
+      "id": "kb-registro-de-decisiones",
+      "title": "Registro de decisiones de arquitectura (ADR)",
+      "path": "registro-de-decisiones.md"
+    }
+  ]
 }

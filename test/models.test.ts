@@ -203,6 +203,13 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   assert.equal(router.select({ agentId: 'workforce', stage: 'execute', capability: 'people.capacity' }).profileId, 'local-general');
   assert.equal(router.profile('local-general').model, 'huihui_ai/qwen3-abliterated:8b');
   assert.equal(router.profile('local-general').baseURL, 'http://127.0.0.1:11434/v1');
+  // Probado en vivo (2026-11-01): con local-general (tope de 2,000 tokens) campañas entregaba un resumen sin
+  // calendario y automation no respondía a tiempo; con routine a 8,000 tokens y 90 s ambos se completaron.
+  for (const agentId of ['campaigns', 'creative-strategy', 'social-analyst', 'automation']) {
+    assert.equal(router.select({ agentId, stage: 'execute', capability: 'x.y' }).profileId, 'routine', agentId);
+  }
+  assert.equal(router.profile('routine').maxOutputTokens, 8000);
+  assert.equal(router.profile('routine').timeoutMs, 90000);
   assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).model, 'gpt-5.4-mini-2026-03-17');
   assert.equal(router.select({ agentId: 'ceo', stage: 'coordinate', capability: 'company.strategy' }).profileId, 'complex');
   // Coordinación departamental en un perfil más barato que el del CEO, no en el modelo completo.

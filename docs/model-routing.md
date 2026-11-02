@@ -175,3 +175,18 @@ Dos subidas de tier en la misma política, por la razón inversa (más riesgo, n
 Nota de honestidad: los parámetros/cuantización exactos de `huihui_ai/qwen3-abliterated:8b` no se verificaron en vivo desde este Mac — `curl http://127.0.0.1:11434/api/tags` no responde aquí porque Ollama corre en el VPS de oficina, no en este portátil. A diferencia de la verificación de `local-code` (30.5B, Q4_K_M, confirmada en vivo en la sección anterior), esta asignación se basa en la descripción que dio el usuario del modelo ya instalado en el servidor, pendiente de confirmar en vivo cuando el runtime corra ahí.
 
 `test/models.test.ts` cubre: `content`/`research` en `analysis`, `workforce` (capacidad real `people.capacity`) en `local-general`, y que `router.profile('local-general').model`/`.baseURL` resuelven desde `OLLAMA_GENERAL_MODEL`/el `baseURL` fijo del perfil.
+
+## 2026-11-01: campañas, creatividad, analítica social y automatización salen de `local-general`
+
+Al darles knowledge de su oficio (planes de campaña, flujos de n8n), su salida dejó de caber en `local-general`
+(tope de 2,000 tokens). Probado en vivo con los mismos encargos:
+
+- `campaigns` con `local-general`: un resumen de 1,300 caracteres sin calendario ni ganchos; el revisor lo rechazó tres veces.
+- `automation` con `local-general`: el modelo local no respondió a tiempo.
+- Con `routine` (DeepSeek Flash), tope de 8,000 tokens y 90 s: los dos se completaron y el revisor aceptó todos los
+  criterios ($0.12 y $0.15 por expediente). Con el tope anterior de 4,000, la corrección del flujo de n8n se cortó.
+
+Cambios: `campaigns`, `creative-strategy`, `social-analyst` y `automation` ejecutan con `routine`, y `routine` sube a
+`maxOutputTokens` 8,000 y `timeoutMs` 90,000 (afecta a todos los que lo usan; una respuesta más larga cuesta más
+tokens solo cuando hace falta). Los otros 10 especialistas siguen en `local-general`.
+

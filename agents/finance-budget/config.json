@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "cfo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-analisis-de-variaciones",
+      "title": "Presupuesto contra real: análisis de variaciones",
+      "path": "analisis-de-variaciones.md"
+    },
+    {
+      "id": "kb-presupuesto-y-forecast",
+      "title": "Presupuesto anual y forecast rodante",
+      "path": "presupuesto-y-forecast.md"
+    }
+  ]
 }

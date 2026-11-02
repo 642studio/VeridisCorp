@@ -15,5 +15,11 @@
     "level": "specialist",
     "reportsToId": "pm"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-validar-tareas-humanas",
+      "title": "Validar tareas humanas con evidencia",
+      "path": "validar-tareas-humanas.md"
+    }
+  ]
 }

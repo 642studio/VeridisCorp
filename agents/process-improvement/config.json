@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "coo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-mapeo-y-cuello-de-botella",
+      "title": "Mapear el estado actual y encontrar el cuello de botella",
+      "path": "mapeo-y-cuello-de-botella.md"
+    },
+    {
+      "id": "kb-sop-con-dueno",
+      "title": "SOP con dueño y señal de éxito por paso",
+      "path": "sop-con-dueno.md"
+    }
+  ]
 }

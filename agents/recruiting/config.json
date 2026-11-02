@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "hr"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-decision-de-contratacion",
+      "title": "Evaluar candidatos y decidir con evidencia",
+      "path": "decision-de-contratacion.md"
+    },
+    {
+      "id": "kb-perfil-y-entrevista-estructurada",
+      "title": "Perfil del puesto y entrevista estructurada",
+      "path": "perfil-y-entrevista-estructurada.md"
+    }
+  ]
 }

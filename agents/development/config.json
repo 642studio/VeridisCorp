@@ -18,5 +18,16 @@
     "level": "specialist",
     "reportsToId": "software-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-depuracion-por-causa-raiz",
+      "title": "Depuración por causa raíz",
+      "path": "depuracion-por-causa-raiz.md"
+    },
+    {
+      "id": "kb-especificacion-y-tareas",
+      "title": "Especificación antes del código y tareas verificables",
+      "path": "especificacion-y-tareas.md"
+    }
+  ]
 }

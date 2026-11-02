@@ -12,5 +12,16 @@
     "level": "specialist",
     "reportsToId": "coo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-cotizacion-competitiva",
+      "title": "Especificar la necesidad y cotizar con competencia",
+      "path": "cotizacion-competitiva.md"
+    },
+    {
+      "id": "kb-scorecard-y-sla-de-proveedores",
+      "title": "Scorecard de proveedores y niveles de servicio",
+      "path": "scorecard-y-sla-de-proveedores.md"
+    }
+  ]
 }

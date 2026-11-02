@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "ciso"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-dependencias-y-licencias",
+      "title": "Auditoría de dependencias y licencias",
+      "path": "dependencias-y-licencias.md"
+    },
+    {
+      "id": "kb-gestion-de-vulnerabilidades",
+      "title": "Gestión de vulnerabilidades",
+      "path": "gestion-de-vulnerabilidades.md"
+    }
+  ]
 }

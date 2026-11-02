@@ -13,5 +13,16 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-plan-de-marketing",
+      "title": "Plan de marketing y de campaña",
+      "path": "plan-de-marketing.md"
+    },
+    {
+      "id": "mkt-ofertas",
+      "title": "Diseño de ofertas",
+      "path": "ofertas.md"
+    }
+  ]
 }

@@ -7,8 +7,8 @@
       "baseURL": "https://api.deepseek.com",
       "modelEnv": "DEEPSEEK_MODEL",
       "apiKeyEnv": "DEEPSEEK_API_KEY",
-      "maxOutputTokens": 4000,
-      "timeoutMs": 30000,
+      "maxOutputTokens": 8000,
+      "timeoutMs": 90000,
       "maxRetries": 0,
       "structuredOutputMethod": "jsonMode",
       "thinkingMode": "disabled"
@@ -161,10 +161,10 @@
     "data-analyst": {
       "execute": "analysis"
     },
-    "automation": { "execute": "local-general" },
-    "campaigns": { "execute": "local-general" },
+    "automation": { "execute": "routine" },
+    "campaigns": { "execute": "routine" },
     "continuity": { "execute": "local-general" },
-    "creative-strategy": { "execute": "local-general" },
+    "creative-strategy": { "execute": "routine" },
     "data-engineer": { "execute": "local-general" },
     "devops": { "execute": "local-general" },
     "network": { "execute": "local-general" },
@@ -173,7 +173,7 @@
     "people-development": { "execute": "local-general" },
     "procurement": { "execute": "local-general" },
     "recruiting": { "execute": "local-general" },
-    "social-analyst": { "execute": "local-general" },
+    "social-analyst": { "execute": "routine" },
     "workforce": { "execute": "local-general" },
     "finance-budget": {
       "execute": "analysis"

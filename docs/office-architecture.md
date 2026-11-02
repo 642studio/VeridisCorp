@@ -81,8 +81,9 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
   - Nunca escribe, ni hace fetch, checkout o push.
   - Solo lee archivos versionados: un `.env` o una llave ignorados no existen para el agente.
 - Knowledge de puesto: documentos de `agents/<id>/knowledge/` declarados en `config.json` (máx. 10 y 64 KB por
-  puesto). Van completos en el prompt de cada llamada, como datos. Hoy solo los puestos de marketing tienen
-  (adaptados de marketingskills, MIT; ver `docs/third-party-notices.md`). Qué falta para los demás: `docs/skills-libraries.md`.
+  puesto). Van completos en el prompt de cada llamada, como datos. Hoy 55 de 56 puestos tienen
+  (103 documentos adaptados de bibliotecas con licencia que lo permite; ver `docs/third-party-notices.md`
+  y `docs/skills-libraries.md`). Cada documento abre con su línea de origen.
 - Conexiones MCP (`src/office/mcp-client.ts`, `src/office/mcp-tools.ts`, `src/runtime/mcp-store.ts`). Tres ids:
   - `mcp.connect` (automation, devops): `mcp_connect` conecta un servidor MCP remoto o lo deja solicitado sin URL.
   - `mcp.use` (automation, devops, development, backend, research, knowledge-curator, human-task-coordinator):

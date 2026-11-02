@@ -15,5 +15,16 @@
     "level": "specialist",
     "reportsToId": "pm"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-cronograma-y-dependencias",
+      "title": "Cronograma con lógica y dependencias",
+      "path": "cronograma-y-dependencias.md"
+    },
+    {
+      "id": "kb-estimacion-y-pre-mortem",
+      "title": "Estimación con contingencia y pre-mortem",
+      "path": "estimacion-y-pre-mortem.md"
+    }
+  ]
 }

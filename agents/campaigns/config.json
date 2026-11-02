@@ -12,5 +12,21 @@
     "level": "specialist",
     "reportsToId": "cmo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "mkt-anuncios-pagados",
+      "title": "Anuncios pagados: cómo proponer una campaña",
+      "path": "anuncios-pagados.md"
+    },
+    {
+      "id": "mkt-lanzamientos",
+      "title": "Lanzamientos y eventos",
+      "path": "lanzamientos.md"
+    },
+    {
+      "id": "mkt-medicion-y-pruebas",
+      "title": "Medición y pruebas",
+      "path": "medicion-y-pruebas.md"
+    }
+  ]
 }

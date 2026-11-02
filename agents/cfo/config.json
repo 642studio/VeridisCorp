@@ -13,5 +13,16 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-asignacion-de-capital",
+      "title": "Asignación de capital",
+      "path": "asignacion-de-capital.md"
+    },
+    {
+      "id": "kb-rentabilidad-por-cliente-y-proyecto",
+      "title": "Rentabilidad por cliente y por proyecto en una agencia",
+      "path": "rentabilidad-por-cliente-y-proyecto.md"
+    }
+  ]
 }

@@ -16,5 +16,16 @@
     "level": "specialist",
     "reportsToId": "software-lead"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-diseno-de-apis",
+      "title": "Diseño de APIs REST y cambios incompatibles",
+      "path": "diseno-de-apis.md"
+    },
+    {
+      "id": "kb-migraciones-sin-caida",
+      "title": "Migraciones sin caída con Drizzle y PostgreSQL",
+      "path": "migraciones-sin-caida.md"
+    }
+  ]
 }

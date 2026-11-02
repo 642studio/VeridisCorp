@@ -15,5 +15,16 @@
     "level": "head",
     "reportsToId": "ceo"
   },
-  "knowledge": []
+  "knowledge": [
+    {
+      "id": "kb-entrega-de-proyectos",
+      "title": "Entrega de proyectos de agencia",
+      "path": "entrega-de-proyectos.md"
+    },
+    {
+      "id": "kb-minutas-y-estado",
+      "title": "Minutas con decisiones y reporte de estado",
+      "path": "minutas-y-estado.md"
+    }
+  ]
 }
