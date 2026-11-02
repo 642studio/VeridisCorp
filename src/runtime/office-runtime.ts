@@ -489,6 +489,16 @@ export class OfficeRuntime {
    await this.permit(tx, auth, null, 'data.read');
    return auth;
   });
+  return this.askWithAuth(auth, input);
+ }
+ // Mismo patrón que startAsService()/answerAsService(): el puente de Telegram usa esto primero,
+ // con su propio principal de servicio, para filtrar un saludo o una pregunta simple antes de
+ // abrir un expediente completo — igual que ya hace el chat ASISTENTE de la web.
+ async askAsService(principal: Principal, scope: AccessScope, question: string, threadId?: string | null) {
+  const input = AskInput.parse({ question, ...(threadId ? { threadId } : {}) });
+  return this.askWithAuth({ principal, scope }, input);
+ }
+ private async askWithAuth(auth: Auth, input: z.infer<typeof AskInput>) {
   if (!this.intelligence.ask) throw new RuntimeError(409, 'Este servidor no tiene un modelo configurado para el asistente');
   const key = scopeKey(auth.scope);
   const threadId = input.threadId ?? randomUUID();

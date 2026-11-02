@@ -3,14 +3,16 @@ import { telegramBridge, type OfficeRuntime } from './office-runtime.js';
 
 // Puente de Telegram para el chat ASISTENTE, por long polling saliente (el proceso llama hacia
 // afuera a api.telegram.org; no abre ningún puerto nuevo ni expone nada — mismo criterio de "no
-// exponer superficie nueva" que el resto del proyecto). Cada mensaje de un chat autorizado arranca
-// o continúa un expediente real de office/ con el mismo OfficeRuntime que usa la API HTTP, nunca
-// una ruta de ejecución aparte. El bot actúa con el principal de servicio telegramBridge (mismo
-// patrón que scheduler en office-runtime.ts) — necesita un grant real para ese principal en la
-// tabla grants (se añade con runtime:provision, no con un token propio: no hay sesión que guardar
-// ni que pueda vencer o filtrarse). El mapeo chat → expediente vive solo en memoria: se pierde al
-// reiniciar, igual que el scheduler ("Sin recuperación al reiniciar" ya documentado en
-// docs/runtime-pilot.md) — cada chat simplemente arranca un expediente nuevo en su próximo mensaje.
+// exponer superficie nueva" que el resto del proyecto). Un mensaje de un chat autorizado primero
+// pasa por la misma respuesta rápida (ask()) que ya usa el chat ASISTENTE de la web: un saludo o
+// una pregunta se contesta al instante, sin abrir expediente; solo si de verdad es trabajo
+// (mode "order") arranca o continúa un expediente real de office/, con el mismo OfficeRuntime que
+// usa la API HTTP, nunca una ruta de ejecución aparte. El bot actúa con el principal de servicio
+// telegramBridge (mismo patrón que scheduler en office-runtime.ts) — necesita un grant real para
+// ese principal en la tabla grants (se añade con runtime:provision, no con un token propio: no hay
+// sesión que guardar ni que pueda vencer o filtrarse). El mapeo chat → expediente y chat → hilo de
+// conversación viven solo en memoria: se pierden al reiniciar, igual que el scheduler ("Sin
+// recuperación al reiniciar" ya documentado en docs/runtime-pilot.md).
 
 export interface TelegramConfig {
   botToken: string;
@@ -70,13 +72,17 @@ const STATUS_CHECK_PATTERN = /\b(c[oó]mo (vas|va|est[aá]|estamos)|avance|progr
 // IA encadenadas, uno o dos minutos) termine antes de seguir leyendo mensajes nuevos — si no, el
 // bot se queda "tildado" para cualquier otra cosa (otra pregunta, un chequeo de estado, un mensaje
 // sin relación) mientras tanto. Por chat: un chequeo de estado siempre contesta al instante (solo
-// lee, nunca dispara IA); arrancar o continuar un expediente contesta con un acuse al instante y
-// sigue en segundo plano (sin await en el bucle principal), avisando con un segundo mensaje cuando
-// de verdad termine; y si ya hay algo en curso para ese chat, un mensaje nuevo que no sea chequeo
-// de estado se avisa como tal y se encola — nunca se descarta en silencio: la cola es FIFO y por
-// chat, se vacía sola, un mensaje a la vez, cuando el anterior termina.
+// lee, nunca dispara IA); un mensaje nuevo pasa primero por la respuesta rápida (ask()), que
+// también contesta en segundos — solo si resulta ser trabajo real se manda el acuse de "puede
+// tardar" y arranca el expediente de oficina en segundo plano, avisando con un segundo mensaje
+// cuando de verdad termine; y si ya hay algo en curso para ese chat, un mensaje nuevo que no sea
+// chequeo de estado se avisa como tal y se encola — nunca se descarta en silencio: la cola es FIFO
+// y por chat, se vacía sola, un mensaje a la vez, cuando el anterior termina.
 export function startTelegramBridge(office: OfficeRuntime, config: TelegramConfig): void {
   const chatOrders = new Map<number, string>();
+  // Hilo de la respuesta rápida (ask()) por chat — independiente de chatOrders: un saludo o una
+  // pregunta simple nunca abre expediente, así que necesita su propia memoria de conversación.
+  const chatThreads = new Map<number, string>();
   const inFlight = new Set<number>();
   const queues = new Map<number, string[]>();
   let offset = 0;
@@ -85,19 +91,29 @@ export function startTelegramBridge(office: OfficeRuntime, config: TelegramConfi
     inFlight.add(chatId);
     (async () => {
       const existingOrderId = chatOrders.get(chatId);
-      let detail;
-      try {
-        if (!existingOrderId) throw new Error('sin expediente previo en memoria');
-        detail = await office.answerAsService(telegramBridge, config.scope, existingOrderId, { answer: text });
-      } catch {
-        // Sin expediente previo, o sin pregunta pendiente que responder (RuntimeError 409):
-        // en ambos casos el mensaje arranca un expediente nuevo, nunca se descarta en silencio.
-        detail = await office.startAsService(telegramBridge, config.scope, text);
+      if (existingOrderId) {
+        try {
+          const detail = await office.answerAsService(telegramBridge, config.scope, existingOrderId, { answer: text });
+          chatOrders.set(chatId, detail.id);
+          return summarizeOrder(detail);
+        } catch {
+          // Sin pregunta pendiente que responder (RuntimeError 409) o expediente ya cerrado: el
+          // mensaje no es continuación de nada — cae al filtro rápido de abajo, igual que uno nuevo.
+        }
       }
+      // Mismo filtro que ya usa el chat ASISTENTE de la web: la mayoría de los mensajes son
+      // saludos, preguntas o charla — se contestan al instante sin abrir expediente. Solo si de
+      // verdad es trabajo (mode "order") se arranca el motor completo de oficina.
+      const quick = await office.askAsService(telegramBridge, config.scope, text, chatThreads.get(chatId) ?? null);
+      chatThreads.set(chatId, quick.threadId);
+      if (quick.mode === 'answer') return quick.answer;
+      await callTelegram(config.botToken, 'sendMessage', { chat_id: chatId,
+        text: '👍 Lo paso a la oficina — puede tardar uno o dos minutos. Te aviso en cuanto tenga algo.' }, 15000).catch(() => {});
+      const detail = await office.startAsService(telegramBridge, config.scope, quick.objective!);
       chatOrders.set(chatId, detail.id);
-      return detail;
+      return summarizeOrder(detail);
     })()
-      .then((detail) => callTelegram(config.botToken, 'sendMessage', { chat_id: chatId, text: summarizeOrder(detail) }, 15000))
+      .then((text) => callTelegram(config.botToken, 'sendMessage', { chat_id: chatId, text }, 15000))
       .catch((error) => {
         process.stderr.write(`Telegram: fallo procesando mensaje del chat ${chatId}: ${error instanceof Error ? error.message : error}\n`);
         return callTelegram(config.botToken, 'sendMessage', { chat_id: chatId, text: '⚠️ Algo falló procesando tu mensaje; un humano debería revisar los logs.' }, 15000).catch(() => {});
@@ -158,8 +174,6 @@ export function startTelegramBridge(office: OfficeRuntime, config: TelegramConfi
             .catch(() => {});
           continue;
         }
-        callTelegram(config.botToken, 'sendMessage', { chat_id: chatId, text: '👍 Recibido, lo estoy procesando — puede tardar uno o dos minutos. Te aviso en cuanto tenga algo.' }, 15000)
-          .catch(() => {});
         processInBackground(chatId, text);
       }
     }
