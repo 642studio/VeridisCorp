@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
 import { Command } from '@langchain/langgraph';
@@ -30,6 +30,30 @@ import type { McpStore } from './mcp-store.js';
 import { McpConnectError } from '../office/mcp-client.js';
 import { VOICE_ID_PATTERN } from './elevenlabs-proxy.js';
 
+// config/prices.active.json y config/models.active.json son archivos que un operador edita a
+// mano en disco (ver AGENTS.md: el operador copia precios desde la página vigente del
+// proveedor). Cachear su contenido para siempre, como hacía esta clase antes, significaba que
+// un precio o perfil nuevo solo tomaba efecto tras reiniciar el servidor — visto en vivo: los
+// precios de Claude agregados hoy no aparecían en CONSUMO hasta reiniciar. watchFile() revisa el
+// mtime del archivo en cada llamada (un stat, no una lectura) y solo vuelve a parsear cuando
+// cambió. Sin VERIDIS_*_FILE configurado no hay archivo que vigilar: se comporta igual que antes,
+// carga una vez.
+function watchFile<T>(fileEnvVar: string, load: () => T): () => T {
+ let cached: T;
+ let loadedMtimeMs: number | undefined;
+ let hasLoaded = false;
+ return () => {
+  const filePath = process.env[fileEnvVar]?.trim();
+  let mtimeMs: number | undefined;
+  if (filePath) { try { mtimeMs = statSync(filePath).mtimeMs; } catch { /* usa el último valor cargado */ } }
+  if (!hasLoaded || (filePath && mtimeMs !== loadedMtimeMs)) {
+   cached = load();
+   loadedMtimeMs = mtimeMs;
+   hasLoaded = true;
+  }
+  return cached;
+ };
+}
 type Tx = PoolClient;
 const slug = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'memoria';
@@ -584,26 +608,21 @@ export class OfficeRuntime {
   await this.audit(this.pool, auth, null, 'assistant.answered', { messageId: id, threadId, mode, memoryIds: usedIds,
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null, costMicros: price.costMicros, latencyMs });
   return { id, threadId, question: input.question, answer: reply.answer, mode, objective, memories: used,
+   scene: reply.scene, // visual del momento, no se persiste en assistant_messages (ver runtime-contracts.ts)
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null,
    costMicros: price.costMicros, costStatus: price.costStatus, latencyMs, createdAt: row.rows[0]!.created_at };
  }
- private cachedPriceList: PriceList | null | undefined;
+ private readonly loadPriceListWatched = watchFile('VERIDIS_PRICES_FILE', () => { try { return loadPriceList(); } catch { return null; } });
  private priceList(): PriceList | null {
   if (this.options.priceList !== undefined) return this.options.priceList;
-  if (this.cachedPriceList === undefined) {
-   try { this.cachedPriceList = loadPriceList(); } catch { this.cachedPriceList = null; }
-  }
-  return this.cachedPriceList;
+  return this.loadPriceListWatched();
  }
- private cachedRouter: ModelRouter | null | undefined;
  // Solo para resolver, por perfil, su plataforma (platformOf) y su apiKeyEnv en el panel de
  // consumo — nunca para invocar un modelo. null si la configuración no carga; el panel entonces
  // no puede distinguir plataforma/credencial y lo deja explícito (ver usage()).
+ private readonly loadRouterWatched = watchFile('VERIDIS_MODELS_FILE', () => { try { return loadModelRouter(); } catch { return null; } });
  private router(): ModelRouter | null {
-  if (this.cachedRouter === undefined) {
-   try { this.cachedRouter = loadModelRouter(); } catch { this.cachedRouter = null; }
-  }
-  return this.cachedRouter;
+  return this.loadRouterWatched();
  }
  // Gasto acumulado de todo el ámbito (todos los expedientes + el chat ASISTENTE), agregado por
  // agente, plataforma, credencial (apiKeyEnv) y modelo. Ver docs del esquema en database.ts:
@@ -721,7 +740,8 @@ export class OfficeRuntime {
    try { router = new ModelRouter(updated, process.env); }
    catch (error) { throw new RuntimeError(400, error instanceof Error ? error.message : 'Política de modelos inválida'); }
    writeFileSync(resolvedPath, JSON.stringify(updated, null, 2) + '\n', 'utf8');
-   this.cachedRouter = router;
+   // loadRouterWatched() recarga sola en la siguiente llamada (el mtime del archivo ya cambió);
+   // reloadModelRouter sigue siendo necesario porque OfficeIntelligence guarda su propia instancia.
    this.intelligence.reloadModelRouter?.(router);
    await this.audit(tx, auth, null, 'settings.model_policy_changed', { agentId: input.agentId, stage: input.stage, profileId: input.profileId });
    return { agentId: input.agentId, stage: input.stage, profileId: input.profileId };
