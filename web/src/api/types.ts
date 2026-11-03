@@ -439,3 +439,56 @@ export interface McpConnection {
 }
 export interface McpCredentialInput { headerName?: string; value: string }
 
+// Refleja src/office/usage.ts (summarizeUsage) tal como lo devuelve GET /office/usage
+// (src/runtime/office-runtime.ts: usage()). key en cada desglose es el agentId, la plataforma
+// (openai/deepseek/local/...), la variable de entorno de la credencial (apiKeyEnv) o el modelo,
+// según el bloque — nunca el valor real de una credencial.
+export interface UsageBreakdownEntry {
+  key: string;
+  costMicros: number;
+  pricedCalls: number;
+  unpricedCalls: number;
+}
+export interface UsageSummary {
+  currency: string;
+  totalCostMicros: number;
+  pricedCalls: number;
+  unpricedCalls: number;
+  byAgent: UsageBreakdownEntry[];
+  byPlatform: UsageBreakdownEntry[];
+  byApiKeyEnv: UsageBreakdownEntry[];
+  byModel: UsageBreakdownEntry[];
+}
+
+// Refleja GET /office/settings (src/runtime/office-runtime.ts: settings()). Nunca incluye el
+// valor de una credencial — solo si la variable de entorno que necesita está definida.
+export interface ProviderStatus {
+  profileId: string;
+  provider: string;
+  model: string;
+  apiKeyEnv: string;
+  baseURL: string | null;
+  configured: boolean;
+}
+export interface ElevenLabsSettings {
+  configured: boolean;
+  voiceId: string | null;
+  modelId: string;
+}
+export interface IntegrationsStatus {
+  telegram: boolean;
+  gmail: boolean;
+}
+export interface SettingsSummary {
+  providers: ProviderStatus[];
+  elevenlabs: ElevenLabsSettings;
+  integrations: IntegrationsStatus;
+  totpEnrolled: boolean;
+}
+export interface ElevenLabsVoice {
+  voiceId: string;
+  name: string;
+  category: string | null;
+  previewUrl: string | null;
+}
+

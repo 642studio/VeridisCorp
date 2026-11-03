@@ -162,6 +162,28 @@ export function useQuarantineMemory() {
   });
 }
 
+export function useUsage() {
+  return useQuery({ queryKey: ['usage'], queryFn: () => api.getUsage(), refetchInterval: 30000 });
+}
+
+export function useSettings() {
+  return useQuery({ queryKey: ['settings'], queryFn: () => api.getSettings() });
+}
+
+export function useSetElevenLabsVoice() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (voiceId: string) => api.setElevenLabsVoice(voiceId),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['settings'] }); },
+  });
+}
+
+// Catálogo de voces de la cuenta de ElevenLabs: solo se pide cuando la pestaña de voz está
+// abierta (enabled), no en cada carga de CONFIGURACIONES.
+export function useElevenLabsVoices(enabled: boolean) {
+  return useQuery({ queryKey: ['elevenlabs-voices'], queryFn: () => api.listElevenLabsVoices(), enabled, staleTime: 5 * 60 * 1000 });
+}
+
 // Conexiones MCP. Cada cambio reescribe la memoria de la conexión: se refresca también ['memory'].
 export function useConnections() {
   return useQuery({ queryKey: ['connections'], queryFn: () => api.listConnections(), refetchInterval: 30000 });

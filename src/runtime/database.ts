@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_orders (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS runtime_office_orders_scope ON veridis_runtime_v1.office_orders(scope_key, created_at DESC);
+-- Cuántas entradas de state.modelCalls (ver office/workflow.ts) ya se volcaron a usage_records.
+-- Marcador idempotente, mismo patrón que memory_distilled_at: evita duplicar filas si advance()
+-- se vuelve a invocar sin que el grafo haya avanzado.
+ALTER TABLE veridis_runtime_v1.office_orders ADD COLUMN IF NOT EXISTS usage_synced_count integer NOT NULL DEFAULT 0;
 -- El archivista destila memoria una sola vez por expediente cerrado: quien logra poner esta marca
 -- (UPDATE ... WHERE memory_distilled_at IS NULL) es el único que destila, aunque avance dos veces.
 ALTER TABLE veridis_runtime_v1.office_orders ADD COLUMN IF NOT EXISTS memory_distilled_at timestamptz NULL;
@@ -94,6 +98,23 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_files (
 );
 CREATE INDEX IF NOT EXISTS runtime_office_files_order ON veridis_runtime_v1.office_files(order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS runtime_office_files_dedupe ON veridis_runtime_v1.office_files(order_id, input_hash);
+-- Ledger plano de cada llamada a modelo dentro de un expediente de oficina (ModelCallRecord,
+-- office/models.ts), para el panel de consumo (office/usage.ts). Es la contraparte de
+-- assistant_messages para el chat: aquí una fila por llamada real, no un snapshot acumulado — el
+-- acumulado (state.modelCalls) sigue viviendo solo en el checkpoint de LangGraph. Sin columna de
+-- moneda ni de costStatus: la moneda es la única que declara VERIDIS_PRICES_FILE en todo el
+-- proceso (mismo criterio que assistant_messages), y costStatus se deriva de cost_micros IS NULL.
+-- occurred_at es cuándo se sincronizó la fila (al terminar start()/advance()), no el instante
+-- exacto de la llamada — ModelCallRecord no trae timestamp propio.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.usage_records (
+ id bigserial PRIMARY KEY, scope_key text NOT NULL,
+ order_id uuid NOT NULL REFERENCES veridis_runtime_v1.office_orders(id),
+ agent_id text NOT NULL, profile_id text NOT NULL, provider text NOT NULL, model text NOT NULL,
+ input_tokens integer NULL, output_tokens integer NULL, cost_micros bigint NULL,
+ occurred_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS runtime_usage_records_scope ON veridis_runtime_v1.usage_records(scope_key, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS runtime_usage_records_order ON veridis_runtime_v1.usage_records(order_id);
 -- Primera credencial reversible del proyecto (ver src/runtime/secrets.ts): el refresh token de
 -- OAuth se cifra en la aplicación (AES-256-GCM) antes de guardarse aquí, nunca en claro. Una
 -- sola cuenta dedicada por ahora; account_email es la clave primaria para que una reautorización
@@ -143,6 +164,11 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.assistant_messages (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS runtime_assistant_messages_thread ON veridis_runtime_v1.assistant_messages(scope_key, thread_id, created_at);
+-- Para el panel de consumo (office/usage.ts): identifica qué perfil de modelo (ModelRouter)
+-- resolvió esta llamada, así se puede saber su plataforma/apiKeyEnv igual que para
+-- usage_records. NULL en filas anteriores a esta columna; el agregador las trata como "sin
+-- perfil conocido" en vez de tronar.
+ALTER TABLE veridis_runtime_v1.assistant_messages ADD COLUMN IF NOT EXISTS profile_id text NULL;
 -- Conexiones MCP (src/runtime/mcp-store.ts). tools guarda lo que el servidor declaró más la decisión
 -- humana de cuáles están activas; credential_encrypted va cifrada como el refresh token de Google.
 -- memory_id apunta a la memoria corporativa vigente que describe la conexión. Un nombre retirado
@@ -158,6 +184,26 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.mcp_connections (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runtime_mcp_connections_name ON veridis_runtime_v1.mcp_connections(scope_key, name) WHERE status <> 'removed';
+-- Login con authenticator app (TOTP, RFC 6238), alternativa a pegar el bearer token a mano.
+-- scope/permissions son el perfil que loginWithTotp() le pasa a provisionSession() en cada
+-- login exitoso (mismas formas que el config.json de runtime:provision); el secreto TOTP se
+-- cifra igual que gmail_accounts.refresh_token_encrypted (ver src/runtime/secrets.ts).
+-- last_time_step bloquea reusar un código ya validado (no solo dentro de su ventana de 30s);
+-- NULL hasta el primer login (nunca se ha consumido ningún paso de tiempo todavía).
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.totp_credentials (
+ principal_id text PRIMARY KEY, principal jsonb NOT NULL, secret_encrypted bytea NOT NULL,
+ scope jsonb NOT NULL, permissions jsonb NOT NULL, session_ttl_seconds integer NOT NULL DEFAULT 43200,
+ last_time_step bigint NULL, failed_attempts integer NOT NULL DEFAULT 0, locked_until timestamptz NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+-- Preferencias de configuración por ámbito (panel CONFIGURACIONES), nunca credenciales: esas
+-- siguen solo en variables de entorno del proceso (ver AGENTS.md). Hoy solo guarda la voz de
+-- ElevenLabs elegida por defecto; value es jsonb para admitir otras claves futuras sin migración.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.settings (
+ scope_key text NOT NULL, key text NOT NULL, value jsonb NOT NULL, updated_by jsonb NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(scope_key, key)
+);
 `;
 export async function migrate(pool: Pool) {
  await transaction(pool, async (tx) => {

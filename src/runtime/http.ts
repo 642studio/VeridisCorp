@@ -1,9 +1,14 @@
 import { createServer, type IncomingMessage } from 'node:http';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import { ContentRuntime } from './service.js';
 import type { OfficeRuntime } from './office-runtime.js';
 import type { Scheduler } from './scheduler.js';
 import { RuntimeError } from './contracts.js';
+import { loginWithTotp } from './totp.js';
+import { synthesizeElevenLabs, listElevenLabsVoices } from './elevenlabs-proxy.js';
+
+const LoginRequest = z.object({ principalId: z.string().trim().min(1).max(100), code: z.string().trim().regex(/^\d{6}$/) }).strict();
+const TtsRequest = z.object({ text: z.string().trim().min(1).max(2000) }).strict();
 
 // 32 KB por defecto; solo la importación de documentos a memoria pide más (maxBytes).
 async function body(req: IncomingMessage, maxBytes = 32768): Promise<unknown> {
@@ -19,15 +24,39 @@ async function body(req: IncomingMessage, maxBytes = 32768): Promise<unknown> {
 // scheduler puede ser undefined (VERIDIS_SCHEDULER_ENABLED=false): las rutas de abajo siguen
 // funcionando igual (crear/editar/borrar tareas programadas en la base), solo que ningún Cron
 // real las dispara hasta que el proceso arranque con el flag activo.
-export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRuntime, scheduler?: Scheduler) {
+export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRuntime, scheduler?: Scheduler, totpEncryptionKey?: Buffer) {
  const server = createServer(async (req, res) => {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
   try {
-   const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1];
-   if (!token) throw new RuntimeError(401, 'Se requiere sesión');
    const url = new URL(req.url ?? '/', 'http://localhost');
    const path = url.pathname;
+   // Única ruta sin Bearer: intercambia un código de la app de autenticación por una sesión real.
+   if (req.method === 'POST' && path === '/auth/login') {
+    if (!totpEncryptionKey) throw new RuntimeError(503, 'Login con authenticator app no configurado');
+    const { principalId, code } = LoginRequest.parse(await body(req));
+    const sessionToken = await loginWithTotp(runtime.pool, totpEncryptionKey, principalId, code);
+    res.writeHead(200); res.end(JSON.stringify({ token: sessionToken }));
+    return;
+   }
+   const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1];
+   if (!token) throw new RuntimeError(401, 'Se requiere sesión');
+   if (req.method === 'POST' && path === '/tts/elevenlabs') {
+    const { text } = TtsRequest.parse(await body(req));
+    // Preferencia guardada en CONFIGURACIONES, si existe (ver office-runtime.ts); si no hay
+    // office/ habilitado o no hay preferencia, cae al valor fijo por entorno de siempre.
+    const voiceOverride = office ? await office.elevenLabsVoiceId(token).catch(() => null) : null;
+    const { contentType, body: audioBody } = await synthesizeElevenLabs(runtime.pool, token, text, voiceOverride);
+    res.setHeader('content-type', contentType);
+    res.writeHead(200);
+    res.end(audioBody);
+    return;
+   }
+   if (req.method === 'GET' && path === '/tts/elevenlabs/voices') {
+    const voices = await listElevenLabsVoices(runtime.pool, token);
+    res.writeHead(200); res.end(JSON.stringify({ voices }));
+    return;
+   }
    let result: unknown;
    if (req.method === 'POST' && path === '/runs') result = await runtime.start(token, await body(req));
    else if (req.method === 'GET' && path === '/runs') {
@@ -83,7 +112,13 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     result = await office.validateMemory(token, /^\/office\/memory\/([0-9a-f-]{36})\/validate$/.exec(path)![1]!);
    } else if (office && req.method === 'POST' && /^\/office\/memory\/([0-9a-f-]{36})\/quarantine$/.test(path)) {
     result = await office.quarantineMemory(token, /^\/office\/memory\/([0-9a-f-]{36})\/quarantine$/.exec(path)![1]!, await body(req));
-   } else if (office && req.method === 'GET' && path === '/office/connections') {
+   } else if (office && req.method === 'GET' && path === '/office/usage') {
+   result = await office.usage(token);
+  } else if (office && req.method === 'GET' && path === '/office/settings') {
+   result = await office.settings(token);
+  } else if (office && req.method === 'POST' && path === '/office/settings/elevenlabs-voice') {
+   result = await office.setElevenLabsVoice(token, await body(req));
+  } else if (office && req.method === 'GET' && path === '/office/connections') {
     result = await office.listConnections(token);
    } else if (office && req.method === 'POST' && path === '/office/connections') {
     result = await office.addConnection(token, await body(req));

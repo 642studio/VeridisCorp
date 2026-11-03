@@ -41,6 +41,11 @@ pre { font-family: inherit; }
 }
 .breadcrumb { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
 .shell__content { flex: 1; padding: 24px; overflow-y: auto; max-width: 1100px; min-height: 0; }
+.shell__menu-toggle {
+  display: none; background: none; border: 1px solid var(--border-bright); color: var(--text);
+  width: 34px; height: 34px; font-size: 16px; cursor: pointer; flex-shrink: 0;
+}
+.shell__backdrop { display: none; }
 
 .badge { font-size: 11px; letter-spacing: 0.05em; border: 1px solid var(--border-bright); padding: 3px 10px; text-transform: uppercase; }
 .badge--ok { color: var(--done); border-color: var(--done); }
@@ -68,6 +73,8 @@ pre { font-family: inherit; }
 .token-gate form { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
 .token-gate__prompt { color: var(--accent); }
 .token-gate input { flex: 1; background: var(--panel-raised); border: 1px solid var(--border-bright); color: var(--text); padding: 8px; }
+.token-gate__error { color: var(--danger); margin-top: 8px; }
+.token-gate > .button { margin-top: 16px; }
 
 /* ---- runs list ---- */
 .runs-list__filters { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -91,10 +98,18 @@ pre { font-family: inherit; }
 .status-pill--done { color: var(--done); border-color: var(--done); }
 
 .budget-gauge { margin-top: 10px; }
-.budget-gauge__row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.budget-gauge__row { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; color: var(--muted); }
 .budget-gauge__row--small { margin-top: 6px; }
 .budget-gauge__bar { height: 4px; background: var(--border); margin-top: 4px; overflow: hidden; }
 .budget-gauge__fill { height: 100%; background: var(--accent); }
+
+.usage-summary { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 18px; }
+.usage-summary__value { font-size: 22px; color: var(--accent); }
+.usage-summary__label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.usage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.usage-block__row { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.usage-block__row:last-child { border-bottom: none; }
+.usage-block__unpriced { display: inline-block; margin-top: 4px; }
 
 /* ---- stepper / agent flow ---- */
 .stepper { margin: 20px 0; border: 1px solid var(--border); padding: 14px; background: var(--panel); }
@@ -253,6 +268,50 @@ pre { font-family: inherit; }
 .chat-input__mic { flex-shrink: 0; font-size: 16px; line-height: 1; }
 .chat-input__mic--active { border-color: var(--accent); background: var(--panel-raised); }
 
+/* ---- voz: lienzo ascii en vivo, como la "bola de energía" de un asistente de voz, pero
+   renderizado como pantalla de terminal — ver ascii/engine.ts y components/AsciiAvatar.tsx ---- */
+.voice-stage {
+  display: flex; flex-direction: column; align-items: center; height: 100%; min-height: 0;
+  padding: 20px; gap: 14px; overflow-y: auto;
+}
+.voice-stage__header { flex-shrink: 0; }
+.voice-stage__state-label {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--border-bright); padding: 4px 12px; transition: color 300ms ease, border-color 300ms ease;
+}
+.voice-stage__state-label--alert { color: var(--danger); border-color: var(--danger); }
+.voice-stage__state-label--hand,
+.voice-stage__state-label--focus,
+.voice-stage__state-label--processing,
+.voice-stage__state-label--halftone { color: var(--accent); border-color: var(--accent-dim); }
+
+.voice-stage__canvas-wrap {
+  /* sin align-items/justify-content aquí: el div propio de AsciiAvatar (misma clase,
+     ver components/AsciiAvatar.tsx) ya centra el <pre> puertas adentro — si este
+     contenedor también usara align-items: center, el hijo dejaría de estirarse (stretch
+     es el default) y height: 100% dejaría de tener contra qué resolverse. */
+  flex: 1 1 auto; width: 100%; max-width: 640px; min-height: 220px; display: flex;
+}
+.voice-stage__canvas { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.ascii-avatar__canvas {
+  margin: 0; white-space: pre; font-family: inherit; user-select: none; pointer-events: none;
+  transition: color 400ms ease, text-shadow 400ms ease;
+}
+
+.voice-stage__caption { flex-shrink: 0; max-width: 560px; min-height: 1.5em; text-align: center; }
+.voice-stage__caption-text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.voice-stage__error { flex-shrink: 0; text-align: center; }
+
+.voice-stage__mic-row { flex-shrink: 0; display: flex; align-items: center; gap: 12px; }
+.voice-stage__mic { font-size: 28px; padding: 16px 24px; }
+
+.voice-stage__controls { flex-shrink: 0; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+.voice-stage__transcript {
+  width: 100%; max-width: 640px; max-height: 240px; overflow-y: auto; border: 1px solid var(--border);
+  padding: 12px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
+}
+
 /* ---- tareas programadas ---- */
 .schedules__header { display: flex; justify-content: space-between; align-items: center; }
 .schedules__rows { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 10px; }
@@ -266,6 +325,17 @@ pre { font-family: inherit; }
 .memory__tabs .shell__nav-item { padding: 8px 14px; border-left: none; border-bottom: 3px solid transparent; }
 .memory__tabs .shell__nav-item--active { border-bottom-color: var(--accent); }
 .memory .agent-panel__prompt { max-height: 160px; margin: 6px 0; }
+
+.settings { display: flex; flex-direction: column; gap: 12px; }
+.settings__tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 10px 0 0; flex-wrap: wrap; }
+.settings__tabs .shell__nav-item { padding: 8px 14px; border-left: none; border-bottom: 3px solid transparent; }
+.settings__tabs .shell__nav-item--active { border-bottom-color: var(--accent); }
+.settings__panel { display: flex; flex-direction: column; gap: 10px; }
+.settings__field { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+.settings__field select { background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px; }
+.settings__status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.settings__integration-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.settings__integration-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 .schedule-form { border: 1px solid var(--border-bright); background: var(--panel); padding: 16px; margin: 16px 0; display: flex; flex-direction: column; gap: 12px; }
 .schedule-form__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -433,5 +503,61 @@ pre { font-family: inherit; }
   .connections__tool { grid-template-columns: 1fr auto; }
   .connections__tool-desc { grid-column: 1 / -1; }
   .connections__credential-fields { grid-template-columns: 1fr; }
+}
+
+/* ---- responsivo: móvil/tablet angosto ---- */
+@media (max-width: 860px) {
+  .shell__menu-toggle { display: block; }
+  .shell__sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 60; width: min(80vw, 280px);
+    transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: 2px 0 16px rgba(0, 0, 0, 0.5);
+  }
+  .shell__sidebar--open { transform: translateX(0); }
+  .shell__backdrop { display: block; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 55; }
+  .shell__topbar { padding: 10px 12px; gap: 10px; }
+  .breadcrumb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .shell__content { padding: 14px; max-width: 100%; }
+
+  /* grids/columnas fijas que no caben en una pantalla angosta */
+  .run-detail__columns { grid-template-columns: 1fr; gap: 16px; }
+  .run-detail__meta { font-size: 11px; gap: 8px; }
+  .runs-list__row { grid-template-columns: 1fr; gap: 4px; }
+  .runs-list__id { font-size: 10px; }
+  .agents-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .org-chart__executive, .org-chart__mode-toggle { flex-wrap: wrap; }
+  .connections__credential-fields { grid-template-columns: 1fr; }
+  .connections__tool { grid-template-columns: 1fr; }
+  .schedule-form__row { gap: 12px; }
+
+  /* chat: la lista de hilos se vuelve una franja horizontal arriba, no una columna lateral */
+  .chat-layout { flex-direction: column; height: auto; min-height: 100%; }
+  .chat-sidebar {
+    width: 100%; flex-direction: row; overflow-x: auto; overflow-y: hidden; max-height: 110px;
+    border-right: none; border-bottom: 1px solid var(--border); padding: 8px;
+  }
+  .chat-sidebar__new { width: auto; margin-bottom: 0; flex-shrink: 0; }
+  .chat-sidebar__list { flex-direction: row; }
+  .chat-sidebar__item { min-width: 180px; flex-shrink: 0; }
+  .chat-bubble { max-width: 90%; }
+  .chat-thread { padding: 14px; }
+  .chat-input { padding: 10px 14px; }
+  .voice-stage__canvas-wrap { min-height: 160px; }
+  .voice-stage__mic { font-size: 22px; padding: 14px 18px; }
+
+  /* lienzos grandes (grafo del organigrama, mapa de memoria) caben en la pantalla completa */
+  .org-graph__canvas { height: 60vh; }
+  .memory-map__stage { height: 60vh; min-height: 320px; }
+  .memory-map__panel { left: 8px; right: 8px; top: 8px; bottom: 8px; width: auto; }
+  .memory-map__head { flex-direction: column; align-items: stretch; }
+
+  .usage-summary { gap: 16px; }
+  .action-bar__buttons { flex-direction: column; align-items: stretch; }
+  .action-bar__buttons .button { width: 100%; }
+
+  .token-gate { margin: 32px auto; }
+  .token-gate__brand { font-size: 24px; }
+  .token-gate form { flex-direction: column; align-items: stretch; }
+  .token-gate__prompt { display: none; }
+  .token-gate form .button { width: 100%; }
 }
 

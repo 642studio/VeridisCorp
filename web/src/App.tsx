@@ -10,10 +10,10 @@ import { OfficeChat } from './screens/OfficeChat';
 import { VoiceChat } from './screens/VoiceChat';
 import { Schedules } from './screens/Schedules';
 import { Memory } from './screens/Memory';
-import { Connections } from './screens/Connections';
+import { Settings } from './screens/Settings';
 import { clearToken } from './api/client';
 
-type View = 'voice' | 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'connections' | 'organization' | 'agents';
+type View = 'voice' | 'chat' | 'runs' | 'office' | 'schedules' | 'memory' | 'settings' | 'organization' | 'agents';
 
 const NAV: { id: View; label: string }[] = [
   { id: 'voice', label: 'VOZ' },
@@ -22,7 +22,7 @@ const NAV: { id: View; label: string }[] = [
   { id: 'office', label: 'OFICINA' },
   { id: 'schedules', label: 'TAREAS PROGRAMADAS' },
   { id: 'memory', label: 'MEMORIA' },
-  { id: 'connections', label: 'CONEXIONES' },
+  { id: 'settings', label: 'CONFIGURACIONES' },
   { id: 'organization', label: 'ORGANIGRAMA' },
   { id: 'agents', label: 'AGENTES' },
 ];
@@ -31,6 +31,7 @@ export function App() {
   const [view, setView] = useState<View>('voice');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   const section = view === 'voice' ? 'VOZ'
     : view === 'chat' ? 'ASISTENTE'
@@ -38,13 +39,14 @@ export function App() {
     : view === 'office' ? (selectedOfficeId ? `OFICINA / ${selectedOfficeId.slice(0, 8)}` : 'OFICINA')
     : view === 'schedules' ? 'TAREAS PROGRAMADAS'
     : view === 'memory' ? 'MEMORIA'
-    : view === 'connections' ? 'CONEXIONES'
+    : view === 'settings' ? 'CONFIGURACIONES'
     : view === 'organization' ? 'ORGANIGRAMA' : 'AGENTES';
 
   return (
     <TokenGate>
       <div className="shell">
-        <aside className="shell__sidebar">
+        {navOpen && <div className="shell__backdrop" onClick={() => setNavOpen(false)} />}
+        <aside className={`shell__sidebar ${navOpen ? 'shell__sidebar--open' : ''}`}>
           <div className="shell__brand">
             <span>VERIDIS<span className="shell__brand-accent">CORP</span></span>
             <span className="muted">runtime v0.1 // pilot</span>
@@ -55,7 +57,7 @@ export function App() {
                 key={item.id}
                 type="button"
                 className={`shell__nav-item ${view === item.id ? 'shell__nav-item--active' : ''}`}
-                onClick={() => { setView(item.id); setSelectedId(null); setSelectedOfficeId(null); }}
+                onClick={() => { setView(item.id); setSelectedId(null); setSelectedOfficeId(null); setNavOpen(false); }}
               >
                 {item.label}
               </button>
@@ -69,6 +71,9 @@ export function App() {
         </aside>
         <div className="shell__main">
           <header className="shell__topbar">
+            <button type="button" className="shell__menu-toggle" aria-label="Abrir menú" onClick={() => setNavOpen((open) => !open)}>
+              ☰
+            </button>
             <span className="breadcrumb">ROOT / RUNTIME / {section}</span>
             <span className="badge badge--ok">SESIÓN: ACTIVA</span>
           </header>
@@ -88,7 +93,7 @@ export function App() {
               <Schedules onOpenOrder={(id) => { setSelectedOfficeId(id); setView('office'); }} />
             )}
             {view === 'memory' && <Memory />}
-            {view === 'connections' && <Connections />}
+            {view === 'settings' && <Settings />}
             {view === 'runs' && (
               selectedId
                 ? <RunDetail id={selectedId} onBack={() => setSelectedId(null)} />

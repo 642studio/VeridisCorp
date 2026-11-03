@@ -11,10 +11,11 @@ import { RuntimeError } from './contracts.js';
 import { createOrder } from '../office/contracts.js';
 import { createOfficeWorkflow, OFFICE_WORKFLOW_VERSION } from '../office/workflow.js';
 import { budgetStatus } from '../office/budget.js';
-import type { ModelCallRecord } from '../office/models.js';
+import { loadModelRouter, platformOf, type ModelCallRecord, type ModelRouter } from '../office/models.js';
 import { officeRegistry } from '../office/registry.js';
 import { HumanAnswer, ArchivistReply, IngestReply, AssistantReply, type AssistantContext } from '../office/runtime-contracts.js';
 import { loadPriceList, priceTokens, type PriceList } from '../office/prices.js';
+import { summarizeUsage, type UsageRow } from '../office/usage.js';
 import type { OfficeIntelligence, HumanExchange } from '../office/runtime-contracts.js';
 import type { ModelUsage } from '../office/models.js';
 import type { WorkOrder } from '../office/contracts.js';
@@ -24,6 +25,7 @@ import { exportRecordToVault } from './memory-export.js';
 import { splitDocument, SECTION_MAX } from './memory-ingest.js';
 import type { McpStore } from './mcp-store.js';
 import { McpConnectError } from '../office/mcp-client.js';
+import { VOICE_ID_PATTERN } from './elevenlabs-proxy.js';
 
 type Tx = PoolClient;
 const slug = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -35,6 +37,7 @@ const StartInput = z.object({ objective: z.string().trim().min(1).max(4000) }).s
 const AnswerInput = z.object({ answer: HumanAnswer }).strict();
 const AskInput = z.object({ question: z.string().trim().min(1).max(4000), threadId: z.uuid().nullable().optional() }).strict();
 const QuarantineInput = z.object({ reason: z.string().trim().min(1).max(2000) }).strict();
+const ElevenLabsVoiceInput = z.object({ voiceId: z.string().trim().regex(VOICE_ID_PATTERN) }).strict();
 // Hasta ~200 mil caracteres por documento: más de eso conviene partirlo a mano en varias importaciones.
 const ImportPlanInput = z.object({ title: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(200000) }).strict();
 const ImportSectionInput = z.object({
@@ -192,13 +195,32 @@ export class OfficeRuntime {
   return row.rows[0].thread_id as string;
  }
  // scheduleId solo se escribe en el insert inicial (nunca cambia); el ON CONFLICT no lo toca.
- private async syncIndex(id: string, scope: AccessScope, objective: string, status: string, scheduleId: string | null = null) {
-  await this.pool.query(
-   `INSERT INTO veridis_runtime_v1.office_orders(id,scope_key,thread_id,objective,status,created_by_schedule_id)
-    VALUES($1,$2,$3,$4,$5,$6)
-    ON CONFLICT (id) DO UPDATE SET status=$5, updated_at=clock_timestamp()`,
-   [id, scopeKey(scope), `${OFFICE_WORKFLOW_VERSION}:${id}`, objective, status, scheduleId],
-  );
+ // modelCalls es el acumulado completo de state.modelCalls a este punto; solo la cola nueva desde
+ // usage_synced_count se vuelca a usage_records (ver docs del esquema en database.ts). El UPDATE
+ // ON CONFLICT toma el lock de fila que serializa dos syncIndex concurrentes del mismo id.
+ private async syncIndex(
+  id: string, scope: AccessScope, objective: string, status: string,
+  modelCalls: ModelCallRecord[], scheduleId: string | null = null,
+ ) {
+  await transaction(this.pool, async (tx) => {
+   const row = await tx.query<{ usage_synced_count: number }>(
+    `INSERT INTO veridis_runtime_v1.office_orders(id,scope_key,thread_id,objective,status,created_by_schedule_id)
+     VALUES($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (id) DO UPDATE SET status=$5, updated_at=clock_timestamp()
+     RETURNING usage_synced_count`,
+    [id, scopeKey(scope), `${OFFICE_WORKFLOW_VERSION}:${id}`, objective, status, scheduleId],
+   );
+   const pending = modelCalls.slice(row.rows[0]!.usage_synced_count);
+   if (!pending.length) return;
+   for (const call of pending) {
+    await tx.query(
+     `INSERT INTO veridis_runtime_v1.usage_records(scope_key,order_id,agent_id,profile_id,provider,model,input_tokens,output_tokens,cost_micros)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+     [scopeKey(scope), id, call.agentId, call.profileId, call.provider, call.model, call.inputTokens, call.outputTokens, call.costMicros],
+    );
+   }
+   await tx.query('UPDATE veridis_runtime_v1.office_orders SET usage_synced_count=$2 WHERE id=$1', [id, modelCalls.length]);
+  });
  }
  // La pregunta de un ask_user pendiente vive en snapshot.tasks[].interrupts, no en el estado
  // que devuelve invoke(); hay que leerla aparte para mostrar el texto, no solo "interrumpido".
@@ -226,12 +248,12 @@ export class OfficeRuntime {
    criteria: [{ id: 'delivery', description: 'Entregable que responde al objetivo, con evidencias y revisión independiente.' }],
    limits: { maxTasks: 10, maxSteps: 60, maxRevisionsPerTask: 2, maxCostMicros: this.options.maxCostMicros ?? null },
   });
-  await this.syncIndex(id, auth.scope, objective, 'active', options.scheduleId ?? null);
+  await this.syncIndex(id, auth.scope, objective, 'active', [], options.scheduleId ?? null);
   const config = { configurable: { thread_id: threadId }, recursionLimit: 300 };
   await this.graph().invoke({ order }, config);
   const snapshot = await this.graph().getState(config);
   const state = snapshot.values as Parameters<typeof this.shape>[0];
-  await this.syncIndex(id, auth.scope, objective, (state.order as { status: string }).status, options.scheduleId ?? null);
+  await this.syncIndex(id, auth.scope, objective, (state.order as { status: string }).status, state.modelCalls as ModelCallRecord[], options.scheduleId ?? null);
   this.scheduleDistill(auth, id, state.order);
   await this.audit(this.pool, auth, id, 'office.started', { objective, ...(options.scheduleId ? { scheduleId: options.scheduleId } : {}) });
   return { id, ...this.shape(state, snapshot) };
@@ -295,7 +317,7 @@ export class OfficeRuntime {
   await this.graph().invoke(null, config);
   const snapshot = await this.graph().getState(config);
   const state = snapshot.values as Parameters<typeof this.shape>[0];
-  await this.syncIndex(id, auth.scope, (state.order as { objective: string }).objective, (state.order as { status: string }).status);
+  await this.syncIndex(id, auth.scope, (state.order as { objective: string }).objective, (state.order as { status: string }).status, state.modelCalls as ModelCallRecord[]);
   this.scheduleDistill(auth, id, state.order);
   await this.audit(this.pool, auth, id, 'office.advanced', {});
   return { id, ...this.shape(state, snapshot) };
@@ -547,10 +569,11 @@ export class OfficeRuntime {
   const id = randomUUID();
   const latencyMs = Date.now() - started;
   const row = await this.pool.query<{ created_at: Date }>(
-   `INSERT INTO veridis_runtime_v1.assistant_messages(id,thread_id,scope_key,principal,question,answer,mode,objective,memories,provider,model,input_tokens,output_tokens,cost_micros,latency_ms)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING created_at`,
+   `INSERT INTO veridis_runtime_v1.assistant_messages(id,thread_id,scope_key,principal,question,answer,mode,objective,memories,provider,model,input_tokens,output_tokens,cost_micros,latency_ms,profile_id)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING created_at`,
    [id, threadId, key, auth.principal, input.question, reply.answer, mode, objective, JSON.stringify(used),
-    selection?.provider ?? 'unknown', selection?.model ?? 'unknown', counted?.inputTokens ?? null, counted?.outputTokens ?? null, price.costMicros, latencyMs],
+    selection?.provider ?? 'unknown', selection?.model ?? 'unknown', counted?.inputTokens ?? null, counted?.outputTokens ?? null, price.costMicros, latencyMs,
+    selection?.profileId ?? null],
   );
   await this.audit(this.pool, auth, null, 'assistant.answered', { messageId: id, threadId, mode, memoryIds: usedIds,
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null, costMicros: price.costMicros, latencyMs });
@@ -565,6 +588,98 @@ export class OfficeRuntime {
    try { this.cachedPriceList = loadPriceList(); } catch { this.cachedPriceList = null; }
   }
   return this.cachedPriceList;
+ }
+ private cachedRouter: ModelRouter | null | undefined;
+ // Solo para resolver, por perfil, su plataforma (platformOf) y su apiKeyEnv en el panel de
+ // consumo — nunca para invocar un modelo. null si la configuración no carga; el panel entonces
+ // no puede distinguir plataforma/credencial y lo deja explícito (ver usage()).
+ private router(): ModelRouter | null {
+  if (this.cachedRouter === undefined) {
+   try { this.cachedRouter = loadModelRouter(); } catch { this.cachedRouter = null; }
+  }
+  return this.cachedRouter;
+ }
+ // Gasto acumulado de todo el ámbito (todos los expedientes + el chat ASISTENTE), agregado por
+ // agente, plataforma, credencial (apiKeyEnv) y modelo. Ver docs del esquema en database.ts:
+ // usage_records y assistant_messages.profile_id son las dos fuentes; se combinan aquí porque
+ // cada una solo conoce su propia mitad del consumo real.
+ async usage(token: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   const key = scopeKey(auth.scope);
+   const office = await tx.query<{ agent_id: string; profile_id: string; model: string; cost_micros: string | null }>(
+    'SELECT agent_id, profile_id, model, cost_micros FROM veridis_runtime_v1.usage_records WHERE scope_key=$1', [key]);
+   const assistant = await tx.query<{ profile_id: string | null; model: string; cost_micros: string | null }>(
+    'SELECT profile_id, model, cost_micros FROM veridis_runtime_v1.assistant_messages WHERE scope_key=$1', [key]);
+   const rows: UsageRow[] = [
+    ...office.rows.map((r) => ({ agentId: r.agent_id, profileId: r.profile_id, model: r.model, costMicros: r.cost_micros === null ? null : Number(r.cost_micros) })),
+    ...assistant.rows.map((r) => ({ agentId: 'assistant', profileId: r.profile_id, model: r.model, costMicros: r.cost_micros === null ? null : Number(r.cost_micros) })),
+   ];
+   const router = this.router();
+   return summarizeUsage(rows, this.priceList()?.currency ?? 'USD', (profileId) => {
+    if (!router) return null;
+    try { const profile = router.profile(profileId); return { provider: profile.provider, apiKeyEnv: profile.apiKeyEnv, baseURL: profile.baseURL }; }
+    catch { return null; }
+   });
+  });
+ }
+ // Panel CONFIGURACIONES: qué proveedor/modelo usa cada perfil y si su variable de entorno está
+ // definida — nunca el valor de la credencial. Mismo router() cacheado de usage(), misma razón:
+ // la política pública resuelta no contiene secretos (ver src/office/models.ts).
+ async settings(token: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   const router = this.router();
+   const providers = router ? Object.entries(router.snapshot().profiles).map(([profileId, profile]) => ({
+    profileId, provider: platformOf(profile.provider, profile.baseURL), model: profile.model,
+    apiKeyEnv: profile.apiKeyEnv, baseURL: profile.baseURL ?? null,
+    configured: Boolean(process.env[profile.apiKeyEnv]?.trim()),
+   })) : [];
+   const voiceRow = await tx.query<{ value: string }>(
+    "SELECT value FROM veridis_runtime_v1.settings WHERE scope_key=$1 AND key='elevenlabs.voiceId'", [scopeKey(auth.scope)]);
+   const totpRow = await tx.query<{ n: number }>('SELECT count(*)::int AS n FROM veridis_runtime_v1.totp_credentials');
+   return {
+    providers,
+    elevenlabs: {
+     configured: Boolean(process.env.VERIDIS_ELEVENLABS_API_KEY?.trim()),
+     voiceId: voiceRow.rows[0]?.value ?? process.env.VERIDIS_ELEVENLABS_VOICE_ID?.trim() ?? null,
+     modelId: process.env.VERIDIS_ELEVENLABS_MODEL_ID?.trim() || 'eleven_multilingual_v2',
+    },
+    integrations: {
+     telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim() && process.env.TELEGRAM_ALLOWED_CHAT_IDS?.trim()),
+     gmail: Boolean(process.env.GMAIL_OAUTH_CLIENT_ID?.trim() && process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim()),
+    },
+    totpEnrolled: totpRow.rows[0]!.n > 0,
+   };
+  });
+ }
+ // Usado por el proxy de texto-a-voz (http.ts) para que la voz elegida en CONFIGURACIONES
+ // aplique sin que el navegador vea nunca la API key. null si no hay preferencia guardada (la
+ // llamada cae al valor fijo por entorno, igual que antes de que existiera esta pantalla).
+ async elevenLabsVoiceId(token: string): Promise<string | null> {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   const row = await tx.query<{ value: string }>(
+    "SELECT value FROM veridis_runtime_v1.settings WHERE scope_key=$1 AND key='elevenlabs.voiceId'", [scopeKey(auth.scope)]);
+   return row.rows[0]?.value ?? null;
+  });
+ }
+ async setElevenLabsVoice(token: string, raw: unknown) {
+  const { voiceId } = ElevenLabsVoiceInput.parse(raw);
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.write');
+   await tx.query(
+    `INSERT INTO veridis_runtime_v1.settings(scope_key,key,value,updated_by) VALUES($1,'elevenlabs.voiceId',$2,$3)
+     ON CONFLICT (scope_key,key) DO UPDATE SET value=$2, updated_by=$3, updated_at=clock_timestamp()`,
+    [scopeKey(auth.scope), JSON.stringify(voiceId), auth.principal],
+   );
+   await this.audit(tx, auth, null, 'settings.elevenlabs_voice_changed', { voiceId });
+   return { voiceId };
+  });
  }
  async assistantThreads(token: string) {
   return transaction(this.pool, async (tx) => {
@@ -741,7 +856,7 @@ export class OfficeRuntime {
   await this.graph().invoke(new Command({ resume: input.answer }), config);
   const snapshot = await this.graph().getState(config);
   const state = snapshot.values as Parameters<typeof this.shape>[0];
-  await this.syncIndex(id, auth.scope, (state.order as { objective: string }).objective, (state.order as { status: string }).status);
+  await this.syncIndex(id, auth.scope, (state.order as { objective: string }).objective, (state.order as { status: string }).status, state.modelCalls as ModelCallRecord[]);
   this.scheduleDistill(auth, id, state.order);
   await this.audit(this.pool, auth, id, 'office.answered', {});
   return { id, ...this.shape(state, snapshot) };

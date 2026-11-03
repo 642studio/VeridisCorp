@@ -1,24 +1,39 @@
 import type {
-  AgentDetail, AssistantMessage, McpConnection, McpCredentialInput, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
+  AgentDetail, AssistantMessage, ElevenLabsVoice, McpConnection, McpCredentialInput, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
   OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
-  OfficeSchedulesListResponse, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus,
+  OfficeSchedulesListResponse, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus, SettingsSummary, UsageSummary,
 } from './types';
 
 const TOKEN_KEY = 'veridis_runtime_token';
 const BASE = import.meta.env.VITE_RUNTIME_API_BASE ?? '/api';
 
 export function getToken(): string | null {
-  try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 export function setToken(token: string): void {
-  try { sessionStorage.setItem(TOKEN_KEY, token); } catch { /* almacenamiento no disponible en este navegador */ }
+  try { localStorage.setItem(TOKEN_KEY, token); } catch { /* almacenamiento no disponible en este navegador */ }
 }
 export function clearToken(): void {
-  try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* nada que limpiar */ }
+  try { localStorage.removeItem(TOKEN_KEY); } catch { /* nada que limpiar */ }
 }
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
+}
+
+// Única llamada sin Bearer (ver /auth/login en http.ts): intercambia el código de la app de
+// autenticación por una sesión real y la guarda, igual que si se hubiera pegado el token a mano.
+export async function loginWithTotp(principalId: string, code: string): Promise<void> {
+  const response = await fetch(BASE + '/auth/login', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ principalId, code }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new ApiError(response.status, (data && typeof data.error === 'string' && data.error) || 'Error inesperado del servidor');
+  }
+  setToken((data as { token: string }).token);
 }
 
 // Una sola vez: si varias peticiones en vuelo reciben 401 a la vez, solo la primera dispara
@@ -110,6 +125,18 @@ export const api = {
   },
   deleteSchedule(id: string) {
     return request<{ id: string }>(`/office/schedules/${id}/delete`, { method: 'POST', body: '{}' });
+  },
+  getUsage() {
+    return request<UsageSummary>('/office/usage');
+  },
+  getSettings() {
+    return request<SettingsSummary>('/office/settings');
+  },
+  setElevenLabsVoice(voiceId: string) {
+    return request<{ voiceId: string }>('/office/settings/elevenlabs-voice', { method: 'POST', body: JSON.stringify({ voiceId }) });
+  },
+  listElevenLabsVoices() {
+    return request<{ voices: ElevenLabsVoice[] }>('/tts/elevenlabs/voices');
   },
   listConnections() {
     return request<{ connections: McpConnection[] }>('/office/connections');

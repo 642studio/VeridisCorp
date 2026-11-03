@@ -23,6 +23,7 @@
     "runtime:db": "tsx src/runtime/cli.ts migrate",
     "runtime:serve": "tsx src/runtime/cli.ts serve",
     "runtime:provision": "tsx src/runtime/cli.ts provision",
+    "runtime:totp-enroll": "tsx src/runtime/cli.ts totp-enroll",
     "runtime:gmail-authorize": "tsx src/runtime/cli.ts gmail-authorize",
     "runtime:memory-export": "tsx src/runtime/cli.ts export-memory",
     "runtime:local-delivery": "node scripts/local-delivery-receiver.mjs",
@@ -46,13 +47,16 @@
     "croner": "^10.0.1",
     "dotenv": "^18.0.9",
     "google-auth-library": "^10.9.1",
+    "otplib": "^13.6.0",
     "pg": "^8.23.1",
     "pgvector": "^0.2.1",
+    "qrcode-terminal": "^0.12.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
+    "@types/qrcode-terminal": "^0.12.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
