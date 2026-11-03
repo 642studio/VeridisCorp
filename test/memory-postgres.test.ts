@@ -245,3 +245,37 @@ test('una versión nueva con el mismo entityId pero de otro tema no borra a la a
   assert.deepEqual(rows.map((r) => r.status).sort(), ['proposed', 'proposed']);
   await pool.end();
 });
+
+test('rescate léxico: una especificación larga lejos por coseno entra si coincide con fuerza en palabras raras', { skip: !connectionString, timeout: 30000 }, async () => {
+  // Visto en vivo: "¿cómo es el proceso de cotización?" dejaba la especificación del proceso en el lugar
+  // 74 de 527, detrás de decenas de memorias generales de la empresa que se parecían más por coseno.
+  const pool = new Pool({ connectionString, max: 4 });
+  try {
+    await migrate(pool);
+    const lexScope: AccessScope = { ...scope, workspaceId: `ws-lex-${Date.now()}` };
+    // El fake mapea por la primera palabra clave que encuentre: "empresa" gana sobre "cotización".
+    const store = new MemoryStore(pool, fakeEmbedder([['empresa', unitVector(10)], ['cotización', unitVector(11)], ['zanahoria', unitVector(12)]]), 'fake-test-embedder');
+    for (let i = 0; i < 10; i++) {
+      await store.propose(lexScope, { entityType: 'company', entityId: `empresa-dato-${i}`, content: `La empresa tiene el dato general número ${i}${i === 0 ? ' y a veces hace una cotización' : ''}.`,
+        provenance: [...provenance], trust: 'internal_unverified' });
+    }
+    const spec = await store.propose(lexScope, { entityType: 'process', entityId: 'proceso-cotizacion',
+      content: 'Especificación del proceso de cotización: 1) se recibe la cotización; 2) se registra la cotización; 3) producción estima la cotización; 4) dirección aprueba la cotización; 5) se envía la cotización; 6) seguimiento de la cotización; 7) cierre de la cotización.',
+      provenance: [...provenance], trust: 'internal_unverified' });
+
+    const found = await store.query(lexScope, '¿Cómo es el proceso de cotización de la empresa?', { limit: 8, track: false });
+    assert.equal(found[0]?.record.id, spec.id, 'la especificación debe entrar primero por coincidencia léxica fuerte');
+    assert.equal(found.length, 8);
+    assert.equal(found.filter((r) => r.record.entityType === 'process').length, 1);
+    // Una palabra rara mencionada una sola vez (coincidencia débil) no rescata a su memoria.
+    await store.propose(lexScope, { entityType: 'company', entityId: 'otro-tema', content: 'Aquí se menciona una sola vez la zanahoria.',
+      provenance: [...provenance], trust: 'internal_unverified' });
+    const weak = await store.query(lexScope, '¿Y la zanahoria de la empresa?', { limit: 8, track: false });
+    assert(!weak.some((r) => r.record.entityId === 'otro-tema'), 'una sola mención no debe adelantarse');
+    // Sin palabras raras en la pregunta, el orden es el semántico de siempre.
+    const generic = await store.query(lexScope, '¿Qué hace la empresa?', { limit: 8, track: false });
+    assert(generic.every((r) => r.record.entityType === 'company'));
+  } finally {
+    await pool.end();
+  }
+});

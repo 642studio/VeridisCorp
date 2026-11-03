@@ -65,6 +65,13 @@ const CONFIRMED_BONUS = 0.03;
 // Similitud mínima para que una versión nueva de la misma entidad cuente como "el mismo tema,
 // actualizado" y reemplace a la anterior sin confirmar. Por encima del umbral de enlace a propósito.
 const SAME_TOPIC = 0.8;
+// Rescate léxico de query() (calibrado en vivo con 527 memorias, 2026-11-03): una palabra es "rara" si
+// aparece en a lo más el 5% de las memorias vigentes (mínimo 5); una coincidencia es "fuerte" con
+// ts_rank_cd >= 0.5 (la especificación de un proceso dio 1.9; el ruido de palabras sueltas, 0.1–0.3).
+const LEXICAL_RARE_FRACTION = 0.05;
+const LEXICAL_MIN_DF = 5;
+const LEXICAL_STRONG_RANK = 0.5;
+const LEXICAL_SLOTS = 2;
 
 // Capa de persistencia de CorporateMemoryRecord. Modelo automático (decisión 2026-10-31): lo que se
 // propone queda vigente SIN CONFIRMAR y query() ya lo usa; un humano lo confirma (validate()) o lo
@@ -227,7 +234,7 @@ export class MemoryStore {
     const limit = options.limit ?? 8;
     const vector = await this.embedder.embed(question);
     const key = scopeKey(scope);
-    const { rows } = await this.pool.query<{ id: string; data: CorporateMemoryRecord; distance: number }>(
+    const { rows: semantic } = await this.pool.query<{ id: string; data: CorporateMemoryRecord; distance: number }>(
       `SELECT id, data, embedding <=> $1 AS distance
        FROM veridis_runtime_v1.memory_records
        WHERE scope_key = $2 AND status IN ('proposed', 'validated') AND embedding IS NOT NULL
@@ -236,6 +243,30 @@ export class MemoryStore {
        LIMIT $4`,
       [toSql(vector), key, question, limit],
     );
+    // Rescate léxico: una memoria larga y específica (la especificación de un proceso) puede quedar
+    // lejos por coseno de una pregunta corta, que se parece más a las decenas de memorias generales
+    // de la empresa (visto en vivo: "¿cómo es el proceso de cotización?" la dejaba en el lugar 74 de
+    // 527). Solo cuentan palabras de la pregunta que aparecen en pocas memorias (lo común, como "642" o
+    // "studio", no distingue nada) y solo entra lo que coincide con fuerza; esas memorias van primero
+    // y el resto conserva el orden semántico, así ninguna pregunta que ya funcionaba empeora.
+    const { rows: lexical } = await this.pool.query<{ id: string; data: CorporateMemoryRecord; distance: number }>(
+      `WITH active AS (
+         SELECT id, data, embedding, search FROM veridis_runtime_v1.memory_records
+         WHERE scope_key = $2 AND status IN ('proposed', 'validated') AND embedding IS NOT NULL),
+       lexemes AS (SELECT DISTINCT lexeme FROM unnest(tsvector_to_array(to_tsvector('spanish', $3))) AS lexeme),
+       rare AS (
+         SELECT l.lexeme FROM lexemes l JOIN active a ON a.search @@ to_tsquery('simple', quote_literal(l.lexeme))
+         GROUP BY l.lexeme HAVING count(*) <= GREATEST(${LEXICAL_MIN_DF}, (SELECT count(*) FROM active) * ${LEXICAL_RARE_FRACTION})),
+       tq AS (SELECT to_tsquery('simple', string_agg(quote_literal(lexeme), ' | ')) AS q FROM rare HAVING count(*) > 0)
+       SELECT a.id, a.data, a.embedding <=> $1 AS distance
+       FROM active a, tq
+       WHERE a.search @@ tq.q AND ts_rank_cd(a.search, tq.q) >= ${LEXICAL_STRONG_RANK}
+       ORDER BY ts_rank_cd(a.search, tq.q) DESC
+       LIMIT ${LEXICAL_SLOTS}`,
+      [toSql(vector), key, question],
+    );
+    const seen = new Set<string>();
+    const rows = [...lexical, ...semantic].filter((row) => !seen.has(row.id) && seen.add(row.id)).slice(0, limit);
     if (rows.length && options.track !== false) {
       await this.pool.query(
         'INSERT INTO veridis_runtime_v1.memory_recalls(memory_id, scope_key) SELECT unnest($1::uuid[]), $2',
