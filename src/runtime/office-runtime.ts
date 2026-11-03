@@ -608,7 +608,6 @@ export class OfficeRuntime {
   await this.audit(this.pool, auth, null, 'assistant.answered', { messageId: id, threadId, mode, memoryIds: usedIds,
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null, costMicros: price.costMicros, latencyMs });
   return { id, threadId, question: input.question, answer: reply.answer, mode, objective, memories: used,
-   scene: reply.scene, // visual del momento, no se persiste en assistant_messages (ver runtime-contracts.ts)
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null,
    costMicros: price.costMicros, costStatus: price.costStatus, latencyMs, createdAt: row.rows[0]!.created_at };
  }
