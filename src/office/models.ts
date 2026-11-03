@@ -20,8 +20,13 @@ const ProfileFields = {
   thinkingMode: z.enum(['enabled', 'disabled']).optional(),
   reasoningEffort: z.enum(['none', 'low', 'medium', 'high']).optional(),
 };
+// Anthropic admite elegir método de salida estructurada, pero no jsonMode (no existe en su API).
+// Claude Opus 5.5, Sonnet 5.5 y Fable 5.1 rechazan con 400 el tool_choice forzado que usa
+// functionCalling (lo hace LangChain por defecto): sus perfiles deben usar jsonSchema, que va por
+// la salida estructurada nativa (output_config.format) sin forzar ninguna herramienta.
 const profileRefinement = (profile: { provider: string; baseURL?: string; structuredOutputMethod?: string; thinkingMode?: string; reasoningEffort?: string }) =>
-  ((!profile.baseURL && !profile.structuredOutputMethod && !profile.thinkingMode && !profile.reasoningEffort) || profile.provider === 'openai')
+  (profile.provider === 'openai' || (!profile.baseURL && !profile.thinkingMode && !profile.reasoningEffort
+    && (!profile.structuredOutputMethod || (profile.provider === 'anthropic' && profile.structuredOutputMethod !== 'jsonMode'))))
   && (!profile.thinkingMode || Boolean(profile.baseURL));
 const ConfigProfile = z.object({
   ...ProfileFields,

@@ -101,7 +101,42 @@ export function recoverStructured(raw: RawMessage): unknown {
   try {
     return JSON.parse(body);
   } catch {
-    throw new OutputParserException(`El modelo no devolvió JSON válido (${body.length} caracteres${/[}\]]$/.test(body) ? '' : ', parece truncado'}): `
-      + `${body.slice(0, 120)} … ${body.slice(-120)}`);
+    // Segundo intento con los caracteres de control literales escapados (visto en vivo con DeepSeek en
+    // modo JSON: una entrega larga con saltos de línea crudos dentro de una cadena).
+    try {
+      return JSON.parse(escapeRawControlChars(body));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'error de sintaxis';
+      const at = /position (\d+)/.exec(reason)?.[1];
+      const near = at ? ` Cerca de la posición ${at}: «${body.slice(Math.max(0, Number(at) - 80), Number(at) + 80)}»` : '';
+      throw new OutputParserException(`El modelo no devolvió JSON válido (${body.length} caracteres${/[}\]]$/.test(body) ? '' : ', parece truncado'}; ${reason.slice(0, 120)}).${near} `
+        + `Inicio: ${body.slice(0, 120)} … final: ${body.slice(-120)}`);
+    }
   }
+}
+
+// Escapa saltos de línea, retornos, tabuladores y demás caracteres de control que aparezcan crudos
+// DENTRO de una cadena JSON (JSON.parse los rechaza). Fuera de las cadenas no toca nada, así que un
+// JSON ya válido queda idéntico.
+export function escapeRawControlChars(text: string): string {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    if (!inString) {
+      if (ch === '"') inString = true;
+      out += ch;
+      continue;
+    }
+    if (escaped) { escaped = false; out += ch; continue; }
+    if (ch === '\\') { escaped = true; out += ch; continue; }
+    if (ch === '"') { inString = false; out += ch; continue; }
+    const code = ch.charCodeAt(0);
+    if (code < 0x20) {
+      out += ch === '\n' ? '\\n' : ch === '\r' ? '\\r' : ch === '\t' ? '\\t' : `\\u${code.toString(16).padStart(4, '0')}`;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
 }

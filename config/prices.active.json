@@ -6,6 +6,10 @@
     "openai:gpt-5.4-mini-2026-03-17": { "inputMicrosPerMillionTokens": 750000, "outputMicrosPerMillionTokens": 4500000 },
     "openai:deepseek-flash": { "inputMicrosPerMillionTokens": 300000, "outputMicrosPerMillionTokens": 1200000 },
     "openai:deepseek-v4-pro": { "inputMicrosPerMillionTokens": 1320000, "outputMicrosPerMillionTokens": 3960000 },
-    "openai:huihui_ai/qwen3-coder-abliterated:30b": { "inputMicrosPerMillionTokens": 0, "outputMicrosPerMillionTokens": 0 }
+    "openai:huihui_ai/qwen3-coder-abliterated:30b": { "inputMicrosPerMillionTokens": 0, "outputMicrosPerMillionTokens": 0 },
+    "openai:huihui_ai/qwen3-abliterated:8b": { "inputMicrosPerMillionTokens": 0, "outputMicrosPerMillionTokens": 0 },
+    "anthropic:claude-opus-5-5": { "inputMicrosPerMillionTokens": 4000000, "outputMicrosPerMillionTokens": 20000000 },
+    "anthropic:claude-sonnet-5-5": { "inputMicrosPerMillionTokens": 2000000, "outputMicrosPerMillionTokens": 10000000 },
+    "anthropic:claude-haiku-5-5": { "inputMicrosPerMillionTokens": 100000, "outputMicrosPerMillionTokens": 500000 }
   }
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Command, MemorySaver } from '@langchain/langgraph';
 import { ModelRouter, loadModelRouter, type ModelPolicyInput } from '../src/office/models.js';
-import { createProfileModel, extractUsage, recoverStructured, type StructuredInvoker, type StructuredRequest } from '../src/office/model-providers.js';
+import { createProfileModel, extractUsage, recoverStructured, escapeRawControlChars, type StructuredInvoker, type StructuredRequest } from '../src/office/model-providers.js';
 import { createOfficeIntelligence } from '../src/office/intelligence.js';
 import { createOfficeWorkflow } from '../src/office/workflow.js';
 import { officeRegistry } from '../src/office/registry.js';
@@ -84,6 +84,19 @@ test('el endpoint compatible rechaza credenciales embebidas y no se admite en ot
   assert.throws(() => new ModelRouter({ version: 1, defaultProfile: 'a', profiles: {
     a: { ...base, provider: 'anthropic', baseURL: 'https://example.com/v1' },
   } }));
+});
+
+test('Anthropic admite salida estructurada nativa (jsonSchema) pero no jsonMode', () => {
+  // Visto en vivo: Claude Opus 5.5 rechaza con 400 el tool_choice forzado de functionCalling, así
+  // que el CEO no podía tomar ninguna decisión. Los perfiles de Claude del repo deben ir en jsonSchema.
+  const anthropic = { provider: 'anthropic' as const, model: 'claude-opus-5-5', apiKeyEnv: 'TEST_KEY' };
+  const router = new ModelRouter({ version: 1, defaultProfile: 'a', profiles: { a: { ...anthropic, structuredOutputMethod: 'jsonSchema' } } });
+  assert.equal(router.profile('a').structuredOutputMethod, 'jsonSchema');
+  assert.throws(() => new ModelRouter({ version: 1, defaultProfile: 'a', profiles: { a: { ...anthropic, structuredOutputMethod: 'jsonMode' } } }));
+  const active = JSON.parse(readFileSync(new URL('../config/models.active.json', import.meta.url), 'utf8')) as { profiles: Record<string, { provider: string; structuredOutputMethod?: string }> };
+  for (const [id, profile] of Object.entries(active.profiles)) {
+    if (profile.provider === 'anthropic') assert.equal(profile.structuredOutputMethod, 'jsonSchema', id);
+  }
 });
 
 test('crea los tres adaptadores sin enviar solicitudes y exige la credencial seleccionada', () => {
@@ -317,4 +330,14 @@ test('el motor consulta la memoria antes de cada tarea, para cualquier agente, y
     assert(recalledIn('office_review').length > 0, 'el revisor no recibió la memoria');
     assert(tracked.includes(true) && tracked.includes(false));
   } finally { configureMemory(null); }
+});
+
+test('recoverStructured repara saltos de línea crudos dentro de una cadena y, si no puede, dice dónde falló', () => {
+  // Visto en vivo con DeepSeek en modo JSON: una entrega larga con saltos de línea sin escapar.
+  const raw = '{"reply":{"type":"result","summary":"Paso 1\nPaso 2\tlisto"}}'.replace('\\n', '\n').replace('\\t', '\t');
+  assert.match(raw, /Paso 1\nPaso 2/);
+  assert.deepEqual(recoverStructured({ content: raw } as never), { reply: { type: 'result', summary: 'Paso 1\nPaso 2\tlisto' } });
+  const valid = '{"a":"con \\"comillas\\" y \\\\ barra","b":[1,2]}';
+  assert.equal(escapeRawControlChars(valid), valid);
+  assert.throws(() => recoverStructured({ content: '{"a": "sin cerrar}, "b": 2}' } as never), /Cerca de la posición \d+/);
 });

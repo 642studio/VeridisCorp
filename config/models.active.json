@@ -97,7 +97,8 @@
       "apiKeyEnv": "CLAUDE_API_KEY",
       "maxOutputTokens": 8000,
       "timeoutMs": 120000,
-      "maxRetries": 0
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonSchema"
     },
     "claude-review": {
       "provider": "anthropic",
@@ -105,7 +106,8 @@
       "apiKeyEnv": "CLAUDE_API_KEY_2",
       "maxOutputTokens": 4000,
       "timeoutMs": 30000,
-      "maxRetries": 0
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonSchema"
     }
   },
   "stages": {
