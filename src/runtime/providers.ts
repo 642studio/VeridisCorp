@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AIMessage } from '@langchain/core/messages';
 import { createProfileModel } from '../office/model-providers.js';
-import { loadModelRouter } from '../office/models.js';
+import { loadModelRouter, platformOf } from '../office/models.js';
 import { Content, Review } from './contracts.js';
 import { officeRegistry } from '../office/registry.js';
 
@@ -23,10 +23,7 @@ export function realModelGateway(env: NodeJS.ProcessEnv = process.env): ModelGat
  return {
   identify: (stage) => {
    const selected = selection(stage); const profile = router.profile(selected.profileId);
-   const endpoint = profile.baseURL ? new URL(profile.baseURL) : undefined;
-   const provider = endpoint?.hostname === 'api.deepseek.com' ? 'deepseek'
-    : endpoint && ['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname) && endpoint.port === '11434' ? 'ollama' : selected.provider;
-   return { ...selected, provider };
+   return { ...selected, provider: platformOf(selected.provider, profile.baseURL) };
   },
   async invoke(stage, data, signal) {
    const selected = selection(stage); const agent = officeRegistry.get(selected.agentId);

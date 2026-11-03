@@ -1,0 +1,11 @@
+# Copiar a ~/.cloudflared/config.yml en el Linux de oficina.
+# <TUNNEL_ID> lo da `cloudflared tunnel create veridiscorp-ui`.
+tunnel: <TUNNEL_ID>
+credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # Cambiar por el hostname real, ya dado de alta como zona en Cloudflare.
+  # Debe apuntar al proxy local (Caddy), nunca directo al puerto 3000 del runtime.
+  - hostname: veridis.tu-dominio.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404

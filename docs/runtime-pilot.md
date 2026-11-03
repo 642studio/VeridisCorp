@@ -78,7 +78,8 @@ El servidor escucha solamente en 127.0.0.1. No se despliega ni abre puertos auto
 | GET /runs | Lista expedientes del ámbito autorizado; filtro `status`, `limit` (máx. 100) y `cursor` opaco |
 | GET /runs/{id} | Consulta ámbito autorizado, versiones, consumo y auditoría |
 | GET /organization | Organigrama y catálogo de 56 perfiles (`agents/<id>/`), sin instrucciones ni contexto |
-| GET /agents/{id} | Perfil completo de un agente: instrucciones (system prompt), contexto, capacidades y herramientas permitidas. Solo lectura — no hay ruta de edición todavía |
+| GET /agents/{id} | Perfil completo de un agente: instrucciones (system prompt), contexto, capacidades y herramientas permitidas |
+| POST /agents/{id}/text | `{field: 'instructions'\|'context', text}`; edita instructions.md o context.md en disco y recarga el agente sin reiniciar el servidor (2026-11-03) |
 | POST /runs/{id}/advance | Genera o continúa generación/revisión pendiente |
 | POST /runs/{id}/revise | `{text}`; nueva versión, invalida aprobación afectada |
 | POST /runs/{id}/approve | `{version, decision, reason?}`; decide el humano designado. `reason` es obligatorio solo para `rejected` — `regenerate` depende de él |
@@ -89,6 +90,18 @@ El servidor escucha solamente en 127.0.0.1. No se despliega ni abre puertos auto
 `GET /runs` reutiliza exactamente la misma autorización que el resto del piloto (`data.read` sobre `workflow/content-pilot`); no hay chequeo por fila porque la lectura ya cubre todo el ámbito. Cada fila trae un resumen del expediente y `needsAttention`, calculado por el servidor a partir del estado (`awaiting_approval`, `failed` u `outcome_unknown`) para que el cliente no deba repetir esa regla. No incluye artefactos, intentos ni auditoría por fila; eso sigue solo en `GET /runs/{id}`, para no transportar ese volumen en una lista. La paginación es por cursor opaco (no por offset) para no duplicar ni saltar filas si llegan expedientes nuevos entre páginas; el cursor codifica la fecha de creación y el id de la última fila devuelta y el cliente no debe interpretarlo. El esquema añadió `status` y `created_at` como columnas generadas a partir de `data` únicamente para indexar el filtro y la paginación; `data` sigue siendo la única fuente de verdad.
 
 `GET /organization` es la primera ruta donde el servidor gobernado sirve datos de `office/`: el organigrama y el catálogo de 56 perfiles son estáticos (se cargan de `agents/<id>/` al iniciar el proceso, no de PostgreSQL) y no pertenecen a ningún cliente o proyecto — no tienen un `AccessScope` propio, a diferencia de un expediente. Se protegen igual que `GET /runs` (`data.read` sobre `workflow/content-pilot`) por consistencia con el resto del piloto, no porque ese sea realmente su recurso: es una simplificación deliberada, no una afirmación de que el organigrama es parte de ese workflow. De los 56 perfiles, solo `content` y `review` corresponden a identidades que `runtime/` ejecuta de verdad (`worker` y `reviewer` en `contracts.ts`); el resto del catálogo solo participa en las simulaciones de `office/`. La respuesta nunca incluye `instructions`, `context` ni `knowledge` de ningún perfil — `agentSummary()` ya los excluye antes de salir del proceso.
+
+`POST /agents/{id}/text` (2026-11-03) le da una vía autorizada desde la UI a algo que ya era
+"contenido editable" por diseño (`agents/<id>/instructions.md`/`context.md`, ver `AGENTS.md` del
+repo): antes solo se podía editar a mano en el servidor. Valida el candidato completo
+(`AgentDefinition.parse`) **antes** de tocar disco, escribe el archivo y llama
+`officeRegistry.replace()` para que la nueva definición aplique a la siguiente llamada de ese
+agente, sin reiniciar el proceso. `knowledge/` sigue sin edición desde aquí. Un expediente en
+curso no reinterpreta esto en silencio: `createOfficeWorkflow` guarda en cada checkpoint un
+fingerprint de `registry.list()` completo, y lo recalcula al reanudar — igual mecanismo que ya
+protegía contra un cambio de política de modelos (ver `docs/model-routing.md`), aplicado aquí sin
+código nuevo porque ya cubría cualquier cambio en la definición de un agente, no solo en el
+archivo de política.
 
 `POST /runs/{id}/regenerate` no es automático: el rechazo humano nunca dispara por sí solo una llamada real al modelo. Un clic explícito separado llama a esta ruta, que exige que la versión actual tenga una aprobación con `status: 'rejected'` (verificado bajo bloqueo de fila, no solo por el estado del expediente) y consume una reserva de presupuesto real, igual que cualquier otra generación. El modelo recibe el texto rechazado y el motivo exacto del rechazo como entrada (`content.draft` ahora acepta `text` y `feedback` opcionales, solo para este caso); produce una versión nueva que vuelve a pasar por revisión independiente antes de poder aprobarse — no se puede aprobar una regeneración sin que el revisor la acepte primero, igual que cualquier otra versión. La aprobación de la versión original permanece `rejected` en su historial; no se reescribe.
 
@@ -189,3 +202,55 @@ Recomendación, pendiente de ejecutar:
 - **Visibilidad de costo**: con el scheduler corriendo 24/7, revisar `VERIDIS_SCHEDULER_MAX_PER_HOUR` y los límites de `Defaults` (`src/runtime/contracts.ts`) con la frecuencia real de las tareas configuradas, no con los valores conservadores pensados para pruebas interactivas.
 
 Nada de esto está hecho todavía; es una recomendación, no una descripción de la instalación actual.
+
+### Exposición pública del panel (UI)
+
+Fecha: 2026-11-02. Decisión de alcance: la API (`runtime:serve`) sigue en `127.0.0.1` sin
+excepción, por la misma razón de la línea de arriba (el scheduler dispara IA real sola). Lo
+único que se expone a internet es el panel web (`web/`), y solo detrás de autenticación de
+Cloudflare Access — nunca abierto sin login.
+
+**Estado real en el servidor de oficina (642, `veridis-oficina`):**
+
+- Caddy instalado y corriendo (`systemctl status caddy`), sirviendo `web/dist` copiado a
+  `/var/www/veridiscorp` (fuera de `/home/seis`, que es `750` y Caddy no puede atravesar) y
+  reenviando `/api/*` a `127.0.0.1:7777` — verificado: UI en `200`, `/api/office/orders` en
+  `401` (correcto, exige auth). Config real en `/etc/caddy/Caddyfile`.
+- El servidor ya tenía un `cloudflared` corriendo para otro proyecto (`api-supabase.bordaxpress.com`
+  → `localhost:8000`, tunnel `cf101f9b-f447-4958-9b2b-dfbd27a97f8a`). Se le agregó una segunda
+  ruta al mismo `/etc/cloudflared/config.yml` (`veridis.642.com.mx` → `localhost:8080`) en vez de
+  instalar un segundo servicio — un túnel nuevo creado por error (`veridiscorp-ui`,
+  `37c9741e-c017-4c0a-8e01-788a9d5a4527`) quedó sin usar y se puede borrar desde el dashboard.
+  Se respaldó el `config.yml` anterior con timestamp antes de sobreescribirlo. `cloudflared`
+  reiniciado y verificado: ambos hostnames reconectaron (4 conexiones QUIC registradas), bordaxpress
+  sigue respondiendo.
+- **Pendiente, solo en el dashboard de Cloudflare** (no se puede hacer por SSH sin cert/token):
+  registrar el hostname público `veridis.642.com.mx` en el túnel existente (Networks → Tunnels →
+  Public Hostname) y crear la aplicación de Access con política de login para ese hostname.
+- Redeploy del panel tras un cambio: `npm run build` en `web/`, luego
+  `rsync -a --delete web/dist/ /var/www/veridiscorp/` como root en el servidor.
+
+Piezas:
+
+- **Proxy local único** (Caddy u otro): sirve `web/dist` (resultado de `npm run build` en
+  `web/`) y reenvía `/api/*` al runtime real en `127.0.0.1:<PORT del .env>` (hoy `7777` en la
+  instalación de oficina), igual que hace Vite en desarrollo (`web/vite.config.ts`). El puerto
+  `3000` de esa máquina es otra app (642studio Ops Center), no VeridisCorp — no confundirlos.
+  Cloudflare Tunnel solo le habla a este proxy, nunca directo al runtime. Ejemplo:
+  [`config/Caddyfile.example`](../config/Caddyfile.example).
+- **`cloudflared` como túnel saliente**: no abre ningún puerto en el router ni el firewall — el
+  proceso en el Linux de oficina inicia la conexión hacia Cloudflare. Ejemplo de configuración:
+  [`config/cloudflared-config.example.yml`](../config/cloudflared-config.example.yml). Alta del
+  túnel y del registro DNS con `cloudflared tunnel create` y `cloudflared tunnel route dns`, y
+  como servicio persistente con `cloudflared service install` — igual de necesario que el unit
+  de `systemd` para `runtime:serve` de la sección anterior.
+- **Cloudflare Access (Zero Trust) sobre el hostname público**: una política que exija login
+  (correo con código de un solo uso, o SSO de Google/GitHub) antes de que la petición llegue al
+  túnel. Sin esto, cualquiera con la URL vería el panel — el panel no guarda estado propio
+  (`web/package.json`), pero sí lee expedientes, memorias y archivos reales vía `/api`.
+- **`speak.ts` (Voicebox) no viaja por este camino**: llama directo a `http://127.0.0.1:17493`
+  desde el navegador (`web/src/speak.ts`), así que el chat de voz no funcionará para quien entre
+  desde fuera de la LAN/Tailscale hasta que se decida si ese servicio también se proxea o se deja
+  solo para uso local.
+
+Pendiente de ejecutar, igual que el resto de esta sección.

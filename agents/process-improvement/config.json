@@ -5,7 +5,10 @@
   "capabilities": [
     "operations.improve"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "memory.write",
+    "memory.query"
+  ],
   "organization": {
     "title": "Mejora de procesos",
     "departmentId": "operations",

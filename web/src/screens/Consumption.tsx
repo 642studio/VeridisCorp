@@ -1,11 +1,8 @@
 import { useUsage } from '../api/hooks';
 import { ApiError } from '../api/client';
 import { SessionExpired } from '../components/SessionExpired';
+import { microsToDisplay } from '../format';
 import type { UsageBreakdownEntry, UsageSummary } from '../api/types';
-
-function microsToDisplay(micros: number, currency: string): string {
-  return `${(micros / 1_000_000).toFixed(4)} ${currency}`;
-}
 
 function UsageBlock({ title, entries, currency, totalCostMicros }: {
   title: string; entries: UsageBreakdownEntry[]; currency: string; totalCostMicros: number;

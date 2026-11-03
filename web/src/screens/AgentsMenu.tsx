@@ -18,7 +18,8 @@ export function AgentsMenu() {
     const term = search.trim().toLowerCase();
     return [...query.data.agents]
       .filter((a) => !term || a.id.toLowerCase().includes(term) || a.name.toLowerCase().includes(term)
-        || a.capabilities.some((c) => c.toLowerCase().includes(term)) || a.organization?.departmentId.toLowerCase().includes(term))
+        || a.capabilities.some((c) => c.toLowerCase().includes(term)) || a.organization?.departmentId.toLowerCase().includes(term)
+        || (a.knowledgeTitles ?? []).some((t) => t.toLowerCase().includes(term)))
       .sort((a, b) => a.id.localeCompare(b.id));
   }, [query.data, search]);
 
@@ -26,18 +27,21 @@ export function AgentsMenu() {
   if (query.error instanceof ApiError && query.error.status === 401) return <SessionExpired />;
   if (query.error) return <p className="error">No se pudo cargar: {(query.error as Error).message}</p>;
   if (!query.data) return null;
+  const withKnowledge = query.data.agents.filter((a) => a.knowledgeTitles?.length).length;
+  const docs = query.data.agents.reduce((sum, a) => sum + (a.knowledgeTitles?.length ?? 0), 0);
 
   return (
     <div className="agents-menu">
       <input
         className="org-chart__search"
-        placeholder="Buscar por id, nombre, departamento o capacidad…"
+        placeholder="Buscar por id, nombre, departamento, capacidad o documento…"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
       <p className="muted">
         {agents.length} de {query.data.agents.length} perfiles · todos ejecutan con IA real vía oficina/
         · content y review además corren en el pipeline de contenido de runtime/
+        · {withKnowledge} con conocimiento de su puesto ({docs} documentos)
       </p>
       <table className="agents-table">
         <thead>
@@ -47,6 +51,7 @@ export function AgentsMenu() {
             <th>DEPARTAMENTO</th>
             <th>NIVEL</th>
             <th>CAPACIDADES</th>
+            <th>CONOCIMIENTO</th>
             <th></th>
           </tr>
         </thead>
@@ -58,6 +63,9 @@ export function AgentsMenu() {
               <td className="muted">{agent.organization?.departmentId ?? '—'}</td>
               <td className="muted">{agent.organization?.level ?? '—'}</td>
               <td className="muted">{agent.capabilities.slice(0, 3).join(', ')}{agent.capabilities.length > 3 ? '…' : ''}</td>
+              <td className="muted" title={(agent.knowledgeTitles ?? []).join('\n')}>
+                {agent.knowledgeTitles?.length ? `${agent.knowledgeTitles.length} doc${agent.knowledgeTitles.length === 1 ? '' : 's'}` : '—'}
+              </td>
               <td>{RUNTIME_PIPELINE_IDS.has(agent.id) && <span className="tag tag--real" title="También corre en el pipeline de contenido de runtime/">EN RUNTIME/</span>}</td>
             </tr>
           ))}

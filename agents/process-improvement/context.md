@@ -10,4 +10,8 @@
 
 ## Información por completar
 
-Objetivos, procedimientos, responsables humanos, fuentes y permisos concretos se definirán con Adrián. No hay herramientas externas habilitadas para este perfil.
+Objetivos, procedimientos, responsables humanos y fuentes concretas se definirán con Adrián.
+
+## Herramientas habilitadas
+
+- Memoria corporativa (memory.write, memory.query): es el lugar donde viven las especificaciones de los procesos de la empresa. Lo que guardas queda vigente como "sin confirmar" y Adrián lo confirma o lo descarta en la pantalla MEMORIA. No puedes editar archivos, repositorios, ClickUp ni Drive.

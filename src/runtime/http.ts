@@ -72,6 +72,9 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     result = await runtime.organization(token);
    } else if (req.method === 'GET' && /^\/agents\/[a-zA-Z0-9][a-zA-Z0-9._:-]{0,119}$/.test(path)) {
     result = await runtime.agent(token, path.slice('/agents/'.length));
+   } else if (req.method === 'POST' && /^\/agents\/([a-zA-Z0-9][a-zA-Z0-9._:-]{0,119})\/text$/.test(path)) {
+    const agentId = /^\/agents\/([a-zA-Z0-9][a-zA-Z0-9._:-]{0,119})\/text$/.exec(path)![1]!;
+    result = await runtime.updateAgentText(token, agentId, await body(req));
    } else if (office && req.method === 'POST' && path === '/office/orders') {
     result = await office.start(token, await body(req));
    } else if (office && req.method === 'GET' && path === '/office/orders') {
@@ -118,6 +121,10 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
    result = await office.settings(token);
   } else if (office && req.method === 'POST' && path === '/office/settings/elevenlabs-voice') {
    result = await office.setElevenLabsVoice(token, await body(req));
+  } else if (office && req.method === 'GET' && path === '/office/settings/models') {
+   result = await office.modelPolicy(token);
+  } else if (office && req.method === 'POST' && path === '/office/settings/models/agent') {
+   result = await office.updateAgentModelProfile(token, await body(req));
   } else if (office && req.method === 'GET' && path === '/office/connections') {
     result = await office.listConnections(token);
    } else if (office && req.method === 'POST' && path === '/office/connections') {

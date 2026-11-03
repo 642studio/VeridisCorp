@@ -190,6 +190,8 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
     OLLAMA_MODEL: 'huihui_ai/qwen3-coder-abliterated:30b', OLLAMA_API_KEY: 'ollama',
     OLLAMA_GENERAL_MODEL: 'huihui_ai/qwen3-abliterated:8b',
     GEMINI_MODEL: 'gemini-3.8-flash',
+    CLAUDE_API_KEY: 'test-only-placeholder', CLAUDE_MODEL: 'claude-opus-5-5',
+    CLAUDE_API_KEY_2: 'test-only-placeholder', CLAUDE_MODEL_2: 'claude-haiku-5-5',
   });
   // content tiene siete herramientas reales, incluida calendar.create_event (notifica a
   // invitados reales sin revisión humana) — se subió de 'routine' a 'analysis', mismo tier de
@@ -212,8 +214,17 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   }
   assert.equal(router.profile('routine').maxOutputTokens, 16000);
   assert.equal(router.profile('routine').timeoutMs, 90000);
-  assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).model, 'gpt-5.4-mini-2026-03-17');
-  assert.equal(router.select({ agentId: 'ceo', stage: 'coordinate', capability: 'company.strategy' }).profileId, 'complex');
+  // Revisión general (sin revisor especializado propio) en un proveedor distinto al del autor
+  // promedio, por independencia real entre quien produce y quien revisa — ver docs/model-routing.md.
+  assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).profileId, 'claude-review');
+  assert.equal(router.select({ agentId: 'review', stage: 'review', capability: 'content.draft' }).model, 'claude-haiku-5-5');
+  assert.equal(router.profile('claude-review').provider, 'anthropic');
+  assert.equal(router.profile('claude-review').apiKeyEnv, 'CLAUDE_API_KEY_2');
+  // El CEO es el único nodo que arbitra entre todas las áreas: el modelo de mayor razonamiento
+  // disponible, en un proveedor distinto al resto de la política (no comparte punto de falla).
+  assert.equal(router.select({ agentId: 'ceo', stage: 'coordinate', capability: 'company.strategy' }).profileId, 'claude-reasoning');
+  assert.equal(router.select({ agentId: 'ceo', stage: 'coordinate', capability: 'company.strategy' }).model, 'claude-opus-5-5');
+  assert.equal(router.profile('claude-reasoning').apiKeyEnv, 'CLAUDE_API_KEY');
   // Coordinación departamental en un perfil más barato que el del CEO, no en el modelo completo.
   assert.equal(router.select({ agentId: 'cto', stage: 'coordinate', capability: 'technology.strategy' }).profileId, 'analysis');
   // cmo iba a pilotar Gemini como proveedor distinto, pero su cuota gratis se agotó sin poder

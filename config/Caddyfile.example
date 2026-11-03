@@ -1,0 +1,21 @@
+# Copiar a /etc/caddy/Caddyfile en el Linux de oficina y ajustar la ruta de web/dist.
+# Caddy solo escucha en 127.0.0.1: Cloudflare Tunnel es el único que le habla.
+# Cloudflare termina TLS en su borde, así que aquí basta HTTP en texto plano sobre loopback.
+
+:8080 {
+	bind 127.0.0.1
+
+	# El runtime real corre en 127.0.0.1:7777 (el PORT del .env; ver docs/runtime-pilot.md)
+	# y nunca se expone por sí solo. Caddy es el único proceso que le habla directamente.
+	# OJO: el puerto 3000 de esta máquina es otra app (642studio Ops Center), no VeridisCorp.
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:7777
+	}
+
+	# Panel web estático (resultado de `npm run build` en web/).
+	handle {
+		root * /ruta/a/VeridisCorp/web/dist
+		file_server
+		try_files {path} /index.html
+	}
+}

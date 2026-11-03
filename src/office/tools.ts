@@ -478,7 +478,7 @@ export async function recallCorporateMemory(question: string, options: { limit: 
   })));
 }
 
-const MEMORY_ENTITY_TYPES = ['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration'] as const;
+const MEMORY_ENTITY_TYPES = ['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration', 'process'] as const;
 const memoryWriteSchema = z.object({
   entityType: z.enum(MEMORY_ENTITY_TYPES).describe('Qué tipo de entidad describe esta memoria'),
   entityId: z.string().trim().min(1).max(120).describe('Identificador corto y estable de ESTE conocimiento, con su tema (p. ej. "cliente-acme-tono-de-marca", no solo "cliente-acme"): '

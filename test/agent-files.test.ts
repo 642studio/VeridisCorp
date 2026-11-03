@@ -100,6 +100,22 @@ test('el índice explícito rechaza IDs que no coinciden y no incorpora carpetas
   } finally { f.cleanup(); }
 });
 
+test('AgentRegistry.replace sustituye un agente ya registrado, nunca agrega ni corrompe el catálogo', () => {
+  const f = fixture();
+  try {
+    const registry = new AgentRegistry([loadAgentDirectory(f.root)]);
+    const edited = { ...registry.get('example'), instructions: 'Reglas nuevas, editadas desde la UI.' };
+    registry.replace(edited);
+    assert.equal(registry.get('example').instructions, 'Reglas nuevas, editadas desde la UI.');
+    // Nunca crea un agente nuevo con esta vía — solo updateAgentText (runtime/service.ts) puede
+    // llamar a replace(), y siempre sobre un agentId que officeRegistry.get() ya confirmó existente.
+    assert.throws(() => registry.replace({ ...edited, id: 'inexistente' }), /no registrado/);
+    // La validación de AgentDefinition sigue aplicando igual que al cargar de disco: un candidato
+    // sin instrucciones no puede colarse por esta vía.
+    assert.throws(() => registry.replace({ ...edited, instructions: '' }));
+  } finally { f.cleanup(); }
+});
+
 test('cada puesto recibe sus datos mientras los catálogos de equipos muestran solo metadatos', async () => {
   const demo = createCompanyDemoIntelligence();
   let sawManager = false;

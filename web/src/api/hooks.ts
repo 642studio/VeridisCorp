@@ -1,6 +1,6 @@
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { AssistantMessage, McpCredentialInput, MemoryStatus, OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
+import type { AgentTextField, AssistantMessage, McpCredentialInput, MemoryStatus, ModelStage, OfficeOrderDetail, OfficeSchedule, RunDetailResponse, RunStatus } from './types';
 
 export function useRunsList(status?: RunStatus[]) {
   return useInfiniteQuery({
@@ -23,6 +23,17 @@ export function useAgent(id: string | null) {
     queryFn: () => api.getAgent(id!),
     enabled: id !== null,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// La respuesta (AgentDetail completo, ya con el texto nuevo) sustituye la caché de ese agente en
+// el acto, igual que useAskAssistant con el hilo — no hace falta esperar un refetch para verlo.
+export function useUpdateAgentText() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ agentId, field, text }: { agentId: string; field: AgentTextField; text: string }) =>
+      api.updateAgentText(agentId, field, text),
+    onSuccess: (data, { agentId }) => { client.setQueryData(['agent', agentId], data); },
   });
 }
 
@@ -175,6 +186,22 @@ export function useSetElevenLabsVoice() {
   return useMutation({
     mutationFn: (voiceId: string) => api.setElevenLabsVoice(voiceId),
     onSuccess: () => { void client.invalidateQueries({ queryKey: ['settings'] }); },
+  });
+}
+
+// Política de modelos editable (GET /office/settings/models). Mismo refetchInterval que ['usage']
+// no hace falta: solo cambia cuando alguien la edita desde esta misma UI, y la mutación de abajo
+// ya invalida esta clave en el acto.
+export function useModelPolicy() {
+  return useQuery({ queryKey: ['model-policy'], queryFn: () => api.getModelPolicy() });
+}
+
+export function useSetAgentModelProfile() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ agentId, stage, profileId }: { agentId: string; stage: ModelStage; profileId: string | null }) =>
+      api.setAgentModelProfile(agentId, stage, profileId),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['model-policy'] }); },
   });
 }
 

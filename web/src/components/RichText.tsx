@@ -20,8 +20,30 @@ export function RichText({ text, className }: { text: string; className?: string
     blocks.push(list.ordered ? <ol key={blocks.length}>{items}</ol> : <ul key={blocks.length}>{items}</ul>);
     list = null;
   };
+  let table: string[][] | null = null;
+  const flushTable = () => {
+    if (!table) return;
+    const [head, ...rows] = table;
+    const key = blocks.length;
+    blocks.push(
+      <table key={key} className="rich-text__table">
+        <thead><tr>{head!.map((cell, i) => <th key={i}>{inline(cell, `t${key}-h${i}`)}</th>)}</tr></thead>
+        <tbody>{rows.map((row, r) => <tr key={r}>{row.map((cell, i) => <td key={i}>{inline(cell, `t${key}-${r}-${i}`)}</td>)}</tr>)}</tbody>
+      </table>,
+    );
+    table = null;
+  };
   for (const raw of text.split('\n')) {
     const line = raw.trimEnd();
+    // Tabla markdown: filas que empiezan y terminan con "|"; la fila separadora (|---|) se omite.
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      flush();
+      const cells = line.trim().slice(1, -1).split('|').map((cell) => cell.trim());
+      if (cells.every((cell) => /^:?-{2,}:?$/.test(cell))) continue;
+      (table ??= []).push(cells);
+      continue;
+    }
+    flushTable();
     const bullet = /^\s*[-*•]\s+(.*)$/.exec(line);
     const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line);
     if (bullet || numbered) {
@@ -39,5 +61,6 @@ export function RichText({ text, className }: { text: string; className?: string
       : <p key={blocks.length}>{inline(line, `p${blocks.length}`)}</p>);
   }
   flush();
+  flushTable();
   return <div className={`rich-text ${className ?? ''}`}>{blocks}</div>;
 }

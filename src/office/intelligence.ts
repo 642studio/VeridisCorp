@@ -226,7 +226,7 @@ export function createOfficeIntelligence(options: {
   router?: ModelRouter; invoker?: StructuredInvoker; env?: NodeJS.ProcessEnv; registry?: AgentRegistry; pool?: Pool;
 } = {}): OfficeIntelligence {
   const env = options.env ?? process.env;
-  const router = options.router ?? loadModelRouter(env);
+  let router = options.router ?? loadModelRouter(env);
   const registry = options.registry;
   const invoker = options.invoker ?? createStructuredInvoker(env);
   const coordinatorSchema = z.object({ decision: CoordinatorDecision }).strict();
@@ -249,8 +249,14 @@ export function createOfficeIntelligence(options: {
     { role: 'user' as const, content: JSON.stringify(context) },
   ];
   return {
-    modelPolicyFingerprint: `office-model-adapter.v3:${router.fingerprint}`,
+    get modelPolicyFingerprint() { return `office-model-adapter.v3:${router.fingerprint}`; },
     selectModel: (request) => router.select(request),
+    // Permite que una política de modelos editada desde la UI (OfficeRuntime.updateAgentModelProfile)
+    // tome efecto de inmediato, sin reiniciar el proceso: esta instancia de OfficeIntelligence se
+    // reusa para toda la vida del servidor (ver nota de onUsage más abajo), así que su único router
+    // vive en este cierre — reemplazarlo aquí lo cambia para selectModel, coordinate, execute, review,
+    // delegate, distill, ingest y ask por igual, de la siguiente llamada en adelante.
+    reloadModelRouter(next) { router = next; },
     async coordinate(context, onUsage) {
       const result = await invoke({ stage: 'coordinate', agentId: context.coordinator?.id || 'coordinator', capability: context.coordinator ? 'company.strategy' : 'office.coordinate' },
         coordinatorSchema, 'office_decision', `Eres ${context.coordinator?.organization?.title || 'el coordinador'} de la oficina. Propón una sola decisión por turno.
@@ -436,7 +442,8 @@ cada dato estable, decisión, regla o preferencia que un asistente necesite reco
   "EN DESARROLLO:", "VISIÓN:" o "POR CONFIRMAR:". Nunca conviertas una visión en un hecho ni una propuesta en una decisión.
 - kind: "decision" (algo decidido o una regla adoptada), "fact" (un dato), "preference" (cómo prefiere trabajar o que le hablen
   alguien o la empresa), "question" (algo que el texto dice explícitamente que falta verificar).
-- entityType: company, division, client, brand, project, contract, person, product o decision. entityId nombra ESE conocimiento
+- entityType: company, division, client, brand, project, contract, person, product, decision o process (un proceso o procedimiento
+  de la empresa: pasos, responsables, criterios). entityId nombra ESE conocimiento
   con su tema, en minúsculas con guiones (p. ej. "642-news-regla-editorial", "veridis-core-fuente-de-verdad"), nunca solo la empresa.
 - Si algo ya está en "existing" con el mismo sentido, no lo repitas. Si lo actualiza, reutiliza su entityType y entityId.
   Si lo contradice, pon su "id" en "contradicts"; si no, null.

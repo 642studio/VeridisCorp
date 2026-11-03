@@ -1,6 +1,6 @@
 import type {
-  AgentDetail, AssistantMessage, ElevenLabsVoice, McpConnection, McpCredentialInput, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
-  OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
+  AgentDetail, AgentTextField, AssistantMessage, ElevenLabsVoice, McpConnection, McpCredentialInput, AssistantThreadSummary, CorporateMemoryRecord, FireScheduleResponse, MemoryGraph, MemoryListResponse, MemoryStatus,
+  ModelPolicyResponse, ModelStage, OfficeOrderDetail, OfficeOrdersListResponse, OfficeSchedule,
   OfficeSchedulesListResponse, OrganizationResponse, RunDetailResponse, RunsListResponse, RunStatus, SettingsSummary, UsageSummary,
 } from './types';
 
@@ -96,6 +96,9 @@ export const api = {
   getAgent(id: string) {
     return request<AgentDetail>(`/agents/${encodeURIComponent(id)}`);
   },
+  updateAgentText(id: string, field: AgentTextField, text: string) {
+    return request<AgentDetail>(`/agents/${encodeURIComponent(id)}/text`, { method: 'POST', body: JSON.stringify({ field, text }) });
+  },
   startOfficeOrder(objective: string) {
     return request<OfficeOrderDetail>('/office/orders', { method: 'POST', body: JSON.stringify({ objective }) });
   },
@@ -134,6 +137,13 @@ export const api = {
   },
   setElevenLabsVoice(voiceId: string) {
     return request<{ voiceId: string }>('/office/settings/elevenlabs-voice', { method: 'POST', body: JSON.stringify({ voiceId }) });
+  },
+  getModelPolicy() {
+    return request<ModelPolicyResponse>('/office/settings/models');
+  },
+  setAgentModelProfile(agentId: string, stage: ModelStage, profileId: string | null) {
+    return request<{ agentId: string; stage: ModelStage; profileId: string | null }>(
+      '/office/settings/models/agent', { method: 'POST', body: JSON.stringify({ agentId, stage, profileId }) });
   },
   listElevenLabsVoices() {
     return request<{ voices: ElevenLabsVoice[] }>('/tts/elevenlabs/voices');

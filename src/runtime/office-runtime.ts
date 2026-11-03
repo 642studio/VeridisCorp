@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
 import { Command } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
@@ -11,7 +13,8 @@ import { RuntimeError } from './contracts.js';
 import { createOrder } from '../office/contracts.js';
 import { createOfficeWorkflow, OFFICE_WORKFLOW_VERSION } from '../office/workflow.js';
 import { budgetStatus } from '../office/budget.js';
-import { loadModelRouter, platformOf, type ModelCallRecord, type ModelRouter } from '../office/models.js';
+import { loadModelRouter, platformOf, ModelRouter, ModelStage, type ModelCallRecord } from '../office/models.js';
+import { Id as AgentId } from '../office/contracts.js';
 import { officeRegistry } from '../office/registry.js';
 import { HumanAnswer, ArchivistReply, IngestReply, AssistantReply, type AssistantContext } from '../office/runtime-contracts.js';
 import { loadPriceList, priceTokens, type PriceList } from '../office/prices.js';
@@ -38,6 +41,9 @@ const AnswerInput = z.object({ answer: HumanAnswer }).strict();
 const AskInput = z.object({ question: z.string().trim().min(1).max(4000), threadId: z.uuid().nullable().optional() }).strict();
 const QuarantineInput = z.object({ reason: z.string().trim().min(1).max(2000) }).strict();
 const ElevenLabsVoiceInput = z.object({ voiceId: z.string().trim().regex(VOICE_ID_PATTERN) }).strict();
+// null en profileId quita el override del agente para esa etapa (vuelve a heredar el perfil de la
+// etapa o el default de la oficina) — ver OfficeRuntime.updateAgentModelProfile.
+const AgentModelProfileInput = z.object({ agentId: AgentId, stage: ModelStage, profileId: AgentId.nullable() }).strict();
 // Hasta ~200 mil caracteres por documento: más de eso conviene partirlo a mano en varias importaciones.
 const ImportPlanInput = z.object({ title: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(200000) }).strict();
 const ImportSectionInput = z.object({
@@ -653,6 +659,72 @@ export class OfficeRuntime {
     },
     totpEnrolled: totpRow.rows[0]!.n > 0,
    };
+  });
+ }
+ // Ruta del archivo de política de modelos (VERIDIS_MODELS_FILE), si el servidor arrancó con uno.
+ // Sin esa variable, la oficina sigue el modo de compatibilidad de un solo perfil (loadModelRouter)
+ // y la política no es editable desde la UI — no hay archivo al que escribir.
+ private modelsFilePath(): string | null {
+  const file = process.env.VERIDIS_MODELS_FILE?.trim();
+  return file || null;
+ }
+ // Política de modelos en forma editable: perfiles resueltos (sin secretos, igual que settings())
+ // más el mapa agents tal como está en el archivo — a diferencia de settings(), que solo da la
+ // lista plana de perfiles. agentIds viene del registro real, no del archivo, para poder asignar
+ // modelo a un agente que todavía no tiene ningún override.
+ async modelPolicy(token: string) {
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.read');
+   const router = this.router();
+   const filePath = this.modelsFilePath();
+   const agentIds = officeRegistry.list().map((agent) => agent.id);
+   if (!router || !filePath) return { editable: false, filePath: null, profiles: [], stages: null, agents: {}, agentIds };
+   const snapshot = router.snapshot();
+   const profiles = Object.entries(snapshot.profiles).map(([profileId, profile]) => ({
+    profileId, provider: platformOf(profile.provider, profile.baseURL), model: profile.model,
+    apiKeyEnv: profile.apiKeyEnv, baseURL: profile.baseURL ?? null,
+    configured: Boolean(process.env[profile.apiKeyEnv]?.trim()),
+   }));
+   // Se relee el archivo (no el snapshot resuelto) para que el mapa agents mostrado sea
+   // literalmente lo que hay en disco — el snapshot ya resolvió modelEnv a su valor y perdería
+   // esa indirección si se usara para reconstruir la edición.
+   const onDisk = JSON.parse(readFileSync(resolve(filePath), 'utf8')) as { agents?: Record<string, Record<string, string>> };
+   return { editable: true, filePath, profiles, stages: snapshot.stages, agents: onDisk.agents ?? {}, agentIds };
+  });
+ }
+ // Escribe agents[agentId][stage] en el archivo de política (borra la clave si profileId es null,
+ // y el agente entero si se queda sin ninguna etapa), valida la política resultante completa
+ // reconstruyendo un ModelRouter real (mismas comprobaciones que al arrancar: perfil inexistente,
+ // reglas duplicadas, etc.) y, solo si es válida, la escribe a disco y recarga los dos cachés en
+ // memoria que existen en este proceso (el de este runtime y el de OfficeIntelligence) para que
+ // aplique de inmediato, sin reiniciar el servidor. El fingerprint de la política (ver
+ // OfficeIntelligence.modelPolicyFingerprint) cambia con esto a propósito: un expediente en curso
+ // con el fingerprint anterior sigue rechazando reanudar hasta una migración explícita, igual que
+ // documenta docs/model-routing.md para cualquier otro cambio de política.
+ async updateAgentModelProfile(token: string, raw: unknown) {
+  const input = AgentModelProfileInput.parse(raw);
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.write');
+   const filePath = this.modelsFilePath();
+   if (!filePath) throw new RuntimeError(409, 'La política de modelos no es editable en este servidor: falta VERIDIS_MODELS_FILE.');
+   try { officeRegistry.get(input.agentId); } catch { throw new RuntimeError(404, 'Agente no registrado: ' + input.agentId); }
+   const resolvedPath = resolve(filePath);
+   const policyInput = JSON.parse(readFileSync(resolvedPath, 'utf8'));
+   const agents = { ...(policyInput.agents ?? {}) } as Record<string, Record<string, string>>;
+   const current = { ...(agents[input.agentId] ?? {}) };
+   if (input.profileId === null) delete current[input.stage]; else current[input.stage] = input.profileId;
+   if (Object.keys(current).length) agents[input.agentId] = current; else delete agents[input.agentId];
+   const updated = { ...policyInput, agents };
+   let router: ModelRouter;
+   try { router = new ModelRouter(updated, process.env); }
+   catch (error) { throw new RuntimeError(400, error instanceof Error ? error.message : 'Política de modelos inválida'); }
+   writeFileSync(resolvedPath, JSON.stringify(updated, null, 2) + '\n', 'utf8');
+   this.cachedRouter = router;
+   this.intelligence.reloadModelRouter?.(router);
+   await this.audit(tx, auth, null, 'settings.model_policy_changed', { agentId: input.agentId, stage: input.stage, profileId: input.profileId });
+   return { agentId: input.agentId, stage: input.stage, profileId: input.profileId };
   });
  }
  // Usado por el proxy de texto-a-voz (http.ts) para que la voz elegida en CONFIGURACIONES

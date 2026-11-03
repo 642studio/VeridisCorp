@@ -22,6 +22,19 @@ export class AgentRegistry {
     return structuredClone(definition);
   }
 
+  // Sustituye la definición de un agente YA registrado (nunca agrega uno nuevo ni cambia su id)
+  // por una releída de agents/<id>/ en disco — para que una edición de instructions.md/context.md
+  // desde la UI (runtime/service.ts: updateAgentText) aplique de inmediato a toda llamada
+  // siguiente, sin reiniciar el proceso. El fingerprint que workflow.ts guarda en cada checkpoint
+  // (JSON.stringify({ agents: registry.list(), ... })) cambia con esto a propósito: un expediente
+  // en curso con la definición anterior sigue rechazando reanudar hasta una migración explícita,
+  // igual que ya pasa con un cambio de política de modelos (ver docs/model-routing.md).
+  replace(definition: AgentDefinition): void {
+    const parsed = AgentDefinition.parse(definition);
+    if (!this.definitions.has(parsed.id)) throw new Error('Agente no registrado: ' + parsed.id);
+    this.definitions.set(parsed.id, parsed);
+  }
+
   requireCapability(id: string, capability: string): void {
     if (!this.get(id).capabilities.includes(capability)) {
       throw new Error(`El agente ${id} no tiene la capacidad ${capability}`);

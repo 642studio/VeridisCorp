@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import { migrate, provisionSession } from './database.js';
+import { enrollTotp, printEnrollmentQr } from './totp.js';
 import { encryptSecret, decryptSecret, loadEncryptionKey } from './secrets.js';
 import { ContentRuntime } from './service.js';
 import { OfficeRuntime } from './office-runtime.js';
@@ -128,6 +129,10 @@ async function main() {
   const runtime = new ContentRuntime(pool, realModelGateway(), httpDeliveryConnector(process.env.VERIDIS_DELIVERY_URL), {
    modelReservationMicros, ...(Object.keys(budgetOverrides).length ? { budget: { ...Defaults, ...budgetOverrides } } : {}),
   });
+  // Mismo criterio que Gmail/MCP: sin VERIDIS_TOKEN_ENCRYPTION_KEY el servidor igual arranca,
+  // solo que /auth/login (login con authenticator app) responde 503 hasta que se configure.
+  let encryptionKey: Buffer | null = null;
+  try { encryptionKey = loadEncryptionKey(process.env); } catch { encryptionKey = null; }
   // office/ ejecuta de verdad solo si se habilita explícitamente: reabre una ruta que
   // office:run/resume/answer tenían suspendida, y una sola invocación puede disparar varias
   // llamadas reales (tope de turnos siempre; presupuesto en dinero por expediente solo con
@@ -140,8 +145,6 @@ async function main() {
    const embeddingProfile = embeddingProfileFromEnv();
    const memoryStore = new MemoryStore(pool, createEmbedder(embeddingProfile), embeddingProfile.model);
    // Conexiones MCP: sin VERIDIS_TOKEN_ENCRYPTION_KEY funcionan igual, solo no se pueden guardar credenciales.
-   let encryptionKey: Buffer | null = null;
-   try { encryptionKey = loadEncryptionKey(process.env); } catch { encryptionKey = null; }
    const mcpStore = new McpStore(pool, memoryStore, encryptionKey);
    office = new OfficeRuntime(pool, createOfficeIntelligence({ registry: officeRegistry, pool }), {
     maxTurns: z.coerce.number().int().positive().max(100).parse(process.env.VERIDIS_OFFICE_MAX_TURNS ?? '5'),
@@ -169,7 +172,7 @@ async function main() {
    });
    await scheduler.start();
   }
-  const server = createRuntimeServer(runtime, office, scheduler);
+  const server = createRuntimeServer(runtime, office, scheduler, encryptionKey ?? undefined);
   server.listen(z.coerce.number().int().min(1024).max(65535).parse(process.env.PORT ?? 3000), '127.0.0.1', () => process.stderr.write('API gobernada escuchando en loopback.\n'));
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(() => { scheduler?.stop(); void pool.end(); }));
   return;
@@ -186,7 +189,23 @@ async function main() {
    process.stderr.write(`Exportadas ${written.length} memorias validadas a ${vaultPath}\n`);
    return;
   }
-  if (command !== 'provision' || !configFile || !tokenFile) throw new Error('Uso: migrate | serve | provision config.json archivo-de-token | gmail-authorize | export-memory');
+  if (command === 'totp-enroll') {
+   if (!configFile || !tokenFile) throw new Error('Uso: totp-enroll config.json archivo-de-respaldo.txt');
+   const enrollConfig = z.object({ principal: Principal, scope: AccessScope,
+    permissions: z.array(z.object({ principal: Principal, operations: z.array(Operation).min(1), resourceType: z.string(), resourceIds: z.array(z.string()).min(1) }).strict()),
+    sessionTtlSeconds: z.number().int().positive().max(30 * 24 * 3600).optional(),
+   }).strict().parse(JSON.parse(readFileSync(configFile, 'utf8')));
+   const encryptionKeyForEnroll = loadEncryptionKey(process.env);
+   // Crear primero el destino evita registrar el secreto si no puede guardarse el respaldo.
+   writeFileSync(tokenFile, '', { mode: 0o600, flag: 'wx' });
+   const { secret, otpauthUrl } = await enrollTotp(pool, encryptionKeyForEnroll, { ...enrollConfig, sessionTtlSeconds: enrollConfig.sessionTtlSeconds ?? 43200 });
+   writeFileSync(tokenFile, `otpauthUrl=${otpauthUrl}\nsecret=${secret}\n`, { mode: 0o600 });
+   process.stderr.write(`TOTP registrado para "${enrollConfig.principal.id}". Escanéalo con la app de autenticación:\n\n`);
+   printEnrollmentQr(otpauthUrl);
+   process.stderr.write(`\nSi no se puede escanear, el secreto manual es: ${secret}\nRespaldo guardado en el archivo privado indicado.\n`);
+   return;
+  }
+  if (command !== 'provision' || !configFile || !tokenFile) throw new Error('Uso: migrate | serve | provision config.json archivo-de-token | totp-enroll config.json archivo-de-respaldo.txt | gmail-authorize | export-memory');
   const config = z.object({ principal: Principal, scope: AccessScope, expiresAt: z.iso.datetime({ offset: true }),
    permissions: z.array(z.object({ principal: Principal, operations: z.array(Operation).min(1), resourceType: z.string(), resourceIds: z.array(z.string()).min(1) }).strict()),
   }).strict().parse(JSON.parse(readFileSync(configFile, 'utf8')));

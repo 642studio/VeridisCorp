@@ -144,6 +144,8 @@ export interface AgentSummary {
   name: string;
   capabilities: string[];
   allowedTools: string[];
+  // Solo en la lista (GET /organization): títulos de sus documentos de knowledge.
+  knowledgeTitles?: string[];
   organization?: {
     departmentId: string;
     title: string;
@@ -186,6 +188,11 @@ export interface AgentDetail extends AgentSummary {
   context: string;
   knowledge: AgentKnowledge[];
 }
+
+// Campo editable desde AgentDetailPanel (POST /agents/{id}/text, src/runtime/service.ts:
+// updateAgentText). "instructions" es el system prompt (instructions.md), "context" el
+// contexto confirmado del puesto (context.md) — knowledge/ sigue sin edición desde aquí.
+export type AgentTextField = 'instructions' | 'context';
 
 // Tipos que reflejan src/office/contracts.ts y runtime/office-runtime.ts.
 
@@ -341,7 +348,7 @@ export interface FireScheduleResponse extends OfficeSchedule {
 // src/runtime/office-runtime.ts (listMemory/validateMemory) — sin transformación, el mismo objeto
 // validado por zod que se guarda en memory_records.data.
 
-export type MemoryEntityType = 'company' | 'division' | 'client' | 'brand' | 'project' | 'contract' | 'person' | 'product' | 'decision' | 'integration';
+export type MemoryEntityType = 'company' | 'division' | 'client' | 'brand' | 'project' | 'contract' | 'person' | 'product' | 'decision' | 'integration' | 'process';
 export type MemoryStatus = 'proposed' | 'validated' | 'superseded' | 'quarantined';
 export type MemoryTrust = 'external_untrusted' | 'internal_unverified' | 'verified';
 
@@ -484,6 +491,19 @@ export interface SettingsSummary {
   elevenlabs: ElevenLabsSettings;
   integrations: IntegrationsStatus;
   totpEnrolled: boolean;
+}
+
+// Refleja GET /office/settings/models (src/runtime/office-runtime.ts: modelPolicy()). agents es
+// tal como está en config/models.active.json (VERIDIS_MODELS_FILE): solo los overrides explícitos,
+// nunca el valor resuelto — un agente sin entrada ahí hereda el perfil de su etapa o el default.
+export type ModelStage = 'coordinate' | 'execute' | 'review';
+export interface ModelPolicyResponse {
+  editable: boolean;
+  filePath: string | null;
+  profiles: ProviderStatus[];
+  stages: Record<ModelStage, string> | null;
+  agents: Record<string, Partial<Record<ModelStage, string>>>;
+  agentIds: string[];
 }
 export interface ElevenLabsVoice {
   voiceId: string;

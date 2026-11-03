@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import { z } from 'zod';
@@ -7,7 +9,8 @@ import { actionDigest, authorizeAction, decideApproval, requestApproval } from '
 import { AccessScope, ApprovalRecord, ExecutionBudget, PermissionGrant, Principal, type ExecutionContext, type Operation } from '../governance/contracts.js';
 import { ArtifactVersion } from '../governance/enterprise-contracts.js';
 import { officeRegistry } from '../office/registry.js';
-import { agentSummary } from '../office/agent-files.js';
+import { agentSummary, projectAgentDirectory } from '../office/agent-files.js';
+import { AgentDefinition } from '../office/contracts.js';
 import { scopeKey, tokenHash, transaction } from './database.js';
 import { Content, Defaults, Review, Run, RuntimeError, StartRequest, executor, orchestrator, reviewer, worker, workflowResource } from './contracts.js';
 import type { DeliveryConnector, ModelGateway, ModelResult } from './providers.js';
@@ -32,6 +35,13 @@ const decodeCursor = (raw: string) => {
  try { return Cursor.parse(JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'))); }
  catch { throw new RuntimeError(400, 'Cursor inválido'); }
 };
+// Mismo tope que agent-files.ts (readText, maxBytes=16000): en bytes UTF-8, no en caracteres —
+// un texto de 16000 caracteres con acentos puede pesar más de 16000 bytes y fallar a releer en un
+// reinicio del servidor aunque pasara el .max(16000) de AgentDefinition (ese sí cuenta caracteres).
+const AgentTextInput = z.object({
+ field: z.enum(['instructions', 'context']),
+ text: z.string().trim().min(1).refine((v) => Buffer.byteLength(v, 'utf8') <= 16000, 'Máximo 16000 bytes'),
+}).strict();
 // Estados que requieren atención humana; calculado aquí para que el cliente no deba repetir la regla.
 const ATTENTION_STATUSES = new Set<Run['status']>(['awaiting_approval', 'failed', 'outcome_unknown']);
 const summarize = (run: Run) => ({
@@ -156,18 +166,41 @@ export class ContentRuntime {
    const auth = await this.auth(tx, token);
    await this.permit(tx, auth, null, 'data.read');
    if (!officeRegistry.organization) throw new RuntimeError(404, 'No hay organigrama configurado');
-   return { organization: officeRegistry.organization.snapshot(), agents: officeRegistry.list().map(agentSummary) };
+   // La lista no lleva el texto de los documentos (puede pesar 64 KB por puesto), solo sus títulos.
+   return { organization: officeRegistry.organization.snapshot(), agents: officeRegistry.list().map((agent) => ({
+    ...agentSummary(agent), knowledgeTitles: (agent.knowledge ?? []).map((doc) => doc.title),
+   })) };
   });
  }
  // Perfil completo de un solo agente, incluidas sus instrucciones (system prompt) y contexto.
- // Solo lectura: no hay todavía una vía autorizada para modificar prompts desde aquí
- // (ver docs/runtime-pilot.md sobre por qué la edición queda para después).
  async agent(token: string, id: string) {
   return transaction(this.pool, async (tx) => {
    const auth = await this.auth(tx, token);
    await this.permit(tx, auth, null, 'data.read');
    try { return officeRegistry.get(id); }
    catch { throw new RuntimeError(404, 'Agente no encontrado en el catálogo'); }
+  });
+ }
+ // Edita instructions.md (system prompt) o context.md de un agente desde la UI — agents/<id>/ ya
+ // es "contenido editable" por diseño (AGENTS.md del repo), esto solo le da una vía autorizada a
+ // lo que antes exigía editar el archivo a mano. Valida el candidato completo (AgentDefinition.parse)
+ // ANTES de tocar disco — igual que OfficeRuntime.updateAgentModelProfile valida con un ModelRouter
+ // real antes de escribir la política — así nunca se deja un archivo a medio validar en disco.
+ // officeRegistry.replace() aplica el cambio de inmediato a toda llamada siguiente, sin reiniciar
+ // el proceso; un expediente en curso con la definición anterior no reinterpreta esto en silencio
+ // (ver el comentario de AgentRegistry.replace sobre el fingerprint del checkpoint).
+ async updateAgentText(token: string, agentId: string, raw: unknown) {
+  const input = AgentTextInput.parse(raw);
+  return transaction(this.pool, async (tx) => {
+   const auth = await this.auth(tx, token);
+   await this.permit(tx, auth, null, 'data.write');
+   let current;
+   try { current = officeRegistry.get(agentId); } catch { throw new RuntimeError(404, 'Agente no encontrado en el catálogo'); }
+   const candidate = AgentDefinition.parse({ ...current, [input.field]: input.text });
+   writeFileSync(resolve(projectAgentDirectory(), agentId, `${input.field}.md`), input.text + '\n', 'utf8');
+   officeRegistry.replace(candidate);
+   await this.audit(tx, auth, null, `agents.${input.field}_changed`, { agentId, bytes: Buffer.byteLength(input.text, 'utf8') });
+   return candidate;
   });
  }
  private reserve(run: Run, kind: 'model' | 'tool') {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Assessment, Id, CoordinatorCommand, Submission, TaskSpec, type WorkOrder, type WorkTask, type AgentDefinition } from './contracts.js';
-import type { ModelRequest, ModelSelection, ModelUsage } from './models.js';
+import type { ModelRequest, ModelRouter, ModelSelection, ModelUsage } from './models.js';
 import type { OrganizationDefinition } from './organization.js';
 export const CoordinatorDecision = z.discriminatedUnion('type', [
   z.object({ type: z.literal('command'), command: CoordinatorCommand }).strict(),
@@ -22,7 +22,7 @@ export const HumanAnswer = z.string().trim().min(1).max(16000);
 export const ArchivistReply = z.object({
   memories: z.array(z.object({
     kind: z.enum(['decision', 'fact', 'preference', 'question']),
-    entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration']),
+    entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration', 'process']),
     // Tolerante a propósito (el runtime lo normaliza a slug): una mayúscula o un espacio no debe
     // tirar a la basura todas las memorias de la respuesta.
     entityId: z.string().trim().min(1).max(120),
@@ -112,6 +112,10 @@ export type SpecialistContext = {
 export interface OfficeIntelligence {
   readonly modelPolicyFingerprint?: string;
   selectModel?(request: ModelRequest): ModelSelection;
+  // OfficeRuntime.updateAgentModelProfile() la llama tras validar y escribir una política nueva en
+  // disco, para que esta misma instancia (reusada entre expedientes, ver nota de onUsage debajo)
+  // la use desde la siguiente llamada sin reiniciar el proceso.
+  reloadModelRouter?(router: ModelRouter): void;
   coordinate(context: CoordinatorContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
   execute(context: SpecialistContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;
   review(context: SpecialistContext, onUsage?: (usage: ModelUsage) => void): Promise<unknown>;

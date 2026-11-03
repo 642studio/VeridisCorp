@@ -90,6 +90,22 @@
       "maxOutputTokens": 2000,
       "timeoutMs": 30000,
       "maxRetries": 0
+    },
+    "claude-reasoning": {
+      "provider": "anthropic",
+      "modelEnv": "CLAUDE_MODEL",
+      "apiKeyEnv": "CLAUDE_API_KEY",
+      "maxOutputTokens": 8000,
+      "timeoutMs": 120000,
+      "maxRetries": 0
+    },
+    "claude-review": {
+      "provider": "anthropic",
+      "modelEnv": "CLAUDE_MODEL_2",
+      "apiKeyEnv": "CLAUDE_API_KEY_2",
+      "maxOutputTokens": 4000,
+      "timeoutMs": 30000,
+      "maxRetries": 0
     }
   },
   "stages": {
@@ -99,7 +115,7 @@
   },
   "agents": {
     "ceo": {
-      "coordinate": "complex"
+      "coordinate": "claude-reasoning"
     },
     "cto": {
       "coordinate": "analysis"
@@ -147,7 +163,7 @@
       "execute": "analysis"
     },
     "review": {
-      "review": "review"
+      "review": "claude-review"
     },
     "security-review": {
       "review": "uncensored"

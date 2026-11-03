@@ -85,7 +85,7 @@ export type HumanTask = z.infer<typeof HumanTask>;
 
 export const CorporateMemoryRecord = z.object({
   schemaVersion: z.literal(1), id: Id, scope: AccessScope,
-  entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration']),
+  entityType: z.enum(['company', 'division', 'client', 'brand', 'project', 'contract', 'person', 'product', 'decision', 'integration', 'process']),
   entityId: Id, version: z.number().int().positive(), content: Text,
   // Modelo automático (decisión 2026-10-31, ver docs/runtime-pilot.md): 'proposed' = vigente SIN
   // CONFIRMAR — query() ya la usa; 'validated' = confirmada por un humano; 'quarantined' = un humano

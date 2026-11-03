@@ -190,3 +190,34 @@ Cambios: `campaigns`, `creative-strategy`, `social-analyst` y `automation` ejecu
 `maxOutputTokens` 8,000 y `timeoutMs` 90,000 (afecta a todos los que lo usan; una respuesta más larga cuesta más
 tokens solo cuando hace falta). Los otros 10 especialistas siguen en `local-general`.
 
+## 2026-11-03: Claude entra al roster, con dos cuentas separadas
+
+Dos perfiles nuevos en `config/models.active.json`, adaptador `anthropic` (ya implementado en
+`src/office/model-providers.ts` desde el diseño original de `ModelRouter`, solo no se había usado
+en la política activa):
+
+- **`claude-reasoning`** (`CLAUDE_API_KEY` / `CLAUDE_MODEL`, propuesto `claude-opus-5-5`): sustituye a
+  `complex` en `agents.ceo.coordinate`. El CEO es el único nodo que arbitra entre todas las áreas y el
+  de mayor impacto por decisión, pero de bajo volumen — justifica el modelo de mayor razonamiento
+  disponible, y diversificar su proveedor evita que el nodo de coordinación de más alto riesgo
+  comparta el mismo punto de falla (OpenAI) que casi todo el resto de la política.
+- **`claude-review`** (`CLAUDE_API_KEY_2` / `CLAUDE_MODEL_2`, propuesto `claude-haiku-5-5`): sustituye a
+  `review` en `agents.review.review` — la etapa `review` del agente genérico de revisión, por el que
+  pasa la mayoría de las tareas de la empresa que no tienen un revisor especializado propio
+  (`finance-review`, `security-review`, etc., que mantienen sus perfiles existentes sin cambio).
+  Modelo económico a propósito por el volumen. La independencia del revisor es un control de
+  seguridad explícito (ver más arriba, sección de `local-general`): que la revisión general corra en
+  un proveedor distinto al de la mayoría de los autores aumenta esa independencia en todo el sistema,
+  no solo en un departamento.
+
+Dos claves distintas, no una sola repartida por código: así el consumo de cada una queda separado en
+`byApiKeyEnv` (`src/office/usage.ts`), y una cuota agotada en una no bloquea a la otra.
+
+Pendiente antes de dar esto por verificado: completar `CLAUDE_API_KEY_2` en el `.env` del servidor,
+reiniciar el proceso (el router se cachea una sola vez al arrancar, ver `OfficeRuntime.router()` y
+`createOfficeIntelligence()`), confirmar con `npm run office:models` que la política resuelve sin
+error, y correr al menos una tarea real de `ceo` y una revisión real por `review` para verificar
+respuesta y conteo de tokens de Anthropic en vivo — igual que se hizo con los demás proveedores en
+las secciones anteriores. La asignación es un punto de partida, no un benchmark; se ajusta con los
+mismos criterios de costo/riesgo que las secciones previas en cuanto haya datos reales de uso.
+

@@ -106,6 +106,18 @@ export class ModelRouter {
   }
 }
 
+// DeepSeek y los modelos locales (Ollama) se hablan con el adaptador openai vía baseURL distinta
+// (ver config/models.active.json): el provider declarado por sí solo no distingue la plataforma
+// real. Misma heurística de hostname que antes vivía solo dentro de providers.ts, ahora
+// compartida con el ledger de consumo (office/usage.ts) para que ambos digan lo mismo.
+export function platformOf(provider: string, baseURL?: string): string {
+  if (!baseURL) return provider;
+  const host = new URL(baseURL).hostname;
+  if (host === 'api.deepseek.com') return 'deepseek';
+  if (['127.0.0.1', 'localhost', '[::1]'].includes(host)) return 'local';
+  return provider;
+}
+
 export function loadModelRouter(env: NodeJS.ProcessEnv = process.env): ModelRouter {
   if (env.VERIDIS_MODELS_FILE) {
     return new ModelRouter(JSON.parse(readFileSync(env.VERIDIS_MODELS_FILE, 'utf8')), env);
