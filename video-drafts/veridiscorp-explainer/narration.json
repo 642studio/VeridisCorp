@@ -1,0 +1,10 @@
+[
+  { "id": "hook", "text": "Adrián le escribe a ASISTENTE: necesita una cotización de redes sociales." },
+  { "id": "tension", "text": "Hoy, veinte de los cincuenta y seis perfiles tienen una herramienta real conectada." },
+  { "id": "reveal", "text": "Este pedido activa uno de ellos: Content, con la herramienta para generar el PDF." },
+  { "id": "proof1", "text": "Se abre un expediente con el objetivo exacto que escribió Adrián." },
+  { "id": "proof2", "text": "El especialista de Content prepara el documento real." },
+  { "id": "proof3", "text": "El revisor vuelve a comprobarlo por su cuenta, sin repetir esa misma herramienta." },
+  { "id": "payoff", "text": "El PDF está listo, pero no sale solo: espera la aprobación de un humano." },
+  { "id": "claim", "text": "Nada con efecto real sale de VeridisCorp sin que alguien lo apruebe." }
+]

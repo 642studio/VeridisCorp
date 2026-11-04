@@ -1,0 +1,22 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      display: flex; align-items: center; justify-content: center; padding: 0 200px;
+      font-family: var(--font-display, Outfit, sans-serif);
+    }
+    .line { font-size: 84px; font-weight: 700; line-height: 1.25; color: var(--fg, #e7eef0);
+      text-align: center; opacity: 0; }
+    .line .accent { color: var(--brand, #35e0c0); }
+  </style>
+  <div id="root" data-composition-id="claim" data-width="1920" data-height="1080">
+    <div id="cl-line" class="clip line" data-start="0" data-duration="5.290" data-hold="true">
+      Nada con efecto real sale de <span class="accent">VeridisCorp</span><br />sin que alguien lo apruebe.
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#cl-line", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0);
+    window.__timelines["claim"] = tl;
+  </script>
+</template>

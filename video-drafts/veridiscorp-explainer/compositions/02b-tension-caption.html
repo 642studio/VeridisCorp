@@ -1,0 +1,17 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center;
+      padding-bottom: 180px; font-family: var(--font-display, Outfit, sans-serif); pointer-events: none;
+    }
+    .cap { color: var(--muted, #7c8a93); font-size: 40px; letter-spacing: 0.01em; opacity: 0; text-align: center; }
+  </style>
+  <div id="root" data-composition-id="tension-caption" data-width="1920" data-height="1080">
+    <div id="tc-text" class="clip cap" data-start="0" data-duration="4.969">perfiles con una herramienta real conectada hoy</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#tc-text", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 2.0);
+    window.__timelines["tension-caption"] = tl;
+  </script>
+</template>

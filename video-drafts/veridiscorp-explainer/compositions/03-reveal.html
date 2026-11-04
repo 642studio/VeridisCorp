@@ -1,0 +1,28 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .title {
+      font-family: var(--font-display, Outfit, sans-serif); font-weight: 700; font-size: 160px;
+      letter-spacing: -0.02em; color: var(--fg, #e7eef0); opacity: 0;
+    }
+    .title .accent { color: var(--brand, #35e0c0); }
+    .sub {
+      margin-top: 36px; font-family: var(--font-mono, "IBM Plex Mono", monospace); font-size: 40px;
+      color: var(--muted, #7c8a93); opacity: 0; letter-spacing: 0.02em;
+    }
+    .sub .arrow { color: var(--accent, #61a8ff); margin: 0 14px; }
+  </style>
+  <div id="root" data-composition-id="reveal" data-width="1920" data-height="1080">
+    <div id="rv-title" class="clip title" data-start="0" data-duration="6.037" data-hold="true">Veridis<span class="accent">Corp</span></div>
+    <div id="rv-sub" class="clip sub" data-start="0.2" data-duration="5.837">content<span class="arrow">&#8594;</span>pdf.generate</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#rv-title", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.42, ease: "back.out(1.6)" }, 0);
+    tl.fromTo("#rv-sub", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.75);
+    window.__timelines["reveal"] = tl;
+  </script>
+</template>

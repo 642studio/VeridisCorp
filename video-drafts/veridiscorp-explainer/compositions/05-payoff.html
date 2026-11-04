@@ -1,0 +1,62 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: var(--font-display, Outfit, sans-serif);
+    }
+    .card {
+      width: 560px; padding: 44px; border-radius: 20px; border: 2px solid rgba(231,238,240,0.14);
+      background: rgba(231,238,240,0.04); display: flex; flex-direction: column; gap: 14px; opacity: 0;
+    }
+    .doc-line { height: 14px; border-radius: 999px; background: rgba(231,238,240,0.16); }
+    .doc-line.w1 { width: 92%; } .doc-line.w2 { width: 68%; } .doc-line.w3 { width: 80%; }
+    .filename { margin-top: 10px; color: var(--fg, #e7eef0); font-family: var(--font-mono, "IBM Plex Mono", monospace); font-size: 30px; }
+    .row { margin-top: 44px; display: flex; align-items: center; gap: 28px; }
+    .btn {
+      padding: 20px 44px; border-radius: 999px; background: var(--accent2, var(--accent, #61a8ff));
+      color: #0b0f14; font-weight: 700; font-size: 32px; opacity: 0;
+    }
+    .cursor-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--fg, #e7eef0);
+      box-shadow: 0 0 0 4px rgba(231,238,240,0.25); opacity: 0; }
+    .approved { margin-top: 44px; display: flex; align-items: center; gap: 18px; opacity: 0; }
+    .approved-text { color: var(--brand, #35e0c0); font-size: 36px; font-weight: 600; }
+
+    .hf-transition-success-check { display: grid; place-items: center; width: var(--hf-check-size, 72px);
+      height: var(--hf-check-size, 72px); border-radius: 999px; background: var(--hf-check-halo, #dcfce7);
+      color: var(--hf-check-ink, #16a34a); }
+    .hf-transition-success-check svg { width: var(--hf-check-mark-size, 56px); height: var(--hf-check-mark-size, 56px);
+      fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+    .hf-transition-success-check circle { opacity: 0.28; }
+    .hf-transition-success-check path { stroke-dasharray: 36; stroke-dashoffset: var(--hf-check-dash, 36); }
+  </style>
+  <div id="root" data-composition-id="payoff" data-width="1920" data-height="1080">
+    <div id="pf-card" class="clip card" data-start="0" data-duration="5.062">
+      <div class="doc-line w1"></div><div class="doc-line w2"></div><div class="doc-line w3"></div>
+      <div class="filename">cotización.pdf</div>
+    </div>
+    <div class="row">
+      <div id="pf-cursor" class="clip cursor-dot" data-start="1.2" data-duration="3.862" data-track-index="1"></div>
+      <div id="pf-btn" class="clip btn" data-start="0.9" data-duration="4.162" data-track-index="0">Aprobar</div>
+      <div id="pf-check" class="hf-transition-success-check clip" data-start="2.0" data-duration="3.062" data-track-index="2" aria-label="Success">
+        <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27"></circle><path d="M20 33.5l8 8L45 23"></path></svg>
+      </div>
+    </div>
+    <div id="pf-approved" class="clip approved" data-start="2.2" data-duration="2.862">
+      <span class="approved-text">Un humano aprobó el envío</span>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#pf-card", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 0);
+    tl.fromTo("#pf-btn", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.9);
+    tl.fromTo("#pf-cursor", { opacity: 0, x: -140, y: -40 }, { opacity: 1, x: 0, y: 0, duration: 0.5, ease: "power2.inOut" }, 1.2);
+    tl.to("#pf-cursor", { scale: 0.7, duration: 0.1, ease: "power2.in" }, 1.8);
+    tl.to("#pf-cursor", { scale: 1, opacity: 0, duration: 0.15, ease: "power2.out" }, 1.9);
+    tl.to("#pf-btn", { opacity: 0, duration: 0.12 }, 1.9);
+    tl.fromTo("#pf-check svg", { opacity: 0, scale: 0.72, rotate: "-18deg" }, { opacity: 1, scale: 1, rotate: "0deg", duration: 0.34, ease: "back.out(1.8)" }, 2.0);
+    tl.fromTo("#pf-check path", { "--hf-check-dash": 36 }, { "--hf-check-dash": 0, duration: 0.42, ease: "power2.out" }, 2.12);
+    tl.fromTo("#pf-approved", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 2.2);
+    window.__timelines["payoff"] = tl;
+  </script>
+</template>

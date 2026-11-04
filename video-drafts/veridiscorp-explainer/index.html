@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/vendor/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --fg: #e7eef0;
+        --muted: #7c8a93;
+        --brand: #35e0c0;
+        --accent: #61a8ff;
+        --font-display: Outfit, sans-serif;
+        --font-mono: "IBM Plex Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="44.3"
+      data-width="1920"
+      data-height="1080"
+      style="background: var(--bg)"
+    >
+      <div id="s-hook" data-composition-id="hook" data-composition-src="compositions/01-hook.html"
+           data-start="0" data-duration="5.387" data-track-index="1"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-tension-count" data-composition-id="tension-count"
+           data-composition-src="compositions/components/count-up.html"
+           data-start="5.687" data-duration="4.969" data-track-index="1"
+           data-variable-values='{"start":0,"end":20,"prefix":"","suffix":"/56","accent":"blue"}'></div>
+      <div id="s-tension-caption" data-composition-id="tension-caption"
+           data-composition-src="compositions/02b-tension-caption.html"
+           data-start="5.687" data-duration="4.969" data-track-index="2"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-reveal" data-composition-id="reveal" data-composition-src="compositions/03-reveal.html"
+           data-start="10.956" data-duration="6.037" data-track-index="1"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-proof-rail" data-composition-id="proof-rail"
+           data-composition-src="compositions/components/state-chip-rail.html"
+           data-start="17.293" data-duration="12.753" data-track-index="1"
+           data-variable-values='{"states":"pending,running,in_review,completed","times":"3.9,7.3,11.2","accent":"blue"}'></div>
+      <div id="s-proof-label" data-composition-id="proof-label"
+           data-composition-src="compositions/04b-proof-label.html"
+           data-start="17.293" data-duration="12.753" data-track-index="2"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-payoff" data-composition-id="payoff" data-composition-src="compositions/05-payoff.html"
+           data-start="30.346" data-duration="5.062" data-track-index="1"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-claim" data-composition-id="claim" data-composition-src="compositions/06-claim.html"
+           data-start="35.708" data-duration="5.290" data-track-index="1"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-endcard" data-composition-id="endcard" data-composition-src="compositions/07-endcard.html"
+           data-start="40.998" data-duration="3.3" data-track-index="1"
+           data-width="1920" data-height="1080"></div>
+
+      <audio id="vo-hook" class="clip" src="assets/voice/hook.mp3"
+             data-start="0" data-duration="5.387" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-tension" class="clip" src="assets/voice/tension.mp3"
+             data-start="5.687" data-duration="4.969" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-reveal" class="clip" src="assets/voice/reveal.mp3"
+             data-start="10.956" data-duration="6.037" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-proof1" class="clip" src="assets/voice/proof1.mp3"
+             data-start="17.293" data-duration="3.715" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-proof2" class="clip" src="assets/voice/proof2.mp3"
+             data-start="21.208" data-duration="3.251" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-proof3" class="clip" src="assets/voice/proof3.mp3"
+             data-start="24.659" data-duration="5.387" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-payoff" class="clip" src="assets/voice/payoff.mp3"
+             data-start="30.346" data-duration="5.062" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-claim" class="clip" src="assets/voice/claim.mp3"
+             data-start="35.708" data-duration="4.690" data-track-index="3" data-volume="1"></audio>
+
+      <audio id="sfx-count-pop" class="clip" src="assets/sfx/pop.mp3"
+             data-start="7.22" data-duration="0.366" data-track-index="5" data-volume="0.8"></audio>
+
+      <audio id="music-bed" class="clip" src="assets/music/bed.mp3"
+             data-start="0" data-duration="44.3" data-track-index="4"
+             data-volume="1" data-fade-in="0.8"
+             data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0.38},{"t":40.398,"v":0.38},{"t":41.2,"v":0.65},{"t":44.3,"v":0}]}]}'></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

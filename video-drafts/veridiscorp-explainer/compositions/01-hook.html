@@ -1,0 +1,27 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      font-family: var(--font-mono, "IBM Plex Mono", monospace);
+      display: flex; flex-direction: column; justify-content: center; padding: 0 220px;
+    }
+    .label { color: var(--muted, #7c8a93); font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .bubble {
+      margin-top: 28px; max-width: 1360px; padding: 44px 52px; border-radius: 18px;
+      border: 2px solid rgba(231,238,240,0.14); background: rgba(231,238,240,0.04);
+      color: var(--fg, #e7eef0); font-size: 54px; line-height: 1.5; opacity: 0;
+    }
+    .cursor { display: inline-block; width: 6px; height: 1.2em; background: var(--brand, #35e0c0); vertical-align: -0.15em; margin-left: 10px; }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
+    <div id="hook-label" class="clip label" data-start="0" data-duration="5.387">ASISTENTE</div>
+    <div id="hook-bubble" class="clip bubble" data-start="0.1" data-duration="5.287" data-hold="true">
+      Adrián le escribe a ASISTENTE: necesita una cotización de redes sociales.<span class="cursor"></span>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#hook-bubble", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.15, ease: "power2.out" }, 0.05);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>
