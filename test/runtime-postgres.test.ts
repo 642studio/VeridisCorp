@@ -16,7 +16,7 @@ import { migrate, provisionSession, scopeKey, tokenHash } from '../src/runtime/d
 import { executor, orchestrator, reviewer, worker, Defaults } from '../src/runtime/contracts.js';
 import type { AccessScope, Principal } from '../src/governance/contracts.js';
 import type { ModelGateway, DeliveryConnector } from '../src/runtime/providers.js';
-import type { OfficeIntelligence } from '../src/office/runtime-contracts.js';
+import { AssistantReply, type OfficeIntelligence } from '../src/office/runtime-contracts.js';
 import { persistGeneratedPdf } from '../src/office/intelligence.js';
 import { MemoryStore } from '../src/runtime/memory-store.js';
 import { MEMORY_EMBEDDING_DIMENSIONS, type Embedder } from '../src/runtime/embeddings.js';
@@ -741,10 +741,14 @@ test('asistente rápido: responde con memoria en una llamada, guarda la conversa
   async ask(context, onUsage) {
    contexts.push(context);
    onUsage?.({ inputTokens: 120, outputTokens: 40 });
-   if (context.question.includes('cotización')) return { mode: 'order', answer: 'Lo paso a la oficina.', objective: 'Preparar una cotización de redes sociales.', memoryIds: [] };
-   if (context.question.includes('sin encargo')) return { mode: 'order', answer: 'Lo paso a la oficina.', objective: '  ', memoryIds: [] };
+   if (context.question.includes('cotización')) return { mode: 'order', answer: 'Lo paso a la oficina.', objective: 'Preparar una cotización de redes sociales.', memoryIds: [], scene: null };
+   if (context.question.includes('sin encargo')) return { mode: 'order', answer: 'Lo paso a la oficina.', objective: '  ', memoryIds: [], scene: null };
+   if (context.question.includes('muéstrame una onda')) {
+    return { mode: 'answer', answer: 'Aquí tienes una onda.', objective: null, memoryIds: [],
+     scene: { label: 'Onda', colorHex: '#35e0e0', layers: [{ type: 'wave', freqX: 8, freqY: 0, phase: 0, speed: 1.2, weight: 0.8 }] } };
+   }
    const used = context.memories.find((m) => m.content.includes(marker));
-   return { mode: 'answer', answer: used ? `Diario a las 3 am.` : 'No lo sé.', objective: null, memoryIds: used ? [used.id, 'id-inventado'] : [] };
+   return { mode: 'answer', answer: used ? `Diario a las 3 am.` : 'No lo sé.', objective: null, memoryIds: used ? [used.id, 'id-inventado'] : [], scene: null };
   },
  };
  const office = new OfficeRuntime(pool, intelligence, { maxTurns: 10, maxRejectedDecisions: 3, maxQuestions: 2, priceList: null }, memory);
@@ -786,6 +790,15 @@ test('asistente rápido: responde con memoria en una llamada, guarda la conversa
   // "order" sin encargo redactado no puede abrir un expediente vacío: queda como respuesta.
   const empty = await request(base, token, '/office/assistant/ask', { question: 'algo sin encargo' });
   assert.equal(empty.data.mode, 'answer');
+  assert.equal(empty.data.scene, null);
+
+  // "scene" viaja intacta en la respuesta HTTP cuando el modelo la emite; el resto de turnos van con null.
+  // Hilo propio (sin threadId) para no alterar el conteo de mensajes del hilo de "first" que se revisa abajo.
+  const withScene = await request(base, token, '/office/assistant/ask', { question: 'muéstrame una onda' });
+  assert.equal(withScene.status, 200, JSON.stringify(withScene.data));
+  assert.equal(withScene.data.scene.label, 'Onda');
+  assert.equal(withScene.data.scene.layers.length, 1);
+  assert.equal(withScene.data.scene.layers[0].type, 'wave');
 
   const threads = await request(base, token, '/office/assistant/threads');
   const thread = threads.data.threads.find((t: { threadId: string }) => t.threadId === first.data.threadId);
@@ -800,4 +813,17 @@ test('asistente rápido: responde con memoria en una llamada, guarda la conversa
   assert.equal((await request(base, outsiderToken, `/office/assistant/threads/${first.data.threadId}`)).status, 404);
   assert.equal((await request(base, outsiderToken, '/office/assistant/ask', { question: 'hola', threadId: first.data.threadId })).status, 404);
  } finally { await close(server); await pool.end(); }
+});
+
+test('AssistantReply: "scene" acepta null y rechaza una escena fuera de los límites', () => {
+ const base = { mode: 'answer' as const, answer: 'ok', objective: null, memoryIds: [] };
+ assert.doesNotThrow(() => AssistantReply.parse({ ...base, scene: null }));
+ const okScene = { label: 'Prueba', layers: [{ type: 'blob', cx: 0, cy: 0, sx: 0.3, sy: 0.3, weight: 0.8 }] };
+ assert.doesNotThrow(() => AssistantReply.parse({ ...base, scene: okScene }));
+ // Más de 8 capas: rechazado.
+ const tooManyLayers = { layers: Array.from({ length: 9 }, () => ({ type: 'blob', cx: 0, cy: 0, sx: 0.3, sy: 0.3, weight: 0.5 })) };
+ assert.throws(() => AssistantReply.parse({ ...base, scene: tooManyLayers }));
+ // weight fuera del rango [-2,2]: rechazado.
+ const outOfRangeWeight = { layers: [{ type: 'blob', cx: 0, cy: 0, sx: 0.3, sy: 0.3, weight: 999 }] };
+ assert.throws(() => AssistantReply.parse({ ...base, scene: outOfRangeWeight }));
 });

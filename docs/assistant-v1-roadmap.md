@@ -6,6 +6,10 @@ Fecha: 2026-10-23. Fase: Arranque. Decisión de alcance, todavía sin implementa
 
 De los 56 perfiles en `agents/`, solo 20 tienen alguna herramienta real conectada (`src/office/tools.ts`), y todas son de lectura/cómputo: `web.search`, `calculator`, `cve.lookup`, `code.sandbox` (Docker efímero, `--network none`, no toca el host), `clickup.read`. Nada escribe todavía a ningún sistema externo real; el único conector de entrega (`httpDeliveryConnector`) es un PUT/GET genérico a un receptor que el operador debe implementar, sin integración con redes sociales, email o CRM. Tampoco hay notificación proactiva (ningún canal tipo Telegram/Slack/email) ni memoria entre conversaciones.
 
+Investigación y propuesta de diseño para cerrar el hueco de redes sociales (Facebook, Instagram,
+Threads, X, YouTube, TikTok) en [social-publishing-roadmap.md](social-publishing-roadmap.md) —
+todavía sin implementar, decisión de arquitectura pendiente de ejecutarse.
+
 ## Prioridad para v1
 
 1. **Generación de documentos (PDF y similares) — implementado (2026-10-23).** Ver detalle abajo.

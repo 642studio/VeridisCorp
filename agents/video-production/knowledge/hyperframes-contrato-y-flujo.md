@@ -32,14 +32,23 @@ del proxy de ElevenLabs y no se usa música generada localmente.
 ## Cómo se monta una escena (forma real, probada)
 
 ```html
-<!-- index.html: la raíz. Nunca lleva <template>. -->
-<div id="root" data-composition-id="main" data-start="0" data-duration="12"
-     data-width="1920" data-height="1080">
-  <div id="intro" data-composition-id="intro" data-composition-src="compositions/intro.html"
-       data-start="0" data-duration="4" data-track-index="1"
-       data-width="1920" data-height="1080"></div>
-</div>
-<script>window.__timelines["main"] = gsap.timeline({ paused: true });</script>
+<!-- index.html: la raíz. Documento HTML completo, nunca un fragmento — y nunca lleva <template>. -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="assets/vendor/gsap.min.js"></script>
+</head>
+<body>
+  <div id="root" data-composition-id="main" data-start="0" data-duration="12"
+       data-width="1920" data-height="1080">
+    <div id="intro" data-composition-id="intro" data-composition-src="compositions/intro.html"
+         data-start="0" data-duration="4" data-track-index="1"
+         data-width="1920" data-height="1080"></div>
+  </div>
+  <script>window.__timelines = window.__timelines || {}; window.__timelines["main"] = gsap.timeline({ paused: true });</script>
+</body>
+</html>
 ```
 
 ```html
@@ -58,6 +67,10 @@ del proxy de ElevenLabs y no se usa música generada localmente.
 ```
 
 Reglas que no son obvias leyendo solo el ejemplo:
+- `index.html` necesita el documento completo (`<!DOCTYPE html><html><head>…</head><body>…</body></html>`)
+  y el `<script src="assets/vendor/gsap.min.js">` explícito en `<head>`. Un fragmento sin esos dos
+  elementos no llega a renderizar: `check` lo rechaza de entrada con `root_composition_missing_html_wrapper`
+  y `missing_gsap_script` (probado con la CLI 0.9.9).
 - El id del host (`intro`), el `data-composition-id` del root de la escena y la clave de
   `window.__timelines[...]` deben ser el mismo string. Si no coinciden, cada render espera 45s por
   escena y entrega cuadros estáticos.

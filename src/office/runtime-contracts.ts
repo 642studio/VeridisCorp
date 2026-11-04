@@ -34,13 +34,49 @@ export type ArchivistReply = z.infer<typeof ArchivistReply>;
 // Importar un documento que pegó un humano: a diferencia del archivista (lo poco que vale la pena de
 // un expediente), aquí casi todo es conocimiento a conservar — hasta 12 memorias por sección.
 export const IngestReply = z.object({ memories: ArchivistReply.shape.memories.element.array().max(12) }).strict();
+// Espejo del esquema de web/src/ascii/scene.ts (Scene/ScenePrimitive) — no hay import compartido
+// entre src/ y web/, así que este archivo es la fuente de verdad de lo que el LLM puede emitir y
+// debe mantenerse igual a mano si ese archivo cambia. Composición ADITIVA (suma ponderada), igual
+// que las 10 densidades hardcodeadas de states.ts — nunca booleana tipo SDF.
+const num = (lo: number, hi: number) => z.number().finite().min(lo).max(hi);
+const ScenePrimitive = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('blob'),
+    cx: num(-2, 2), cy: num(-2, 2), sx: num(0.02, 2), sy: num(0.02, 2), weight: num(-2, 2),
+  }).strict(),
+  z.object({
+    type: z.literal('ring'),
+    cx: num(-2, 2), cy: num(-2, 2), radius: num(0, 2), k: num(1, 200), weight: num(-2, 2),
+  }).strict(),
+  z.object({
+    type: z.literal('wave'),
+    freqX: num(-60, 60), freqY: num(-60, 60), phase: num(-10, 10), speed: num(-10, 10), weight: num(-2, 2),
+  }).strict(),
+  z.object({
+    type: z.literal('spiral'),
+    arms: num(1, 12), pitch: num(-30, 30), speed: num(-10, 10), weight: num(-2, 2),
+  }).strict(),
+  z.object({
+    type: z.literal('stripes'),
+    axis: z.enum(['x', 'y']), freq: num(1, 80), speed: num(-10, 10), weight: num(-2, 2),
+  }).strict(),
+]);
+const Scene = z.object({
+  label: z.string().trim().max(60).optional(),
+  colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  layers: z.array(ScenePrimitive).min(1).max(8),
+}).strict();
+
 // Respuesta rápida del chat (OfficeRuntime.ask): una sola llamada con la memoria ya consultada. "order"
 // significa que lo pedido es trabajo para la oficina; entonces "objective" es el encargo ya redactado.
+// "scene" es opcional en la práctica (casi todos los turnos deben mandar null) pero .nullable() en
+// vez de .optional() porque la salida estructurada exige la clave siempre presente.
 export const AssistantReply = z.object({
   mode: z.enum(['answer', 'order']),
   answer: z.string().trim().min(1).max(8000),
   objective: z.string().trim().max(4000).nullable(),
   memoryIds: z.array(z.string().trim().min(1).max(120)).max(12),
+  scene: Scene.nullable(),
 }).strict();
 export type AssistantReply = z.infer<typeof AssistantReply>;
 export type AssistantContext = {
