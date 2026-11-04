@@ -1,0 +1,19 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      display: flex; align-items: center; justify-content: center; padding: 0 90px;
+      font-family: var(--font-display, Inter, sans-serif); text-align: center;
+    }
+    .line { font-size: 108px; font-weight: 800; line-height: 1.2; color: var(--fg, #e7eef0); opacity: 0; }
+    .line .accent { color: var(--brand, #35e0c0); }
+  </style>
+  <div id="root" data-composition-id="claim" data-width="1080" data-height="1920">
+    <div id="cl-line" class="clip line" data-start="0" data-duration="2.508" data-hold="true">Nada sale<br /><span class="accent">solo</span>.</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#cl-line", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.24, ease: "back.out(1.6)" }, 0);
+    window.__timelines["claim"] = tl;
+  </script>
+</template>

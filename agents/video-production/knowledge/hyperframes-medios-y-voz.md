@@ -15,10 +15,14 @@ por la **biblioteca de medios** (`veridis_runtime_v1.media_library`): el mismo t
 prompt/estilo ya generado antes, en cualquier expediente, se reusa sin gastar otra llamada ni otro
 crédito — nunca regenerar por costumbre, siempre dejar que la herramienta busque primero.
 
-Pasos: 1) llamar `generate_voice`/`generate_music` con el texto/estilo exacto; 2) medir la duración
-real del resultado (`ffprobe`) — nunca estimarla por conteo de caracteres ni por el prompt; 3) guardar
-el archivo en `assets/` del proyecto y montarlo como `<audio id="..." data-start=... data-duration=...>`
-con esa medición real; 4) ajustar la duración de las escenas visuales a la del audio, no al revés.
+Pasos: 1) llamar `generate_voice`/`generate_music` con el texto/estilo exacto — la respuesta nunca trae
+el audio en sí (romper eso fue justo el bug que reventaba el límite de contexto del modelo con 1.3-1.8M
+tokens en un solo expediente), trae un "mediaRef"; 2) en `render_video`, para ese archivo usa
+`"mediaRef"` con ese valor exacto (nunca `"contentBase64"`) — el motor resuelve el audio real del lado
+del servidor; 3) montarlo en el HTML como `<audio id="..." data-start=...>`; 4) no midas ni estimes la
+duración tú mismo (no hay forma de hacerlo sin el audio en el contexto): corre `check` y ajusta la
+composición según lo que reporte su sección `audio` (duración real, medida dentro del contenedor) —
+si no cuadra con lo que armaste, corrige las escenas a lo que `check` midió, no al revés.
 `music.generate` es instrumental por defecto (`instrumental: true`) — una cama de fondo nunca debe
 cantar sobre la narración.
 

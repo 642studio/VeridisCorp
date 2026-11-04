@@ -454,8 +454,14 @@ const videoFileSchema = z.object({
   path: z.string().trim().min(1).max(200)
     .regex(/^[A-Za-z0-9_][A-Za-z0-9_.-]*(\/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$/, 'Ruta relativa inválida')
     .refine((p) => !p.includes('..'), 'La ruta no puede contener ..'),
-  contentBase64: z.string().min(1).describe('Contenido del archivo en base64 (texto o binario, p. ej. el audio ya generado)'),
-}).strict();
+  contentBase64: z.string().min(1).optional()
+    .describe('Contenido del archivo en base64 (texto o binario: HTML, CSS, JS). Para un audio ya '
+      + 'generado con generate_voice/generate_music usa "mediaRef", nunca pegues su base64 aquí.'),
+  mediaRef: z.string().min(1).optional()
+    .describe('El "mediaRef" exacto que devolvió generate_voice/generate_music para este audio — el '
+      + 'motor resuelve el archivo real del lado del servidor, sin que su contenido pase por el modelo.'),
+}).strict().refine((f) => Boolean(f.contentBase64) !== Boolean(f.mediaRef),
+  'Cada archivo lleva exactamente uno de "contentBase64" o "mediaRef", nunca ambos ni ninguno');
 
 const videoRenderSchema = z.object({
   files: z.array(videoFileSchema).min(1).max(MAX_VIDEO_FILES)
@@ -466,11 +472,29 @@ const videoRenderSchema = z.object({
     .describe('draft mientras iteras, delivery para el entregable final'),
 }).strict();
 
+// mediaRef = "<kind>:<requestHash>", el mismo valor que devuelve generate_voice/generate_music
+// (ver resolveOrGenerateMedia): el audio real nunca viaja por el contexto del modelo, se resuelve
+// aquí contra la fila ya guardada en media_library por su hash exacto.
+async function resolveMediaRefBytes(mediaRef: string): Promise<Buffer> {
+  const sep = mediaRef.indexOf(':');
+  const kind = sep === -1 ? '' : mediaRef.slice(0, sep);
+  const requestHash = sep === -1 ? mediaRef : mediaRef.slice(sep + 1);
+  if (!mediaLibraryPool) throw new Error('No hay biblioteca de medios configurada para resolver "mediaRef"');
+  if ((kind !== 'voice' && kind !== 'music') || !requestHash) throw new Error(`"mediaRef" inválido: "${mediaRef}"`);
+  const result = await mediaLibraryPool.query(
+    'SELECT content FROM veridis_runtime_v1.media_library WHERE kind=$1 AND request_hash=$2',
+    [kind, requestHash],
+  );
+  const row = result.rows[0] as { content: Buffer } | undefined;
+  if (!row) throw new Error(`"mediaRef" "${mediaRef}" no corresponde a ningún audio generado — vuelve a llamar generate_voice/generate_music`);
+  return row.content;
+}
+
 async function writeVideoProjectFiles(projectDir: string, files: z.infer<typeof videoFileSchema>[]): Promise<void> {
   if (!files.some((file) => file.path === 'index.html')) throw new Error('El proyecto necesita un index.html en la raíz');
   let totalBytes = 0;
   for (const file of files) {
-    const buffer = Buffer.from(file.contentBase64, 'base64');
+    const buffer = file.mediaRef ? await resolveMediaRefBytes(file.mediaRef) : Buffer.from(file.contentBase64!, 'base64');
     if (buffer.length > MAX_VIDEO_FILE_BYTES) throw new Error(`"${file.path}" excede el tamaño máximo por archivo`);
     totalBytes += buffer.length;
     if (totalBytes > MAX_VIDEO_PROJECT_BYTES) throw new Error('El proyecto excede el tamaño máximo permitido');
@@ -528,7 +552,8 @@ export const videoRenderTool = tool(
       + 'agents/video-production/knowledge/) a un MP4 real, en un contenedor aislado y sin red. '
       + 'Corre `check` antes de renderizar y falla con el detalle exacto si no pasa (contraste, texto '
       + 'bajo el mínimo legible, reglas del contrato) — corrige la composición y vuelve a llamar. '
-      + '"quality": "draft" mientras iteras, "delivery" solo para el entregable final.',
+      + '"quality": "draft" mientras iteras, "delivery" solo para el entregable final. Para un audio ya '
+      + 'generado con generate_voice/generate_music, usa "mediaRef" (no "contentBase64") en su archivo.',
     schema: videoRenderSchema,
   },
 );
@@ -547,20 +572,20 @@ export function configureMediaLibrary(pool: Pool | null): void {
 async function resolveOrGenerateMedia(
   kind: 'voice' | 'music', provider: string, requestParams: Record<string, unknown>,
   generate: () => Promise<{ contentType: string; body: Buffer }>,
-): Promise<{ contentType: string; base64: string; cached: boolean }> {
+): Promise<{ contentType: string; requestHash: string; cached: boolean }> {
   const requestHash = createHash('sha256').update(JSON.stringify({ kind, provider, ...requestParams })).digest('hex');
   if (mediaLibraryPool) {
     const existing = await mediaLibraryPool.query(
-      'SELECT content, content_type FROM veridis_runtime_v1.media_library WHERE kind=$1 AND provider=$2 AND request_hash=$3',
+      'SELECT content_type FROM veridis_runtime_v1.media_library WHERE kind=$1 AND provider=$2 AND request_hash=$3',
       [kind, provider, requestHash],
     );
-    const row = existing.rows[0] as { content: Buffer; content_type: string } | undefined;
+    const row = existing.rows[0] as { content_type: string } | undefined;
     if (row) {
       await mediaLibraryPool.query(
         'UPDATE veridis_runtime_v1.media_library SET last_used_at=clock_timestamp() WHERE kind=$1 AND provider=$2 AND request_hash=$3',
         [kind, provider, requestHash],
       );
-      return { contentType: row.content_type, base64: row.content.toString('base64'), cached: true };
+      return { contentType: row.content_type, requestHash, cached: true };
     }
   }
   const generated = await generate();
@@ -572,8 +597,12 @@ async function resolveOrGenerateMedia(
        VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (kind, provider, request_hash) DO NOTHING`,
       [randomUUID(), kind, provider, requestHash, JSON.stringify(requestParams), generated.body, generated.contentType, generated.body.length],
     );
+  } else {
+    // Sin biblioteca configurada no hay dónde resolver "mediaRef" después — render_video fallaría
+    // más tarde con un error confuso. Mejor fallar aquí mismo, apenas se genera, con la causa real.
+    throw new Error('No hay biblioteca de medios configurada: no se puede generar voz/música sin ella');
   }
-  return { contentType: generated.contentType, base64: generated.body.toString('base64'), cached: false };
+  return { contentType: generated.contentType, requestHash, cached: false };
 }
 
 const voiceGenerateSchema = z.object({
@@ -584,17 +613,23 @@ const voiceGenerateSchema = z.object({
 // A diferencia de pdf.generate/video.render, esto no persiste en office_files (no es un entregable
 // final del expediente, es un insumo — el texto a convertir en voz lo decide video-production para
 // luego incluirlo como assets/ al llamar video.render). Por eso no exige `persist`.
+// El audio real NUNCA vuelve en la respuesta (ni como base64 ni de ninguna otra forma): ya vive en
+// media_library por su "mediaRef". Pasar bytes de audio por el contexto del modelo fue justo el bug
+// que reventaba el límite de tokens de los proveedores (1.3-1.8M tokens en un solo expediente de
+// video) — generate_pdf/render_video ya evitaban esto porque gatherToolResults() los intercepta
+// aparte; aquí es más simple: la herramienta misma nunca emite los bytes.
 export const voiceGenerateTool = tool(
   async ({ text, voiceId }: z.infer<typeof voiceGenerateSchema>) => {
     const result = await resolveOrGenerateMedia('voice', 'elevenlabs', { text, voiceId: voiceId ?? null }, () => synthesizeElevenLabsForTool(process.env, text, voiceId ?? null));
-    return JSON.stringify({ filename: 'voz.mp3', contentType: result.contentType, cached: result.cached, base64: result.base64 });
+    return JSON.stringify({ filename: 'voz.mp3', contentType: result.contentType, cached: result.cached, mediaRef: `voice:${result.requestHash}` });
   },
   {
     name: 'generate_voice',
     description: 'Convierte texto a voz real con el proxy de ElevenLabs ya conectado. Si ya se generó '
       + 'exactamente este texto antes (con la misma voz), reusa el audio de la biblioteca de medios sin '
-      + 'volver a llamar al proveedor. Mide la duración real del resultado (ffprobe) antes de fijar los '
-      + 'tiempos de una composición de video — nunca se debe estimar por conteo de caracteres.',
+      + 'volver a llamar al proveedor. Nunca devuelve el audio en sí (rompería el límite de contexto): '
+      + 'devuelve "mediaRef" — pásalo tal cual, sin modificarlo, como "mediaRef" del archivo correspondiente '
+      + 'al llamar render_video; el motor resuelve el audio real del lado del servidor.',
     schema: voiceGenerateSchema,
   },
 );
@@ -608,14 +643,16 @@ const musicGenerateSchema = z.object({
 export const musicGenerateTool = tool(
   async ({ prompt, style, instrumental }: z.infer<typeof musicGenerateSchema>) => {
     const result = await resolveOrGenerateMedia('music', 'sunoapi', { prompt, style, instrumental }, () => generateMusic(process.env, { prompt, style, instrumental }));
-    return JSON.stringify({ filename: 'musica.mp3', contentType: result.contentType, cached: result.cached, base64: result.base64 });
+    return JSON.stringify({ filename: 'musica.mp3', contentType: result.contentType, cached: result.cached, mediaRef: `music:${result.requestHash}` });
   },
   {
     name: 'generate_music',
     description: 'Genera una pista de música real con sunoapi.org (IA, no voz hablada — para eso usa '
       + 'generate_voice). Tarda de segundos a unos minutos (genera y espera, no requiere otra llamada). '
       + 'Si ya se generó una pista con el mismo prompt/estilo antes, reusa la de la biblioteca de medios '
-      + 'sin gastar otra generación. Para una cama de fondo de video, instrumental=true casi siempre.',
+      + 'sin gastar otra generación. Para una cama de fondo de video, instrumental=true casi siempre. '
+      + 'Nunca devuelve la música en sí: devuelve "mediaRef" — pásalo tal cual como "mediaRef" del archivo '
+      + 'correspondiente al llamar render_video.',
     schema: musicGenerateSchema,
   },
 );

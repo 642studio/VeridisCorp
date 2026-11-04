@@ -1,0 +1,50 @@
+[
+  {
+    "text": "Nada",
+    "start": 0,
+    "end": 0.24,
+    "id": "w0"
+  },
+  {
+    "text": "sale",
+    "start": 0.29,
+    "end": 0.56,
+    "id": "w1"
+  },
+  {
+    "text": "sin",
+    "start": 0.56,
+    "end": 0.73,
+    "id": "w2"
+  },
+  {
+    "text": "que",
+    "start": 0.82,
+    "end": 0.97,
+    "id": "w3"
+  },
+  {
+    "text": "un",
+    "start": 0.99,
+    "end": 1.12,
+    "id": "w4"
+  },
+  {
+    "text": "humano",
+    "start": 1.12,
+    "end": 1.55,
+    "id": "w5"
+  },
+  {
+    "text": "lo",
+    "start": 1.55,
+    "end": 1.69,
+    "id": "w6"
+  },
+  {
+    "text": "apruebe.",
+    "start": 1.69,
+    "end": 2.24,
+    "id": "w7"
+  }
+]

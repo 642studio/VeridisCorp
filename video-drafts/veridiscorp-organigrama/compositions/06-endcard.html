@@ -1,0 +1,23 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: var(--font-display, Inter, sans-serif); text-align: center;
+    }
+    .mark { font-size: 96px; font-weight: 800; letter-spacing: -0.02em; color: var(--fg, #e7eef0); opacity: 0; }
+    .mark .accent { color: var(--brand, #35e0c0); }
+    .tag { margin-top: 20px; font-family: var(--font-mono, "Space Mono", monospace); font-size: 32px;
+      color: var(--muted, #7c8a93); opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1080" data-height="1920">
+    <div id="ec-mark" class="clip mark" data-start="0" data-duration="3.0" data-hold="true">Veridis<span class="accent">Corp</span></div>
+    <div id="ec-tag" class="clip tag" data-start="0.3" data-duration="2.7" data-hold="true">Oficina real, con control real.</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#ec-mark", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.5)" }, 0);
+    tl.fromTo("#ec-tag", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, 0.3);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

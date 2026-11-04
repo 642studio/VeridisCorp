@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --fg: #e7eef0;
+        --muted: #7c8a93;
+        --brand: #35e0c0;
+        --accent: #61a8ff;
+        --font-display: Inter, sans-serif;
+        --font-mono: "Space Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="17.3"
+      data-width="1080"
+      data-height="1920"
+      style="background: var(--bg)"
+    >
+      <div id="s-hook" data-composition-id="hook" data-composition-src="compositions/01-hook.html"
+           data-start="0" data-duration="2.740" data-track-index="1"
+           data-width="1080" data-height="1920"></div>
+
+      <div id="s-stat" data-composition-id="stat" data-composition-src="compositions/components/count-up.html"
+           data-start="2.990" data-duration="3.297" data-track-index="1"
+           data-variable-values='{"start":0,"end":20,"prefix":"","suffix":"/56","accent":"green"}'></div>
+
+      <div id="s-route" data-composition-id="route" data-composition-src="compositions/03-route.html"
+           data-start="6.537" data-duration="2.415" data-track-index="1"
+           data-width="1080" data-height="1920"></div>
+
+      <div id="s-review" data-composition-id="review" data-composition-src="compositions/04-review.html"
+           data-start="9.202" data-duration="2.276" data-track-index="1"
+           data-width="1080" data-height="1920"></div>
+
+      <div id="s-claim" data-composition-id="claim" data-composition-src="compositions/05-claim.html"
+           data-start="11.728" data-duration="2.508" data-track-index="1"
+           data-width="1080" data-height="1920"></div>
+
+      <div id="s-endcard" data-composition-id="endcard" data-composition-src="compositions/06-endcard.html"
+           data-start="14.236" data-duration="3.0" data-track-index="1"
+           data-width="1080" data-height="1920"></div>
+
+      <div id="s-captions" data-composition-id="captions" data-composition-src="compositions/captions.html"
+           data-start="0" data-duration="17.3" data-track-index="2" data-track-kind="captions"
+           data-width="1080" data-height="1920"></div>
+
+      <audio id="vo-hook" class="clip" src="assets/voice/hook.mp3"
+             data-start="0" data-duration="2.740" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-stat" class="clip" src="assets/voice/stat.mp3"
+             data-start="2.990" data-duration="3.297" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-route" class="clip" src="assets/voice/route.mp3"
+             data-start="6.537" data-duration="2.415" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-review" class="clip" src="assets/voice/review.mp3"
+             data-start="9.202" data-duration="2.276" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-claim" class="clip" src="assets/voice/claim.mp3"
+             data-start="11.728" data-duration="2.508" data-track-index="3" data-volume="1"></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

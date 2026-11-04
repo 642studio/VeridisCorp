@@ -1,0 +1,7 @@
+[
+  { "id": "hook", "text": "Un pedido real entra a VeridisCorp." },
+  { "id": "tension", "text": "El expediente pasa por revision real." },
+  { "id": "proof", "text": "Content prepara el PDF." },
+  { "id": "payoff", "text": "Un humano aprueba antes de enviarlo." },
+  { "id": "claim", "text": "Nada sale solo." }
+]

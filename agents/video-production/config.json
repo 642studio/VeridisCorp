@@ -27,6 +27,16 @@
       "id": "mkt-hyperframes-conexiones",
       "title": "Conexiones e infraestructura: local autoalojado vs. MCP alojado de HeyGen",
       "path": "hyperframes-conexiones.md"
+    },
+    {
+      "id": "mkt-hyperframes-estandar-calidad",
+      "title": "Estándar de calidad para clips de VeridisCorp",
+      "path": "hyperframes-estandar-de-calidad.md"
+    },
+    {
+      "id": "mkt-hyperframes-elementos-3d",
+      "title": "Elementos 3D (estilo clay) en HyperFrames",
+      "path": "hyperframes-elementos-3d.md"
     }
   ]
 }

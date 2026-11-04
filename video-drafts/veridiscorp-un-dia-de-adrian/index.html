@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --fg: #e7eef0;
+        --muted: #7c8a93;
+        --brand: #35e0c0;
+        --accent: #61a8ff;
+        --font-display: Inter, sans-serif;
+        --font-mono: "Space Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); }
+
+      .panel { position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; padding: 0 90px; text-align: center;
+        font-family: var(--font-display, Inter, sans-serif); background: var(--bg); opacity: 0; }
+      #panel-hook { opacity: 1; }
+
+      /* Panel 1: hook — chat bubble, mid-typing */
+      .chat-label { color: var(--muted); font-family: var(--font-mono); font-size: 32px;
+        letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 20px; }
+      .chat-bubble { max-width: 880px; padding: 40px 46px; border-radius: 18px;
+        border: 2px solid rgba(231,238,240,0.16); background: rgba(231,238,240,0.04);
+        color: var(--fg); font-size: 48px; line-height: 1.5; }
+      .chat-cursor { display: inline-block; width: 6px; height: 1.1em; background: var(--brand);
+        vertical-align: -0.1em; margin-left: 8px; }
+
+      /* Panel 2: tension — expediente status */
+      .exp-tag { color: var(--muted); font-family: var(--font-mono); font-size: 30px;
+        letter-spacing: 0.12em; text-transform: uppercase; }
+      .exp-obj { margin-top: 18px; color: var(--fg); font-size: 46px; font-weight: 600; max-width: 860px; }
+      .status-badge { margin-top: 48px; padding: 20px 44px; border-radius: 999px; border: 2px solid;
+        font-family: var(--font-mono); font-size: 36px; font-weight: 700; }
+
+      /* Panel 3: proof — specialist working */
+      .spec-card { padding: 48px 56px; border-radius: 20px; border: 2px solid rgba(231,238,240,0.16);
+        background: rgba(231,238,240,0.04); }
+      .spec-name { color: var(--brand); font-family: var(--font-mono); font-size: 44px; font-weight: 700; }
+      .spec-task { margin-top: 14px; color: var(--muted); font-size: 34px; }
+      .dots { margin-top: 24px; display: flex; gap: 14px; justify-content: center; }
+      .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--brand); opacity: 0.3; }
+
+      /* Panel 4: payoff — PDF + approve */
+      .doc-card { width: 520px; padding: 40px; border-radius: 20px; border: 2px solid rgba(231,238,240,0.16);
+        background: rgba(231,238,240,0.04); }
+      .doc-line { height: 13px; border-radius: 999px; background: rgba(231,238,240,0.16); margin-bottom: 12px; }
+      .doc-line.w1 { width: 92%; } .doc-line.w2 { width: 68%; } .doc-line.w3 { width: 80%; }
+      .doc-filename { margin-top: 10px; color: var(--fg); font-family: var(--font-mono); font-size: 28px; }
+      .approve-row { margin-top: 48px; display: flex; align-items: center; gap: 26px; }
+      .approve-btn { padding: 18px 40px; border-radius: 999px; background: var(--brand);
+        color: #0b0f14; font-weight: 700; font-size: 30px; }
+      .approve-cursor { width: 20px; height: 20px; border-radius: 50%; background: var(--fg);
+        box-shadow: 0 0 0 4px rgba(231,238,240,0.25); }
+
+      .hf-transition-success-check { display: grid; place-items: center; width: 150px; height: 150px;
+        border-radius: 999px; background: var(--hf-check-halo, #dcfce7); color: var(--hf-check-ink, #16a34a); }
+      .hf-transition-success-check svg { width: 112px; height: 112px; fill: none; stroke: currentColor;
+        stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+      .hf-transition-success-check circle { opacity: 0.28; }
+      .hf-transition-success-check path { stroke-dasharray: 36; stroke-dashoffset: var(--hf-check-dash, 36); }
+
+      /* Fixed caption band — only used while a panel (not the claim/end card) is on screen */
+      .cap-wrap { position: absolute; left: 90px; right: 90px; top: 1150px; display: flex;
+        justify-content: center; overflow: visible; pointer-events: none; }
+      .cap { font-family: var(--font-display); font-weight: 700; font-size: 50px; line-height: 1.3;
+        color: var(--fg); text-align: center; text-wrap: balance;
+        text-shadow: 0 2px 18px rgba(0,0,0,0.6); opacity: 0; visibility: hidden; }
+
+      .overlay-full { position: absolute; inset: 0; display: flex; align-items: center;
+        justify-content: center; flex-direction: column; text-align: center; padding: 0 90px;
+        background: var(--bg); opacity: 0; font-family: var(--font-display, Inter, sans-serif); }
+      .claim-line { font-size: 104px; font-weight: 800; line-height: 1.2; color: var(--fg); }
+      .claim-line .accent { color: var(--brand); }
+      .ec-mark { font-size: 92px; font-weight: 800; letter-spacing: -0.02em; color: var(--fg); }
+      .ec-mark .accent { color: var(--brand); }
+      .ec-tag { margin-top: 20px; font-family: var(--font-mono); font-size: 30px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="14.3"
+      data-width="1080"
+      data-height="1920"
+    >
+      <div class="panel" id="panel-hook">
+        <div class="chat-label">ASISTENTE</div>
+        <div class="chat-bubble">&#8230;cotización de redes sociales<span class="chat-cursor"></span></div>
+      </div>
+      <div class="panel" id="panel-tension">
+        <div class="exp-tag">Expediente</div>
+        <div class="exp-obj">&#8220;Preparar una cotización de redes sociales.&#8221;</div>
+        <div id="status-badge" class="status-badge">pending</div>
+      </div>
+      <div class="panel" id="panel-proof">
+        <div class="spec-card">
+          <div class="spec-name">content</div>
+          <div class="spec-task">preparando el PDF</div>
+          <div class="dots">
+            <div id="dot1" class="dot"></div>
+            <div id="dot2" class="dot"></div>
+            <div id="dot3" class="dot"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="panel-payoff">
+        <div class="doc-card">
+          <div class="doc-line w1"></div><div class="doc-line w2"></div><div class="doc-line w3"></div>
+          <div class="doc-filename">cotización.pdf</div>
+        </div>
+        <div class="approve-row">
+          <div id="approve-cursor" class="approve-cursor"></div>
+          <div id="approve-btn" class="approve-btn">Aprobar</div>
+          <div id="approve-check" class="hf-transition-success-check" aria-label="Success">
+            <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27"></circle><path d="M20 33.5l8 8L45 23"></path></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="cap-wrap"><div id="cap-hook" class="clip cap" data-start="0.1" data-duration="2.408">Un pedido real entra a VeridisCorp.</div></div>
+      <div class="cap-wrap"><div id="cap-tension" class="clip cap" data-start="2.808" data-duration="1.850">El expediente pasa por revisión real.</div></div>
+      <div class="cap-wrap"><div id="cap-proof" class="clip cap" data-start="4.958" data-duration="1.479">Content prepara el PDF.</div></div>
+      <div class="cap-wrap"><div id="cap-payoff" class="clip cap" data-start="6.837" data-duration="2.083">Un humano aprueba antes de enviarlo.</div></div>
+
+      <div id="claim-overlay" class="clip overlay-full" data-start="9.220" data-duration="2.0" data-hold="true">
+        <div class="claim-line">Nada sale<br /><span class="accent">solo</span>.</div>
+      </div>
+      <div id="endcard-overlay" class="clip overlay-full" data-start="11.220" data-duration="3.08" data-hold="true">
+        <div class="ec-mark">Veridis<span class="accent">Corp</span></div>
+        <div class="ec-tag">Oficina real, con control real.</div>
+      </div>
+
+      <audio id="vo-hook" class="clip" src="assets/voice/hook.mp3"
+             data-start="0" data-duration="2.508" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-tension" class="clip" src="assets/voice/tension.mp3"
+             data-start="2.708" data-duration="1.950" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-proof" class="clip" src="assets/voice/proof.mp3"
+             data-start="4.858" data-duration="1.579" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-payoff" class="clip" src="assets/voice/payoff.mp3"
+             data-start="6.737" data-duration="2.183" data-track-index="3" data-volume="1"></audio>
+      <audio id="vo-claim" class="clip" src="assets/voice/claim.mp3"
+             data-start="9.220" data-duration="1.393" data-track-index="3" data-volume="1"></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Continuous push: outgoing slides up and out while incoming slides up into place from
+      // below — the two are never at the same screen position at once, so nothing overlaps.
+      tl.set("#panel-hook", { y: 0, filter: "blur(0px)" }, 0);
+      tl.to("#panel-hook", { opacity: 0, y: -140, filter: "blur(14px)", duration: 0.3, ease: "power2.in" }, 2.108);
+      tl.fromTo("#panel-tension", { y: 140, filter: "blur(14px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.34, ease: "power2.out" }, 2.22);
+
+      tl.to("#panel-tension", { opacity: 0, y: -140, filter: "blur(14px)", duration: 0.3, ease: "power2.in" }, 4.258);
+      tl.fromTo("#panel-proof", { y: 140, filter: "blur(14px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.34, ease: "power2.out" }, 4.37);
+
+      tl.to("#panel-proof", { opacity: 0, y: -140, filter: "blur(14px)", duration: 0.3, ease: "power2.in" }, 6.137);
+      tl.fromTo("#panel-payoff", { y: 140, filter: "blur(14px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.34, ease: "power2.out" }, 6.25);
+
+      // Payoff panel steps aside before the claim card lands, so nothing sits underneath it.
+      tl.to("#panel-payoff", { opacity: 0, duration: 0.3, ease: "power2.in" }, 8.9);
+
+      // Panel 2: status badge, quick real transitions (pending -> running -> in_review)
+      tl.set("#status-badge", { borderColor: "#61a8ff", color: "#61a8ff" }, 2.708);
+      tl.set("#status-badge", { textContent: "pending" }, 2.708);
+      tl.set("#status-badge", { textContent: "running", borderColor: "#35e0c0", color: "#35e0c0" }, 3.4);
+      tl.set("#status-badge", { textContent: "in_review" }, 4.1);
+
+      // Panel 3: dots stagger once (non-looping, deterministic)
+      tl.fromTo("#dot1", { opacity: 0.3 }, { opacity: 1, duration: 0.2 }, 5.0);
+      tl.fromTo("#dot2", { opacity: 0.3 }, { opacity: 1, duration: 0.2 }, 5.25);
+      tl.fromTo("#dot3", { opacity: 0.3 }, { opacity: 1, duration: 0.2 }, 5.5);
+
+      // Panel 4: cursor approves, check pops
+      tl.set("#approve-check", { opacity: 0 }, 6.737);
+      tl.fromTo("#approve-cursor", { x: -120, y: -30, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.4, ease: "power2.inOut" }, 7.3);
+      tl.to("#approve-cursor", { scale: 0.7, duration: 0.1 }, 7.75);
+      tl.to("#approve-cursor", { scale: 1, opacity: 0, duration: 0.15 }, 7.85);
+      tl.to("#approve-btn", { opacity: 0, duration: 0.12 }, 7.85);
+      tl.fromTo("#approve-check", { opacity: 0, scale: 0.7, rotate: "-18deg" }, { opacity: 1, scale: 1, rotate: "0deg", duration: 0.3, ease: "back.out(1.8)" }, 7.95);
+      tl.fromTo("#approve-check path", { "--hf-check-dash": 36 }, { "--hf-check-dash": 0, duration: 0.36, ease: "power2.out" }, 8.05);
+
+      // Captions: fade in/out, hard kill after exit (none during the claim/end-card beat: that
+      // text is already a full-frame title, a caption under it would duplicate and get occluded).
+      const caps = [
+        { id: "#cap-hook", start: 0.1, end: 2.508 },
+        { id: "#cap-tension", start: 2.808, end: 4.658 },
+        { id: "#cap-proof", start: 4.958, end: 6.437 },
+        { id: "#cap-payoff", start: 6.837, end: 8.920 },
+      ];
+      caps.forEach(({ id, start, end }) => {
+        tl.set(id, { visibility: "visible" }, start);
+        tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "power2.out" }, start);
+        tl.to(id, { opacity: 0, duration: 0.12, ease: "power2.in" }, end - 0.12);
+        tl.set(id, { opacity: 0, visibility: "hidden" }, end);
+      });
+
+      // Claim overlay settles after the payoff panel steps aside, then the end card takes over
+      tl.fromTo("#claim-overlay", { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.5)" }, 9.220);
+      tl.to("#claim-overlay", { opacity: 0, duration: 0.3 }, 11.0);
+      tl.fromTo("#endcard-overlay", { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.5)" }, 11.220);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

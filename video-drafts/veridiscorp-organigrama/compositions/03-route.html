@@ -1,0 +1,37 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; background: var(--bg, #0b0f14);
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 620px;
+      font-family: var(--font-mono, "Space Mono", monospace);
+    }
+    .node {
+      padding: 26px 52px; border-radius: 16px; border: 2px solid rgba(231,238,240,0.16);
+      background: rgba(231,238,240,0.04); color: var(--fg, #e7eef0); font-size: 46px;
+      font-weight: 700; opacity: 0;
+    }
+    .node.active { border-color: var(--brand, #35e0c0); color: var(--brand, #35e0c0); }
+    .arrow { font-size: 44px; color: var(--muted, #7c8a93); opacity: 0; margin: 6px 0; }
+  </style>
+  <div id="root" data-composition-id="route" data-width="1080" data-height="1920">
+    <div id="rt-ceo" class="clip node active" data-start="0" data-duration="2.415" data-hold="true">CEO</div>
+    <div id="rt-a1" class="clip arrow" data-start="0.1" data-duration="2.315" data-hold="true">&#8595;</div>
+    <div id="rt-content" class="clip node" data-start="0.1" data-duration="2.315" data-hold="true">content</div>
+    <div id="rt-a2" class="clip arrow" data-start="0.55" data-duration="1.865" data-hold="true">&#8595;</div>
+    <div id="rt-tool" class="clip node" data-start="0.55" data-duration="1.865" data-hold="true">pdf.generate</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#rt-ceo", { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.2, ease: "power2.out" }, 0);
+    tl.fromTo("#rt-a1", { opacity: 0 }, { opacity: 1, duration: 0.15 }, 0.1);
+    tl.fromTo("#rt-content", { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.2, ease: "power2.out" }, 0.18);
+    tl.fromTo("#rt-content", { color: "#e7eef0", borderColor: "rgba(231,238,240,0.16)" },
+      { color: "#35e0c0", borderColor: "#35e0c0", duration: 0.2, ease: "power2.out" }, 0.4);
+    tl.fromTo("#rt-a2", { opacity: 0 }, { opacity: 1, duration: 0.15 }, 0.55);
+    tl.fromTo("#rt-tool", { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.2, ease: "power2.out" }, 0.63);
+    tl.fromTo("#rt-tool", { color: "#e7eef0", borderColor: "rgba(231,238,240,0.16)" },
+      { color: "#35e0c0", borderColor: "#35e0c0", duration: 0.2, ease: "power2.out" }, 0.85);
+    window.__timelines["route"] = tl;
+  </script>
+</template>

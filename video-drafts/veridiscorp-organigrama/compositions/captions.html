@@ -1,0 +1,39 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; pointer-events: none; }
+    .cap-wrap {
+      position: absolute; left: 90px; right: 90px; top: 1140px;
+      display: flex; justify-content: center; overflow: visible;
+    }
+    .cap {
+      font-family: var(--font-display, Inter, sans-serif); font-weight: 700; font-size: 54px;
+      line-height: 1.3; color: var(--fg, #e7eef0); text-align: center; text-wrap: balance;
+      text-shadow: 0 2px 18px rgba(0,0,0,0.55);
+      opacity: 0; visibility: hidden;
+    }
+  </style>
+  <div id="root" data-composition-id="captions" data-width="1080" data-height="1920">
+    <div class="cap-wrap"><div id="cap-hook" class="clip cap" data-start="0.1" data-duration="2.640">Cincuenta y seis perfiles trabajan en VeridisCorp.</div></div>
+    <div class="cap-wrap"><div id="cap-stat" class="clip cap" data-start="3.090" data-duration="3.197">Hoy, solo veinte tienen una herramienta real.</div></div>
+    <div class="cap-wrap"><div id="cap-route" class="clip cap" data-start="6.637" data-duration="2.315">Un pedido real activa la ruta correcta.</div></div>
+    <div class="cap-wrap"><div id="cap-review" class="clip cap" data-start="9.302" data-duration="2.176">El revisor comprueba por su cuenta.</div></div>
+    <div class="cap-wrap"><div id="cap-claim" class="clip cap" data-start="11.828" data-duration="2.408">Nada sale sin que un humano lo apruebe.</div></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const groups = [
+      { id: "#cap-hook", start: 0.1, end: 2.740 },
+      { id: "#cap-stat", start: 3.090, end: 6.287 },
+      { id: "#cap-route", start: 6.637, end: 8.952 },
+      { id: "#cap-review", start: 9.302, end: 11.478 },
+      { id: "#cap-claim", start: 11.828, end: 14.236 },
+    ];
+    groups.forEach(({ id, start, end }) => {
+      tl.set(id, { visibility: "visible" }, start);
+      tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "power2.out" }, start);
+      tl.to(id, { opacity: 0, duration: 0.12, ease: "power2.in" }, end - 0.12);
+      tl.set(id, { opacity: 0, visibility: "hidden" }, end);
+    });
+    window.__timelines["captions"] = tl;
+  </script>
+</template>
