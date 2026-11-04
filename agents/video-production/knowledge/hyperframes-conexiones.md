@@ -19,8 +19,14 @@ herramienta: el contenedor ya trae su propia copia (GSAP 3.15.0, build "standard
 y la coloca ahí solo si falta — ver `docker/video-renderer/docker-entrypoint.sh` y
 `docs/third-party-notices.md`.
 
-Sigue corriendo solo en la Mac de esta sesión, no en el servidor Linux de oficina — mover la imagen ahí
-(mismo `docker build`, ya es portable) sigue pendiente.
+**Ya corre también en el servidor Linux de oficina (SEIS), confirmado el 2026-11-04**, no solo en la
+Mac de desarrollo: `docker build` de la misma imagen, sin cambios al Dockerfile, en un host `x86_64`
+(la Mac de desarrollo es ARM64 — no hubo ninguna incompatibilidad de arquitectura). Prueba real end
+to end desde `office/tools.ts` (no la CLI de HyperFrames a mano): `render_video` con una composición
+de 6s tardó ~27-29s en este hardware, el MP4 resultante se verificó con `ffprobe` dentro del propio
+contenedor (`duration=6.000000`, `codec_name=h264`) — coincide exacto con lo que reportó la
+herramienta. `generate_voice` (ElevenLabs) también se confirmó real desde este servidor en la misma
+sesión (1.2s, MP3 válido de 4.7s verificado con `ffprobe`/`file`).
 
 - **No necesita cuenta de HeyGen.** El catálogo de música/imágenes y los créditos de generación de
   HeyGen son opcionales; sin sesión, `media-use` simplemente no los ofrece.
@@ -30,12 +36,10 @@ Sigue corriendo solo en la Mac de esta sesión, no en el servidor Linux de ofici
   (`docker build`) y mantener actualizada `docker/video-renderer/` en el servidor Linux de oficina es
   trabajo de infraestructura, igual que ya mantienen PostgreSQL o n8n. `video-production` solo usa la
   herramienta `video.render`.
-- **Qué falta para que sea real en el servidor de oficina (no solo en esta Mac):** construir la misma
-  imagen ahí (`docker build -f docker/video-renderer/Dockerfile docker/video-renderer`, portable, no
-  debería cambiar nada) y confirmar que `docker` esté disponible para el proceso que corre `office/`.
-  El render es síncrono dentro de la llamada a la herramienta (un video corto tarda ~40s dentro del
-  contenedor, por debajo del límite de 5 minutos fijado en `VIDEO_RENDER_TIMEOUT_MS`); mover a una cola
-  con `src/runtime/scheduler.ts` solo hace falta si algún día los videos son mucho más largos.
+- El render es síncrono dentro de la llamada a la herramienta (un video corto tarda ~30-40s dentro del
+  contenedor, por debajo del límite de 5 minutos fijado en `VIDEO_RENDER_TIMEOUT_MS`, en ambos
+  servidores probados); mover a una cola con `src/runtime/scheduler.ts` solo hace falta si algún día
+  los videos son mucho más largos.
 
 ## 2. MCP alojado de HeyGen (sin instalar nada local)
 
