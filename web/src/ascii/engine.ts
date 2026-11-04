@@ -1,6 +1,7 @@
 // Port of veridis-console/app/avatar_engine.py: smooth crossfade between procedural ASCII
 // states. Same ramp/compression math, adapted to run per animation frame in the browser.
 import { generateDensity, normalizeState, type AvatarState } from './states';
+import { densityForScene, type Scene } from './scene';
 
 const ASCII_RAMP = ' .:-=+*#%@';
 
@@ -21,11 +22,15 @@ const FPS_BY_STATE: Record<AvatarState, number> = {
 export interface AvatarFrame {
   lines: string[];
   changed: boolean;
-  visibleState: AvatarState;
+  visibleState: AvatarState | 'SCENE';
 }
 
 function smoothstep(alpha: number): number {
   return alpha * alpha * (3.0 - 2.0 * alpha);
+}
+
+function sameScene(a: Scene, b: Scene): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export class AvatarEngine {
@@ -35,6 +40,12 @@ export class AvatarEngine {
   private state: AvatarState = 'IDLE';
   private targetState: AvatarState = 'IDLE';
   private requestedState: AvatarState | null = null;
+
+  // Una escena (ver scene.ts) sustituye al estado nombrado mientras está activa; targetState
+  // sigue actualizándose en silencio debajo para que, al limpiarse la escena, ya esté al día.
+  private activeScene: Scene | null = null;
+  private requestedScene: Scene | null = null;
+  private requestSceneClear = false;
 
   private transitionStart = 0;
   private frozenSourceDensity: Float32Array | null = null;
@@ -55,12 +66,16 @@ export class AvatarEngine {
     this.transitionSeconds = Math.max(0.1, transitionSeconds);
   }
 
-  get visibleState(): AvatarState {
-    return this.frozenSourceDensity !== null ? 'TRANSITION' : this.state;
+  get visibleState(): AvatarState | 'SCENE' {
+    if (this.frozenSourceDensity !== null) return 'TRANSITION';
+    if (this.activeScene !== null) return 'SCENE';
+    return this.state;
   }
 
   frameIntervalSeconds(): number {
-    const effectiveFps = Math.min(this.maxFps, FPS_BY_STATE[this.visibleState] ?? this.maxFps);
+    const key = this.visibleState;
+    const fpsForKey = key === 'SCENE' ? 30 : FPS_BY_STATE[key];
+    const effectiveFps = Math.min(this.maxFps, fpsForKey ?? this.maxFps);
     return 1.0 / Math.max(1, effectiveFps);
   }
 
@@ -71,6 +86,19 @@ export class AvatarEngine {
     this.requestedState = state;
   }
 
+  /** `null` vuelve al estado nombrado vigente (setState); una escena no-null lo sustituye. */
+  setScene(scene: Scene | null): void {
+    if (scene === null) {
+      if (this.activeScene === null && this.frozenSourceDensity === null) return;
+      this.requestedScene = null;
+      this.requestSceneClear = true;
+      return;
+    }
+    if (this.activeScene !== null && this.frozenSourceDensity === null && sameScene(this.activeScene, scene)) return;
+    this.requestedScene = scene;
+    this.requestSceneClear = false;
+  }
+
   renderFrame(width: number, height: number, now: number): AvatarFrame {
     if (width < 2 || height < 2) {
       return { lines: [''], changed: false, visibleState: this.visibleState };
@@ -78,18 +106,27 @@ export class AvatarEngine {
 
     this.ensureGrid(width, height);
 
-    if (this.requestedState !== null && this.requestedState !== this.targetState) {
-      if (this.lastDensity !== null && this.lastDensity.length === width * height) {
-        this.frozenSourceDensity = this.lastDensity.slice();
-      } else {
-        this.frozenSourceDensity = this.densityFor(this.targetState, now).slice();
-      }
+    if (this.requestedScene !== null) {
+      this.freezeCurrentDensity(width, height, now);
+      this.activeScene = this.requestedScene;
+      this.requestedScene = null;
+      this.requestSceneClear = false;
+    } else if (this.requestSceneClear) {
+      this.freezeCurrentDensity(width, height, now);
+      this.activeScene = null;
+      this.requestSceneClear = false;
+    } else if (this.activeScene === null && this.requestedState !== null && this.requestedState !== this.targetState) {
+      this.freezeCurrentDensity(width, height, now);
       this.targetState = this.requestedState;
       this.requestedState = null;
-      this.transitionStart = now;
+    } else if (this.requestedState !== null) {
+      // El estado nombrado cambia en silencio mientras hay una escena activa: queda listo para
+      // cuando la escena se limpie, sin disparar un crossfade visible ahora.
+      this.targetState = this.requestedState;
+      this.requestedState = null;
     }
 
-    const targetDensity = this.densityFor(this.targetState, now);
+    const targetDensity = this.densityFor(now);
     let composed = targetDensity;
 
     if (this.frozenSourceDensity !== null) {
@@ -153,9 +190,22 @@ export class AvatarEngine {
     this.scratchB = new Float32Array(size);
   }
 
-  private densityFor(state: AvatarState, now: number): Float32Array {
+  private freezeCurrentDensity(width: number, height: number, now: number): void {
+    if (this.lastDensity !== null && this.lastDensity.length === width * height) {
+      this.frozenSourceDensity = this.lastDensity.slice();
+    } else {
+      this.frozenSourceDensity = this.densityFor(now).slice();
+    }
+    this.transitionStart = now;
+  }
+
+  private densityFor(now: number): Float32Array {
     const out = this.scratchA!;
-    generateDensity(state, this.x!, this.y!, now, out);
+    if (this.activeScene !== null) {
+      densityForScene(this.activeScene, this.x!, this.y!, now, out);
+    } else {
+      generateDensity(this.targetState, this.x!, this.y!, now, out);
+    }
     return out;
   }
 

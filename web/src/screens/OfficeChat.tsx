@@ -8,10 +8,13 @@ import { ApiError } from '../api/client';
 import { SessionExpired } from '../components/SessionExpired';
 import { InvolvedAgents } from '../components/InvolvedAgents';
 import { RichText } from '../components/RichText';
+import { VoiceDock } from '../components/VoiceDock';
 import { useElapsedSeconds } from '../useElapsedSeconds';
 import { useSpinnerFrame } from '../useSpinnerFrame';
 import { useTypewriter } from '../useTypewriter';
-import { useSpeechToText, useTextToSpeech } from '../useVoice';
+import { useTextToSpeech } from '../useVoice';
+import { useVoiceDock } from '../hooks/useVoiceDock';
+import { useActiveSession } from '../context/ActiveSessionContext';
 import { ORDER_STATUS } from '../officeStatus';
 import type { AssistantMessage, OfficeOrderDetail, OfficeOrderSummary, OfficeWorkOrder } from '../api/types';
 
@@ -125,11 +128,18 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
   const client = useQueryClient();
   const list = useOfficeOrders();
   const threads = useAssistantThreads();
-  // Lo que se está viendo: un expediente (activeId), una conversación rápida (threadId) o ninguno (nueva).
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const viewRef = useRef<{ activeId: string | null; threadId: string | null }>({ activeId: null, threadId: null });
-  useEffect(() => { viewRef.current = { activeId, threadId }; }, [activeId, threadId]);
+  const {
+    focusedKind, focusedId, setFocus,
+    pendingAnswerIds, setPendingAnswerIds,
+    startingObjectives, setStartingObjectives,
+    pendingQuestions, setPendingQuestions,
+  } = useActiveSession();
+  // Lo que se está viendo: un expediente (activeId), una conversación rápida (threadId) o ninguno
+  // (nueva) — derivado del foco global, compartido con el sidebar de sesiones (ver App.tsx).
+  const activeId = focusedKind === 'order' ? focusedId : null;
+  const threadId = focusedKind === 'thread' ? focusedId : null;
+  const focusRef = useRef<{ kind: typeof focusedKind; id: string | null }>({ kind: null, id: null });
+  useEffect(() => { focusRef.current = { kind: focusedKind, id: focusedId }; }, [focusedKind, focusedId]);
   const detail = useOfficeOrder(activeId);
   const thread = useAssistantThread(threadId);
   const start = useStartOfficeOrder();
@@ -137,22 +147,17 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
   const ask = useAskAssistant();
   const [draft, setDraft] = useState('');
   const [lastError, setLastError] = useState<string | null>(null);
-  // Expedientes esperando respuesta del usuario: por id, nunca global.
-  const [pendingAnswerIds, setPendingAnswerIds] = useState<Set<string>>(new Set());
   const [optimisticAnswers, setOptimisticAnswers] = useState<Record<string, string>>({});
-  // Conversaciones rápidas pensando, por hilo; "new" es la que todavía no tiene hilo.
-  const [pendingQuestions, setPendingQuestions] = useState<Record<string, string>>({});
-  // Encargos que se están abriendo como expediente (por texto exacto del encargo).
-  const [startingObjectives, setStartingObjectives] = useState<Set<string>>(new Set());
   const [justArrivedId, setJustArrivedId] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
-  const stt = useSpeechToText();
+  // Lectura en voz alta puntual de un turno ya en pantalla (botón 🔊 por burbuja) — distinta del
+  // dock de voz en vivo (VoiceDock/useVoiceDock), que habla cada respuesta nueva automáticamente.
   const tts = useTextToSpeech();
-  const [voiceReplyOn, setVoiceReplyOn] = useState(false);
-  const voiceRef = useRef(false);
-  useEffect(() => { voiceRef.current = voiceReplyOn; }, [voiceReplyOn]);
-  const wasPendingRef = useRef(false);
+
+  // Cada vez que cambia la sesión enfocada (desde el sidebar global o internamente, vía setFocus)
+  // se limpia el borrador y el error de la conversación anterior.
+  useEffect(() => { setDraft(''); setLastError(null); }, [focusedKind, focusedId]);
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
@@ -181,19 +186,7 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
   }
   const messages = !activeId && threadId ? thread.data?.messages ?? [] : [];
 
-  // Lectura en voz alta de la respuesta de un expediente cuando termina de pensar (las rápidas se
-  // leen en cuanto llegan, en onSuccess).
-  useEffect(() => {
-    if (voiceReplyOn && wasPendingRef.current && !orderPending) {
-      const last = turns[turns.length - 1];
-      if (last?.kind === 'assistant') tts.speak(last.text);
-    }
-    wasPendingRef.current = orderPending;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderPending]);
-
-  const openOrder = (id: string) => { setActiveId(id); setThreadId(null); setLastError(null); };
-  const openThread = (id: string) => { setThreadId(id); setActiveId(null); setLastError(null); };
+  const openOrder = (id: string) => setFocus('order', id);
 
   const startOrder = (objective: string) => {
     setStartingObjectives((prev) => new Set(prev).add(objective));
@@ -214,19 +207,21 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
         clear();
         setJustArrivedId(message.id);
         // Una conversación nueva pasa a su hilo solo si el usuario sigue mirándola.
-        if (!inThread && viewRef.current.activeId === null && viewRef.current.threadId === null) setThreadId(message.threadId);
-        if (voiceRef.current) tts.speak(message.answer);
+        if (!inThread && focusRef.current.kind === null && focusRef.current.id === null) setFocus('thread', message.threadId);
+        voiceDock.receiveReply(message.answer, message.scene);
         if (message.mode === 'order' && message.objective) startOrder(message.objective);
       },
       onError: (error) => { clear(); setLastError(error instanceof Error ? error.message : 'Error inesperado'); setDraft((d) => d || text); },
     });
   };
 
-  const send = () => {
-    const text = draft.trim();
-    if (!text || pendingForView || tooLong) return;
+  // overrideText: lo usa el dock de voz (dictado) para mandar sin pasar por el textarea.
+  const send = (overrideText?: string) => {
+    const text = (overrideText ?? draft).trim();
+    const over = text.length > CHAT_LIMIT;
+    if (!text || pendingForView || over) return;
     setLastError(null);
-    setDraft('');
+    if (overrideText === undefined) setDraft('');
     if (activeId && !isClosed) {
       const id = activeId;
       setPendingAnswerIds((prev) => new Set(prev).add(id));
@@ -242,53 +237,21 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
       return;
     }
     // Desde un expediente cerrado, el mensaje abre una conversación nueva.
-    if (activeId) setActiveId(null);
-    askQuestion(text, activeId ? null : threadId);
+    const wasActiveOrder = activeId;
+    if (wasActiveOrder) setFocus(null, null);
+    askQuestion(text, wasActiveOrder ? null : threadId);
   };
 
-  type SidebarItem = { kind: 'thread' | 'order'; id: string; title: string; at: string; order?: OfficeOrderSummary };
-  const sidebar: SidebarItem[] = [
-    ...(threads.data?.threads ?? []).filter((t) => !t.onlyHandoffs || t.threadId === threadId)
-      .map((t) => ({ kind: 'thread' as const, id: t.threadId, title: t.title, at: t.updatedAt })),
-    ...orders.map((o) => ({ kind: 'order' as const, id: o.id, title: o.objective, at: o.updated_at, order: o })),
-  ].sort((a, b) => b.at.localeCompare(a.at));
+  // Voz en vivo, solo para conversaciones de ASISTENTE (no para responder un expediente abierto,
+  // ver decisión del plan) — el hook se llama siempre (reglas de hooks), el dock solo se monta
+  // cuando !activeId.
+  const voiceDock = useVoiceDock(send, askPending);
 
   if (unauthorized) return <SessionExpired />;
   const placeholder = activeId && !isClosed ? 'Tu respuesta…' : threadId ? 'Sigue la conversación…' : 'Pregunta o pide algo…';
 
   return (
     <div className="chat-layout">
-      <aside className="chat-sidebar">
-        <button type="button" className="button button--primary chat-sidebar__new" onClick={() => { setActiveId(null); setThreadId(null); setDraft(''); setLastError(null); }}>
-          + nueva conversación
-        </button>
-        {pendingQuestions.new !== undefined && (
-          <div className={`chat-sidebar__item ${!activeId && !threadId ? 'chat-sidebar__item--active' : ''}`} onClick={() => { setActiveId(null); setThreadId(null); }}>
-            <span className="status-pill status-pill--progress">pensando</span>
-            <span className="chat-sidebar__brief" title={pendingQuestions.new}>{pendingQuestions.new}</span>
-          </div>
-        )}
-        {(list.isLoading || threads.isLoading) && <p className="muted">Cargando…</p>}
-        <ul className="chat-sidebar__list">
-          {sidebar.map((item) => {
-            const active = item.kind === 'order' ? item.id === activeId : item.id === threadId && !activeId;
-            const thinking = item.kind === 'order'
-              ? pendingAnswerIds.has(item.id) || startingObjectives.has(item.title)
-              : pendingQuestions[item.id] !== undefined;
-            const pill = thinking ? { label: 'pensando', tone: 'progress' }
-              : item.kind === 'order' ? ORDER_STATUS[item.order!.status] : { label: 'chat', tone: 'neutral' };
-            return (
-              <li key={`${item.kind}:${item.id}`}
-                className={`chat-sidebar__item ${active ? 'chat-sidebar__item--active' : ''}`}
-                onClick={() => (item.kind === 'order' ? openOrder(item.id) : openThread(item.id))}>
-                <span className={`status-pill status-pill--${pill.tone}`}>{pill.label}</span>
-                <span className="chat-sidebar__brief" title={item.title}>{item.title}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </aside>
-
       <div className="chat-main">
         <div className="chat-thread" ref={threadRef}>
           {!activeId && !threadId && pendingQuestions.new === undefined && (
@@ -366,39 +329,20 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
           </p>
         )}
 
-        {(stt.supported || tts.supported) && (
-          <div className="chat-voice-bar">
-            {tts.supported && (
-              <label className="chat-voice-bar__toggle">
-                <input type="checkbox" checked={voiceReplyOn} onChange={(event) => setVoiceReplyOn(event.target.checked)} />
-                🔊 leer respuestas en voz alta
-              </label>
-            )}
-            {tts.speaking && (
-              <button type="button" className="button button--link" onClick={tts.stop}>⏹ detener lectura</button>
-            )}
-          </div>
-        )}
+        {/* La voz en vivo (dictar y escuchar la respuesta) solo aplica a conversaciones de
+            ASISTENTE, no para responder un expediente abierto — ver decisión del plan. */}
+        {!activeId && <VoiceDock dock={voiceDock} />}
 
         <div className="chat-input">
-          {stt.supported && (
-            <button type="button"
-              className={`button chat-input__mic ${stt.listening ? 'chat-input__mic--active' : ''}`}
-              title={stt.listening ? 'Escuchando… clic para detener' : 'Dictar por voz'}
-              disabled={pendingForView}
-              onClick={() => (stt.listening ? stt.stop() : stt.start((text) => setDraft((prev) => (prev ? `${prev} ${text}` : text))))}>
-              {stt.listening ? '🔴' : '🎤'}
-            </button>
-          )}
           <textarea
-            value={stt.listening && stt.interimText ? `${draft} ${stt.interimText}` : draft}
+            value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }}
             rows={2}
             placeholder={placeholder}
             disabled={pendingForView}
           />
-          <button type="button" className="button button--primary" disabled={pendingForView || draft.trim().length === 0 || tooLong} onClick={send}>
+          <button type="button" className="button button--primary" disabled={pendingForView || draft.trim().length === 0 || tooLong} onClick={() => send()}>
             Enviar
           </button>
         </div>

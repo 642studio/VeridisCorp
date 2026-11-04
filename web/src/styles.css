@@ -23,8 +23,9 @@ pre { font-family: inherit; }
   width: 220px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; padding: 20px 0; overflow-y: auto;
 }
-.shell__brand { padding: 0 18px 20px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-.shell__brand > span:first-child { font-weight: 700; letter-spacing: 0.08em; font-size: 15px; }
+.shell__brand { padding: 0 18px 14px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.shell__brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shell__brand > span:first-child, .shell__brand-row > span:first-child { font-weight: 700; letter-spacing: 0.08em; font-size: 15px; }
 .shell__brand-accent { color: var(--accent); }
 .shell__nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .shell__nav-item {
@@ -33,7 +34,33 @@ pre { font-family: inherit; }
 }
 .shell__nav-item:hover { color: var(--text); background: var(--panel-raised); }
 .shell__nav-item--active { color: var(--accent); border-left-color: var(--accent); background: var(--panel-raised); }
-.shell__sidebar-footer { padding: 12px 18px 0; border-top: 1px solid var(--border); margin-top: 12px; }
+.shell__sidebar-footer { padding: 12px 18px 0; border-top: 1px solid var(--border); margin-top: 8px; flex-shrink: 0; }
+
+/* ---- fila compacta de secciones (Órdenes, Memoria, Configuración...), reemplaza el nav vertical
+   de toda la altura: las sesiones (ver .shell__sessions más abajo) son ahora lo principal. ---- */
+.shell__quicknav { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 10px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.shell__quicknav .shell__nav-item { border-left: none; border-bottom: 2px solid transparent; padding: 6px 10px; font-size: 10px; }
+.shell__quicknav .shell__nav-item--active { border-left-color: transparent; border-bottom-color: var(--accent); }
+
+/* ---- mini-avatar persistente: el "personaje" del sidebar, refleja el estado de la sesión
+   enfocada (ver MiniAvatar.tsx) y abre el dock de voz de esa sesión al hacer clic.
+   AsciiAvatar fuerza un font-size mínimo de 6px (ver components/AsciiAvatar.tsx) para su grid
+   fijo de 70x30 columnas — por debajo de ~252x180px ese mínimo desborda el contenedor en vez de
+   encogerse. La salida: renderizarlo a ese tamaño "real" oculto y encogerlo con transform:scale()
+   hasta el tamaño visible, en vez de pedirle un tamaño que el propio componente no puede dar. ---- */
+.shell__mini-avatar { background: none; border: 1px solid var(--border-bright); padding: 0; width: 42px; height: 30px; flex-shrink: 0; cursor: pointer; overflow: hidden; position: relative; }
+.shell__mini-avatar:hover { border-color: var(--accent); }
+.shell__mini-avatar-canvas { width: 252px; height: 180px; position: absolute; top: 0; left: 0; transform: scale(0.1667); transform-origin: top left; display: flex; align-items: center; justify-content: center; }
+
+/* ---- sidebar de sesiones global (hilos + expedientes, ver SessionList.tsx/useSessionsList.ts) ---- */
+.shell__sessions { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
+.shell__sessions-new { width: 100%; margin-bottom: 8px; flex-shrink: 0; }
+.session-row__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1px; }
+.session-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border: 1px solid transparent; }
+.session-row:hover { background: var(--panel-raised); border-color: var(--border-bright); }
+.session-row--active { background: var(--panel-raised); border-color: var(--accent); }
+.session-row__dot { font-size: 10px; flex-shrink: 0; line-height: 1; }
+.session-row__title { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shell__main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .shell__topbar {
   display: flex; justify-content: space-between; align-items: center; padding: 12px 24px;
@@ -326,6 +353,21 @@ pre { font-family: inherit; }
   padding: 12px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
 }
 
+/* ---- dock de voz embebido en un hilo de ASISTENTE (ver VoiceDock.tsx/useVoiceDock.ts) — versión
+   compacta de .voice-stage__*, que se expande a controles extra sin salir de la conversación. ---- */
+.voice-dock { border-top: 1px solid var(--border); padding: 8px 20px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.voice-dock__row { display: flex; align-items: center; gap: 10px; }
+.voice-dock__mic { flex-shrink: 0; font-size: 16px; line-height: 1; padding: 6px 10px; }
+/* Mismo truco de escala que .shell__mini-avatar (ver su comentario): AsciiAvatar no puede
+   renderizar nítido por debajo de ~252x180px, así que se renderiza a ese tamaño y se encoge. */
+.voice-dock__avatar { width: 56px; height: 40px; flex-shrink: 0; overflow: hidden; position: relative; border: 1px solid var(--border-bright); }
+.voice-dock__canvas { width: 252px; height: 180px; position: absolute; top: 0; left: 0; transform: scale(0.2222); transform-origin: top left; display: flex; align-items: center; justify-content: center; }
+.voice-dock__caption { flex: 1; min-width: 0; }
+.voice-dock__caption-text { margin: 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-dock--expanded .voice-dock__caption-text { white-space: normal; }
+.voice-dock__toggle { flex-shrink: 0; }
+.voice-dock__controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
 /* ---- tareas programadas ---- */
 .schedules__header { display: flex; justify-content: space-between; align-items: center; }
 .schedules__rows { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 10px; }
@@ -543,20 +585,19 @@ pre { font-family: inherit; }
   .connections__tool { grid-template-columns: 1fr; }
   .schedule-form__row { gap: 12px; }
 
-  /* chat: la lista de hilos se vuelve una franja horizontal arriba, no una columna lateral */
-  .chat-layout { flex-direction: column; height: auto; min-height: 100%; }
-  .chat-sidebar {
-    width: 100%; flex-direction: row; overflow-x: auto; overflow-y: hidden; max-height: 110px;
-    border-right: none; border-bottom: 1px solid var(--border); padding: 8px;
-  }
-  .chat-sidebar__new { width: auto; margin-bottom: 0; flex-shrink: 0; }
-  .chat-sidebar__list { flex-direction: row; }
-  .chat-sidebar__item { min-width: 180px; flex-shrink: 0; }
+  .chat-layout { height: auto; min-height: 100%; }
   .chat-bubble { max-width: 90%; }
   .chat-thread { padding: 14px; }
   .chat-input { padding: 10px 14px; }
   .voice-stage__canvas-wrap { min-height: 160px; }
   .voice-stage__mic { font-size: 22px; padding: 14px 18px; }
+  .voice-dock { padding: 8px 14px; }
+  .voice-dock__caption { display: none; }
+
+  /* sidebar móvil: el drawer ya existe (.shell__sidebar--open); el quicknav se envuelve y la
+     lista de sesiones queda debajo, con su propio scroll dentro del drawer. */
+  .shell__quicknav { padding: 0 8px 8px; }
+  .shell__sessions { padding: 8px; }
 
   /* lienzos grandes (grafo del organigrama, mapa de memoria) caben en la pantalla completa */
   .org-graph__canvas { height: 60vh; }

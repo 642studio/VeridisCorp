@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AvatarEngine } from '../ascii/engine';
 import type { AvatarState } from '../ascii/states';
+import type { Scene } from '../ascii/scene';
 
 // Palette tuned to this app's dark cyan terminal theme (see :root in styles.css), one tone per
 // personality state — not the purple palette used by the TUI console avatar.
@@ -24,7 +25,7 @@ const STATE_COLORS: Record<AvatarState, string> = {
 const COLS = 70;
 const ROWS = 30;
 
-export function AsciiAvatar({ state, className }: { state: AvatarState; className?: string }) {
+export function AsciiAvatar({ state, scene, className }: { state: AvatarState; scene?: Scene | null; className?: string }) {
   const preRef = useRef<HTMLPreElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<AvatarEngine | null>(null);
@@ -36,6 +37,10 @@ export function AsciiAvatar({ state, className }: { state: AvatarState; classNam
   useEffect(() => {
     engineRef.current?.setState(state);
   }, [state]);
+
+  useEffect(() => {
+    engineRef.current?.setScene(scene ?? null);
+  }, [scene]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -85,9 +90,10 @@ export function AsciiAvatar({ state, className }: { state: AvatarState; classNam
   useEffect(() => {
     const pre = preRef.current;
     if (!pre) return;
-    pre.style.color = STATE_COLORS[state];
-    pre.style.textShadow = `0 0 12px ${STATE_COLORS[state]}55`;
-  }, [state]);
+    const color = scene?.colorHex ?? STATE_COLORS[state];
+    pre.style.color = color;
+    pre.style.textShadow = `0 0 12px ${color}55`;
+  }, [state, scene]);
 
   return (
     <div ref={wrapRef} className={className}>

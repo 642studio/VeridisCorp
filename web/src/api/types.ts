@@ -2,6 +2,8 @@
 // No se comparte el módulo con el backend (runtimes distintos); si el contrato
 // cambia ahí, hay que actualizar esto a mano.
 
+import type { Scene } from '../ascii/scene';
+
 export type RunStatus =
   | 'queued' | 'generating' | 'awaiting_review' | 'reviewing' | 'awaiting_approval'
   | 'approved' | 'dispatching' | 'outcome_unknown' | 'completed' | 'failed';
@@ -415,6 +417,9 @@ export interface AssistantMessage {
   mode: 'answer' | 'order';
   objective: string | null;
   memories: AssistantMemory[];
+  // Escena visual opcional para el avatar ASCII (ver web/src/ascii/scene.ts); casi siempre null.
+  // No validado de nuevo aquí — se confía en Scene.safeParse en el punto donde se usa (useVoiceDock.ts).
+  scene: Scene | null;
   inputTokens: number | null;
   outputTokens: number | null;
   costMicros: number | null;
