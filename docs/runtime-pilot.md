@@ -188,20 +188,22 @@ Si `pg_ctl` falla al iniciar el clúster temporal con `postmaster became multith
 
 No se realizaron llamadas pagadas, publicaciones externas ni despliegues en el servidor de oficina. La próxima ampliación debe mantener estos controles al agregar un conector real y persistencia para tareas humanas.
 
-## Despliegue continuo en el servidor de oficina (pendiente)
+## Despliegue continuo en el servidor de oficina
 
-Fecha: 2026-10-23. Evaluación de viabilidad, todavía no implementada: montar `runtime:serve` (con `VERIDIS_OFFICE_ENABLED` y `VERIDIS_SCHEDULER_ENABLED` activos) como proceso siempre encendido en el Linux de oficina, para que las tareas programadas disparen de verdad sin depender de que alguien deje la laptop prendida.
+Fecha: 2026-10-23. Evaluación de viabilidad original: montar `runtime:serve` (con `VERIDIS_OFFICE_ENABLED` y `VERIDIS_SCHEDULER_ENABLED` activos) como proceso siempre encendido en el Linux de oficina, para que las tareas programadas disparen de verdad sin depender de que alguien deje la laptop prendida.
+
+**Actualización 2026-11-04: el supervisor de proceso ya está hecho**, verificado en la instalación real (`veridiscorp.service`, unit de `systemd` en `/etc/systemd/system`, `enabled`, `Restart=on-failure`, `RestartSec=5`) — confirmado con `systemctl status veridiscorp` y usado para reiniciar el proceso tras un deploy (`systemctl restart veridiscorp`, con el PID nuevo y el puerto `127.0.0.1:7777` verificados después). El resto de las recomendaciones de esta sección (acceso restringido por Tailscale, rol de PostgreSQL separado, visibilidad de costo con el scheduler 24/7) sigue sin confirmarse — no asumir que están resueltas solo porque el supervisor sí lo está.
 
 Es viable en principio: es un solo proceso Node + PostgreSQL, sin infraestructura pesada — el propio motor de disparo (`src/runtime/scheduler.ts`) ya está pensado para correr así, sin recuperación de lo perdido al reiniciar (ver sección anterior). Pero "siempre corriendo" expone de inmediato las brechas que esta misma guía ya señala como pendientes en **Preparación local** (TLS, autenticación de producción, control de tasa, roles de PostgreSQL separados): hoy el servidor solo escucha en `127.0.0.1` sin supervisor de proceso que lo reviva tras un cierre o un reinicio de la máquina, y `.env` guarda las credenciales en disco sin separación de roles.
 
 Recomendación, pendiente de ejecutar:
 
-- **Supervisor de proceso**: un unit de `systemd` para `npm run runtime:serve` (restart automático, logs a `journalctl`), en vez de dejarlo corriendo en una terminal o con `nohup`.
+- **Supervisor de proceso**: un unit de `systemd` para `npm run runtime:serve` (restart automático, logs a `journalctl`), en vez de dejarlo corriendo en una terminal o con `nohup`. **Hecho — ver actualización 2026-11-04 arriba.**
 - **Acceso restringido, no expuesto por el router**: mantenerlo en `127.0.0.1` y acceder solo por la Tailscale que ya usan entre el Mac y la oficina (IP `100.110.27.75`), en vez de sumarlo a los puertos 80/443/3000 ya reenviados en el router para otros servicios — el riesgo no es solo la API en sí, sino que el scheduler dispara IA real sola; menos superficie expuesta importa más que de costumbre.
 - **Rol de PostgreSQL separado**: el servicio solo necesita DML sobre sus tablas y la secuencia de auditoría, nunca DDL ni acceso a `sessions`/`grants` — esta separación de roles sigue sin configurarse en ninguna instalación, no solo en la de oficina.
 - **Visibilidad de costo**: con el scheduler corriendo 24/7, revisar `VERIDIS_SCHEDULER_MAX_PER_HOUR` y los límites de `Defaults` (`src/runtime/contracts.ts`) con la frecuencia real de las tareas configuradas, no con los valores conservadores pensados para pruebas interactivas.
 
-Nada de esto está hecho todavía; es una recomendación, no una descripción de la instalación actual.
+Salvo el supervisor de proceso (ver actualización 2026-11-04 arriba), el resto de esta lista sigue sin hacerse; no asumir que es una descripción completa de la instalación actual.
 
 ### Exposición pública del panel (UI)
 
