@@ -136,6 +136,16 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.gmail_accounts (
  account_email text PRIMARY KEY, refresh_token_encrypted bytea NOT NULL, scope text NOT NULL,
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
+-- Meta (Facebook/Instagram, ver docs/social-publishing-roadmap.md): a diferencia de Gmail, aquí no
+-- hay refresh token que renovar solo — Graph API no tiene ese concepto. page_access_token_encrypted
+-- es un token de Página derivado de un token de usuario de larga duración (no expira bajo
+-- condiciones normales; se reautoriza a mano con runtime:meta-authorize si Meta lo invalida).
+-- ig_user_id queda NULL si la Página todavía no tiene una cuenta de Instagram Business vinculada —
+-- social.publish_instagram falla con un mensaje claro en ese caso, nunca intenta adivinar.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.meta_accounts (
+ page_id text PRIMARY KEY, page_access_token_encrypted bytea NOT NULL, ig_user_id text NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
 -- Memoria corporativa (CorporateMemoryRecord, src/governance/contracts.ts): una fila por versión de
 -- lo que se sabe sobre una entidad. embedding guarda el vector de similitud semántica (ver
 -- src/runtime/embeddings.ts); dimensión fija en 768 porque el perfil por defecto es Ollama local

@@ -5,6 +5,7 @@ import {
   toolsFor, webSearchTool, pdfGenerateTool, gmailDraftTool, gmailReadTool, configureGmail, evaluateExpression,
   driveUploadTool, calendarCreateEventTool, sheetsCreateTool, meetCreateSpaceTool, slidesCreateTool,
   memoryWriteTool, memoryQueryTool, configureMemory, type MemoryAccess,
+  facebookPublishTool, instagramPublishTool, configureMeta,
 } from '../src/office/tools.js';
 import type { AccessScope, CorporateMemoryRecord } from '../src/governance/contracts.js';
 
@@ -15,6 +16,7 @@ test('toolsFor solo expone herramientas presentes en allowedTools', () => {
   assert.deepEqual(toolsFor(['pdf.generate']), [pdfGenerateTool]);
   assert.deepEqual(toolsFor(['email.draft', 'email.read']), [gmailDraftTool, gmailReadTool]);
   assert.deepEqual(toolsFor(['memory.write', 'memory.query']), [memoryWriteTool, memoryQueryTool]);
+  assert.deepEqual(toolsFor(['social.publish_facebook', 'social.publish_instagram']), [facebookPublishTool, instagramPublishTool]);
 });
 
 test('las herramientas de Google fallan con un mensaje claro si no se autorizó ninguna cuenta (sin red)', async () => {
@@ -26,6 +28,89 @@ test('las herramientas de Google fallan con un mensaje claro si no se autorizó 
   await assert.rejects(sheetsCreateTool.invoke({ title: 'x' } as never), /cuenta de Google no está configurada/);
   await assert.rejects(meetCreateSpaceTool.invoke({} as never), /cuenta de Google no está configurada/);
   await assert.rejects(slidesCreateTool.invoke({ title: 'x', slides: [{ heading: 'h', bullets: ['b'] }] } as never), /cuenta de Google no está configurada/);
+});
+
+test('las herramientas de Meta fallan con un mensaje claro si no se autorizó ninguna cuenta (sin red)', async () => {
+  configureMeta(null);
+  await assert.rejects(facebookPublishTool.invoke({ message: 'hola' } as never), /cuenta de Meta .*no está configurada/);
+  await assert.rejects(instagramPublishTool.invoke({ imageUrl: 'https://example.com/a.jpg' } as never), /cuenta de Meta .*no está configurada/);
+});
+
+test('publish_facebook_post publica como texto o como foto según haya imageUrl (Graph API real simulada)', async (t) => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: null });
+  const calls: { method: string; url: string }[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init?: RequestInit) => {
+    calls.push({ method: init?.method ?? 'GET', url: String(url) });
+    if (String(url).includes('/page_1/feed')) return new Response(JSON.stringify({ id: 'page_1_111' }));
+    if (String(url).includes('/page_1/photos')) return new Response(JSON.stringify({ id: 'photo_1', post_id: 'page_1_222' }));
+    throw new Error(`fetch inesperado en el test: ${url}`);
+  });
+
+  const textResult = JSON.parse(await facebookPublishTool.invoke({ message: 'hola mundo' } as never) as string);
+  assert.equal(textResult.postId, 'page_1_111');
+  assert.equal(textResult.permalink, 'https://www.facebook.com/page_1_111');
+  assert.equal(calls[0]!.method, 'POST');
+  assert.match(calls[0]!.url, /\/page_1\/feed$/);
+
+  const photoResult = JSON.parse(await facebookPublishTool.invoke({ imageUrl: 'https://example.com/a.jpg', message: 'leyenda' } as never) as string);
+  assert.equal(photoResult.postId, 'page_1_222');
+  assert.equal(photoResult.permalink, 'https://www.facebook.com/page_1_222');
+
+  configureMeta(null);
+});
+
+test('publish_facebook_post propaga el error real de Graph API con su código', async (t) => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: null });
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ error: { message: 'Invalid OAuth access token.', code: 190 } }), { status: 400 }));
+  await assert.rejects(facebookPublishTool.invoke({ message: 'hola' } as never), /Meta Graph API \(190\): Invalid OAuth access token\./);
+  configureMeta(null);
+});
+
+test('publish_instagram_post exige una cuenta de Instagram Business vinculada', async () => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: null });
+  await assert.rejects(
+    instagramPublishTool.invoke({ imageUrl: 'https://example.com/a.jpg' } as never),
+    /no tiene una cuenta de Instagram Business vinculada/,
+  );
+  configureMeta(null);
+});
+
+test('publish_instagram_post crea el contenedor, espera a que termine y publica (Graph API real simulada)', async (t) => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: 'ig_1' });
+  const calls: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init?: RequestInit) => {
+    const u = String(url);
+    calls.push(`${init?.method ?? 'GET'} ${u}`);
+    if (u.includes('/ig_1/media') && !u.includes('media_publish')) return new Response(JSON.stringify({ id: 'container_1' }));
+    if (u.includes('/container_1')) return new Response(JSON.stringify({ status_code: 'FINISHED' }));
+    if (u.includes('/ig_1/media_publish')) return new Response(JSON.stringify({ id: 'media_1' }));
+    if (u.includes('/media_1')) return new Response(JSON.stringify({ permalink: 'https://instagram.com/p/abc' }));
+    throw new Error(`fetch inesperado en el test: ${u}`);
+  });
+
+  const result = JSON.parse(await instagramPublishTool.invoke({ imageUrl: 'https://example.com/a.jpg', caption: 'hola' } as never) as string);
+  assert.equal(result.mediaId, 'media_1');
+  assert.equal(result.permalink, 'https://instagram.com/p/abc');
+  // Orden real exigido por el Content Publishing API: crear -> esperar -> publicar -> (opcional) leer.
+  assert.equal(calls[0], 'POST https://graph.facebook.com/v26.0/ig_1/media');
+  assert.match(calls[1]!, /^GET .*\/container_1\?/);
+  assert.equal(calls[2], 'POST https://graph.facebook.com/v26.0/ig_1/media_publish');
+  configureMeta(null);
+});
+
+test('publish_instagram_post falla con un mensaje claro si Instagram reporta ERROR en el contenedor', async (t) => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: 'ig_1' });
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    const u = String(url);
+    if (u.includes('/ig_1/media')) return new Response(JSON.stringify({ id: 'container_1' }));
+    if (u.includes('/container_1')) return new Response(JSON.stringify({ status_code: 'ERROR' }));
+    throw new Error(`fetch inesperado en el test: ${u}`);
+  });
+  await assert.rejects(
+    instagramPublishTool.invoke({ imageUrl: 'https://example.com/a.jpg' } as never),
+    /Instagram no pudo procesar la imagen \(status ERROR\)/,
+  );
+  configureMeta(null);
 });
 
 test('memory_write/memory_query fallan con un mensaje claro si no se configuró el acceso (sin Postgres)', async () => {

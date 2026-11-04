@@ -12,7 +12,9 @@
     "drive.upload",
     "calendar.create_event",
     "meet.create_space",
-    "slides.create"
+    "slides.create",
+    "social.publish_facebook",
+    "social.publish_instagram"
   ],
   "organization": {
     "title": "Contenido",

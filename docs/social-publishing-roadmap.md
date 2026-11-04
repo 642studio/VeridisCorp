@@ -1,10 +1,14 @@
 # Publicación real en redes sociales: investigación y propuesta
 
-Fecha: 2026-11-03. Fase: Exploración. Este documento responde una pregunta concreta — **qué hace
-falta para que VeridisCorp publique de verdad en Facebook, Instagram, Threads, X, YouTube y
-TikTok** — y propone cómo encajarlo en la arquitectura ya existente. No hay código nuevo todavía;
-es la investigación y el diseño de las piezas, en el mismo formato de decisión-pendiente que
+Fecha original: 2026-11-03. Actualizado: 2026-11-03. Fase: Arranque. Este documento responde una
+pregunta concreta — **qué hace falta para que VeridisCorp publique de verdad en Facebook,
+Instagram, Threads, X, YouTube y TikTok** — y propone cómo encajarlo en la arquitectura ya
+existente, en el mismo formato de decisión-pendiente que
 [assistant-v1-roadmap.md](assistant-v1-roadmap.md).
+
+**Facebook e Instagram ya están implementados** (`social.publish_facebook`,
+`social.publish_instagram` — ver la sección propia más abajo). Threads, X, YouTube y TikTok
+siguen siendo solo investigación y propuesta, sin código todavía.
 
 ## Punto de partida: qué existe hoy
 
@@ -52,6 +56,49 @@ TikTok necesitan pasar por un proceso de verificación externo, con plazos no ga
 proveedor (de días a varias semanas), antes de que cualquier publicación salga de modo
 privado/prueba. X cambió de régimen de precios en 2026 y ahora se paga por llamada en vez de por
 plan mensual — hay que decidir presupuesto, no solo credenciales.
+
+## Facebook e Instagram — implementado (2026-11-03)
+
+Dos herramientas reales nuevas en `src/office/tools.ts`, registradas en `SIDE_EFFECTING_TOOLS`
+(`src/office/intelligence.ts`) y en `allowedTools` de `content` (`agents/content/config.json`) —
+mismo agente ejecutor que ya tenía Drive/Calendar/Sheets/Meet/Slides, consistente con el punto 5
+de la propuesta original de este documento:
+
+- **`social.publish_facebook`** (tool `publish_facebook_post`): texto con enlace opcional
+  (`POST /{page_id}/feed`) o una foto única desde una URL pública ya alojada, con leyenda
+  opcional (`POST /{page_id}/photos`). Sin video, Reels ni carrusel — primer recorte explícito,
+  igual criterio que `pdf.generate`/`slides.create` con imágenes o dos columnas.
+- **`social.publish_instagram`** (tool `publish_instagram_post`): una imagen desde una URL
+  pública, con el flujo real de contenedor que exige el Content Publishing API —
+  `POST /{ig_user_id}/media` → poll de `status_code` hasta `FINISHED` (máx. 60s) →
+  `POST /{ig_user_id}/media_publish` → intento de leer el `permalink` real (si falla, se
+  devuelve igual el id de la publicación, nunca tumba la herramienta por ese detalle). Falla con
+  un mensaje claro si la Página conectada no tiene una cuenta de Instagram Business vinculada.
+- Ambas requieren medios ya alojados en una URL pública — **no hay subida de bytes propia
+  todavía**, decisión deliberada para no construir un endpoint público nuevo de archivos: hoy
+  `GET /office/files/{id}` exige sesión autenticada, que Meta no puede usar para hacer su propio
+  fetch de la imagen. Cuando haga falta, la pieza que falta es ese endpoint público (o firmar URLs
+  temporales), no las herramientas de publicación en sí.
+
+**Credenciales**: tabla nueva `veridis_runtime_v1.meta_accounts` (migración en
+`src/runtime/database.ts`) — una fila con el `page_id`, el token de Página cifrado
+(`VERIDIS_TOKEN_ENCRYPTION_KEY`, mismo mecanismo que `gmail_accounts`) y el `ig_user_id` vinculado
+(`NULL` si la Página todavía no tiene Instagram Business conectado). A diferencia de Gmail, Graph
+API no tiene refresh token: `npm run runtime:meta-authorize` (`src/runtime/cli.ts`) hace el
+intercambio completo una sola vez — código → token de usuario de corta duración → token de usuario
+de larga duración (`fb_exchange_token`) → `GET /me/accounts` para obtener el token de Página (que,
+derivado de un token de usuario de larga duración, no expira bajo condiciones normales) — y guarda
+ese token de Página, nunca el de usuario. Variables nuevas en `.env.example`: `META_APP_ID`,
+`META_APP_SECRET`, `VERIDIS_META_OAUTH_CALLBACK_PORT` (default 8732), `META_PAGE_ID` (opcional,
+solo si la cuenta administra más de una Página). `configureMeta()` inyecta la cuenta cargada al
+arrancar el servidor (`loadMetaClient()` en `cli.ts`), mismo patrón que `configureGmail()`: sin
+autorizar todavía, las herramientas fallan con un mensaje claro en vez de tumbar `execute()`.
+
+Sin App Review de Meta todavía necesario para este alcance: la cuenta que autoriza administra su
+propia Página, no páginas de terceros — ver la fila de la tabla de comparación. Pruebas reales en
+`test/office-tools.test.ts` simulan la Graph API con `fetch` mockeado (sin red ni credenciales:
+rechazo claro sin cuenta configurada, ramas texto/foto, error real de Graph API propagado con su
+código, y el flujo completo de contenedor de Instagram incluyendo el caso `status_code: ERROR`).
 
 ## Detalle por plataforma
 
@@ -206,9 +253,11 @@ plan mensual — hay que decidir presupuesto, no solo credenciales.
    explícito por plataforma — así una cuenta de Instagram no queda disponible para quien solo
    necesitaba X, y se puede auditar qué perfil tiene qué cuenta conectada.
 6. **Orden de implementación sugerido**, por fricción externa real (no por preferencia técnica):
-   1. **Facebook Pages + Instagram** (páginas propias de la empresa) — sin cola de revisión si no
-      se gestionan páginas de terceros; comparten el mismo árbol de auth (Meta Business, token
-      BISU) y buena parte del código.
+   1. **Facebook Pages + Instagram** (páginas propias de la empresa) — implementado, ver la
+      sección dedicada arriba. Usó un token de Página de larga duración en vez de BISU: más
+      simple de autorizar para una sola Página propia, con el mismo resultado práctico (no expira
+      bajo condiciones normales); migrar a BISU más adelante es un cambio acotado a
+      `metaAuthorize()`, no a las herramientas de publicación.
    2. **X** — sin revisión manual, solo hay que decidir presupuesto de pago por uso y elegir
       OAuth 1.0a para evitar el refresco cada 2 horas.
    3. **YouTube** — reusa el mismo cliente OAuth2 y la misma cuenta de Google ya autorizada para

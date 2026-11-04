@@ -25,6 +25,7 @@
     "runtime:provision": "tsx src/runtime/cli.ts provision",
     "runtime:totp-enroll": "tsx src/runtime/cli.ts totp-enroll",
     "runtime:gmail-authorize": "tsx src/runtime/cli.ts gmail-authorize",
+    "runtime:meta-authorize": "tsx src/runtime/cli.ts meta-authorize",
     "runtime:memory-export": "tsx src/runtime/cli.ts export-memory",
     "runtime:local-delivery": "node scripts/local-delivery-receiver.mjs",
     "test:postgres": "node scripts/test-postgres.mjs",

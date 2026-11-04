@@ -123,6 +123,8 @@ Detalle completo de cada una (schema exacto, scopes de OAuth, flujo de autorizac
 | `video.render` | Renderiza un proyecto HyperFrames (HTML+CSS+GSAP) a MP4 real, en Docker propio sin red (`check` obligatorio antes de renderizar) | `video-production` |
 | `voice.generate` | Convierte texto a voz real (ElevenLabs) | `video-production` |
 | `music.generate` | Genera una pista de música real (sunoapi.org, IA) | `video-production` |
+| `social.publish_facebook` | Publica de verdad en la Página de Facebook conectada (texto o foto única desde URL pública) | `content` |
+| `social.publish_instagram` | Publica de verdad una imagen en la cuenta de Instagram Business vinculada (contenedor + espera + publish) | `content` |
 
 Las de Google comparten el mismo cliente OAuth2 de una cuenta de Gmail dedicada del sistema (`src/office/tools.ts`, `configureGmail()`), autorizado una sola vez vía `npm run runtime:gmail-authorize`. `pdf.generate` y `video.render` no usan OAuth: corren en su propia imagen Docker (`docker/pdf-renderer/`, `docker/video-renderer/`), sin red en el caso de `video.render` — el modelo ahí sí escribe HTML/CSS/JS libre (a diferencia de `pdf.generate`, que solo arma bloques tipados), así que el aislamiento es el mismo que el de `code.sandbox`, no el de `pdf.generate`. `voice.generate`/`music.generate` llaman directo a la API del proveedor (clave propia por variable de entorno, nunca OAuth) y, antes de llamar, buscan en `veridis_runtime_v1.media_library` (`configureMediaLibrary()`) si ya se generó exactamente lo mismo — a diferencia de `office_files`, que de-duplica solo dentro de un mismo expediente, esta biblioteca es compartida entre todos. Ampliar `allowedTools` a más agentes es una línea en su `config.json`, sin tocar código.
 
@@ -138,7 +140,7 @@ Las tareas pasan de `pending` a `running`, luego a `in_review` y `completed`. Pu
 
 El núcleo limita tareas, pasos de coordinación y correcciones por tarea. Cuando se agotan los pasos, rechaza nuevos avances y permite al coordinador pausar con un motivo. La planificación y los reintentos del modelo necesitarán límites adicionales de tiempo, tokens y dinero. Un registro de comandos no sustituye esas mediciones.
 
-La pausa aún no tiene un comando para continuar o cambiar presupuestos. No hay cancelación, reasignación, mensajería general ni recuperación automática de tareas fallidas. La delegación departamental sí está implementada como decisión `delegate` del coordinador, y hay quince herramientas reales (ver la sección de arriba). Las demás funciones se añadirán con casos concretos y reglas explícitas.
+La pausa aún no tiene un comando para continuar o cambiar presupuestos. No hay cancelación, reasignación, mensajería general ni recuperación automática de tareas fallidas. La delegación departamental sí está implementada como decisión `delegate` del coordinador, y hay diecisiete herramientas reales (ver la sección de arriba). Las demás funciones se añadirán con casos concretos y reglas explícitas.
 
 ## Niveles de rigor
 
@@ -164,7 +166,7 @@ Los especialistas reciben copias de su tarea, objetivo, respuestas humanas y ent
 
 `test/office-workflow.test.ts` verifica apoyo, corrección, cierre, continuación con un grafo nuevo tras fallo, preguntas humanas, decisiones inválidas, límites, aislamiento por copias y cambios de versión. La prueba local usa `MemorySaver`: **no prueba persistencia tras terminar el proceso**. `test/office-postgres.test.ts` contiene la verificación PostgreSQL optativa, sin ejecutar aquí por falta de una base de pruebas. Los errores del proveedor o respuestas inválidas de especialistas dejan el nodo pendiente y requieren continuación explícita. Reintentar puede repetir una llamada de pago; no se garantiza ejecución exactamente una vez.
 
-La salida final es el expediente con sus entregables, evaluaciones y eventos. No existe todavía una etapa adicional de síntesis narrativa para la oficina. Un agente sin ninguna herramienta en `allowedTools` sigue preparando solo propuestas con la información recibida — las referencias `proposal://` identifican ese contenido propuesto, no un archivo creado. Un agente con alguna de las quince herramientas reales sí puede producir un efecto verdadero (ver la sección de arriba); la pantalla ASISTENTE y la vista OFICINA de la interfaz web son la forma de usar esto día a día, ver [runtime-pilot.md](runtime-pilot.md).
+La salida final es el expediente con sus entregables, evaluaciones y eventos. No existe todavía una etapa adicional de síntesis narrativa para la oficina. Un agente sin ninguna herramienta en `allowedTools` sigue preparando solo propuestas con la información recibida — las referencias `proposal://` identifican ese contenido propuesto, no un archivo creado. Un agente con alguna de las diecisiete herramientas reales sí puede producir un efecto verdadero (ver la sección de arriba); la pantalla ASISTENTE y la vista OFICINA de la interfaz web son la forma de usar esto día a día, ver [runtime-pilot.md](runtime-pilot.md).
 
 ## Persistencia: implementada; cola y workers siguen pendientes
 

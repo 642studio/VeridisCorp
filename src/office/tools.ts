@@ -999,6 +999,125 @@ export const slidesCreateTool = tool(
   },
 );
 
+// Meta (Facebook Pages + Instagram, ver docs/social-publishing-roadmap.md): cliente propio, sin
+// reusar requireGoogleClient — es otro proveedor, otro token, otra forma de autenticar (Graph API
+// acepta access_token por querystring/body, no un cliente OAuth2 con refresco automático como
+// google-auth-library). configureMeta() lo inyecta una sola vez al arrancar el servidor
+// (runtime/cli.ts, loadMetaClient()), igual patrón que configureGmail: sin cuenta autorizada
+// todavía, las herramientas fallan como "no configurado", nunca tumban execute().
+const GRAPH_API_VERSION = 'v26.0';
+const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+
+export type MetaAccount = { pageId: string; pageAccessToken: string; igUserId: string | null };
+let metaAccount: MetaAccount | null = null;
+export function configureMeta(account: MetaAccount | null): void { metaAccount = account; }
+
+function requireMetaAccount(): MetaAccount {
+  if (!metaAccount) throw new Error('La cuenta de Meta (Facebook/Instagram) no está configurada: falta autorizar (npm run runtime:meta-authorize)');
+  return metaAccount;
+}
+
+type GraphErrorBody = { error?: { message: string; code?: number; error_subcode?: number } };
+
+// Params siempre van en el cuerpo (POST) o la query (GET) de Graph API, nunca mezclados — así lo
+// documentan los propios ejemplos curl de Meta. access_token entra como un parámetro más, nunca
+// como header: Graph API no soporta "Authorization: Bearer" en todos sus endpoints por igual.
+async function graphRequest<T>(method: 'GET' | 'POST', path: string, params: Record<string, string | undefined>): Promise<T> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value !== undefined) query.set(key, value);
+  const url = method === 'GET' ? `${GRAPH_API_BASE}/${path}?${query.toString()}` : `${GRAPH_API_BASE}/${path}`;
+  const response = await fetch(url, {
+    method, signal: AbortSignal.timeout(30000),
+    ...(method === 'POST' ? { headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: query.toString() } : {}),
+  });
+  const data = await response.json() as T & GraphErrorBody;
+  if (!response.ok || data.error) {
+    throw new Error(data.error ? `Meta Graph API (${data.error.code ?? '?'}): ${data.error.message}` : `Meta Graph API respondió ${response.status}`);
+  }
+  return data;
+}
+
+const facebookPublishSchema = z.object({
+  message: z.string().trim().max(5000).optional().describe('Texto de la publicación'),
+  imageUrl: z.url().optional().describe('URL pública (ya alojada, JPEG/PNG) de una imagen; si se incluye, se publica como foto en vez de como texto'),
+  link: z.url().optional().describe('Enlace a incluir en una publicación de texto; se ignora si hay imageUrl'),
+}).strict().refine((data) => Boolean(data.message?.trim() || data.imageUrl), { message: 'Hace falta "message" o "imageUrl"' });
+
+// Dos endpoints reales distintos de Graph API según haya imagen o no — a diferencia de Instagram,
+// la Página de Facebook no exige el modelo de contenedor para texto/foto simple, solo para Reels
+// (fuera de alcance de esta primera versión, igual límite que ya se puso en video.render/pdf.generate
+// con imágenes y dos columnas: no se construye hasta tener un caso real que lo necesite).
+export const facebookPublishTool = tool(
+  async ({ message, imageUrl, link }: z.infer<typeof facebookPublishSchema>) => {
+    const account = requireMetaAccount();
+    if (imageUrl) {
+      const photo = await graphRequest<{ id: string; post_id?: string }>('POST', `${account.pageId}/photos`, {
+        url: imageUrl, access_token: account.pageAccessToken, ...(message ? { caption: message } : {}),
+      });
+      const postId = photo.post_id ?? photo.id;
+      return JSON.stringify({ postId, permalink: `https://www.facebook.com/${postId}` });
+    }
+    const post = await graphRequest<{ id: string }>('POST', `${account.pageId}/feed`, {
+      access_token: account.pageAccessToken, message: message ?? '', ...(link ? { link } : {}),
+    });
+    return JSON.stringify({ postId: post.id, permalink: `https://www.facebook.com/${post.id}` });
+  },
+  {
+    name: 'publish_facebook_post',
+    description: 'Publica de verdad en la Página de Facebook conectada: texto (con enlace opcional) o una '
+      + 'foto única desde una URL pública ya alojada, con leyenda opcional. Sin video, Reels ni carrusel '
+      + 'todavía — para eso hace falta pedirlo explícitamente. Devuelve el id real de la publicación y su enlace.',
+    schema: facebookPublishSchema,
+  },
+);
+
+const instagramPublishSchema = z.object({
+  caption: z.string().trim().max(2200).optional().describe('Leyenda de la publicación (límite real de Instagram: 2200 caracteres)'),
+  imageUrl: z.url().describe('URL pública (ya alojada, JPEG) de la imagen; Instagram la descarga desde ahí al publicar'),
+}).strict();
+
+// Instagram sí exige el modelo de contenedor siempre (crear -> esperar a que termine de procesar
+// -> publicar), a diferencia de Facebook/feed. Sin esto, media_publish puede fallar o publicar
+// algo a medio procesar — documentado así en el propio Content Publishing API de Meta.
+async function pollInstagramContainer(containerId: string, accessToken: string): Promise<void> {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    const status = await graphRequest<{ status_code?: string }>('GET', containerId, { fields: 'status_code', access_token: accessToken });
+    if (status.status_code === 'FINISHED') return;
+    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') throw new Error(`Instagram no pudo procesar la imagen (status ${status.status_code})`);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  throw new Error('Instagram no terminó de procesar la imagen a tiempo (más de 60s)');
+}
+
+export const instagramPublishTool = tool(
+  async ({ caption, imageUrl }: z.infer<typeof instagramPublishSchema>) => {
+    const account = requireMetaAccount();
+    if (!account.igUserId) throw new Error('La Página de Facebook conectada no tiene una cuenta de Instagram Business vinculada');
+    const container = await graphRequest<{ id: string }>('POST', `${account.igUserId}/media`, {
+      access_token: account.pageAccessToken, image_url: imageUrl, ...(caption ? { caption } : {}),
+    });
+    await pollInstagramContainer(container.id, account.pageAccessToken);
+    const published = await graphRequest<{ id: string }>('POST', `${account.igUserId}/media_publish`, {
+      access_token: account.pageAccessToken, creation_id: container.id,
+    });
+    // El permalink es una llamada aparte y no siempre está disponible de inmediato; si falla, se
+    // devuelve igual el id real de la publicación en vez de tumbar la herramienta por un detalle.
+    const permalink = await graphRequest<{ permalink?: string }>('GET', published.id, { fields: 'permalink', access_token: account.pageAccessToken })
+      .then((r) => r.permalink ?? null).catch(() => null);
+    return JSON.stringify({ mediaId: published.id, permalink });
+  },
+  {
+    name: 'publish_instagram_post',
+    description: 'Publica de verdad una imagen en la cuenta de Instagram Business vinculada a la Página de '
+      + 'Facebook conectada, desde una URL pública ya alojada (JPEG), con leyenda opcional. Crea el '
+      + 'contenedor, espera a que Instagram termine de procesarlo y recién entonces publica — puede tardar '
+      + 'unos segundos. Sin video, Reels, Stories ni carrusel todavía. Devuelve el id real de la publicación '
+      + 'y su enlace cuando Instagram lo tenga disponible.',
+    schema: instagramPublishSchema,
+  },
+);
+
 // Un id de allowedTools puede abrir varias herramientas (repo.read = git log/show/diff/status, buscar, leer, listar).
 const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInterface[]> = {
   'web.search': webSearchTool,
@@ -1019,6 +1138,8 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInter
   'sheets.create': sheetsCreateTool,
   'meet.create_space': meetCreateSpaceTool,
   'slides.create': slidesCreateTool,
+  'social.publish_facebook': facebookPublishTool,
+  'social.publish_instagram': instagramPublishTool,
   'repo.read': REPO_TOOLS,
   ...MCP_TOOLS,
 };

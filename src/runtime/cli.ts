@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
@@ -14,7 +15,7 @@ import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
 import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
-import { configureGmail, configureMemory, configureMediaLibrary } from '../office/tools.js';
+import { configureGmail, configureMeta, configureMemory, configureMediaLibrary } from '../office/tools.js';
 import { configureRepos, parseRepos } from '../office/repo-tools.js';
 import { configureMcp } from '../office/mcp-tools.js';
 import { McpStore } from './mcp-store.js';
@@ -110,6 +111,96 @@ async function loadGmailClient(pool: Pool): Promise<void> {
  configureGmail(client);
 }
 
+// pages_show_list/pages_manage_metadata/pages_manage_posts: administrar texto/foto en la Página
+// propia. pages_read_engagement: exigido por Meta junto a los anteriores. instagram_basic +
+// instagram_content_publish: publicar en la cuenta de Instagram Business vinculada a esa Página.
+// Sin publish_video ni nada de Reels/Threads todavía — ver docs/social-publishing-roadmap.md.
+const META_SCOPES = [
+ 'pages_show_list', 'pages_manage_metadata', 'pages_manage_posts', 'pages_read_engagement',
+ 'instagram_basic', 'instagram_content_publish',
+];
+const META_GRAPH_VERSION = 'v26.0';
+
+type MetaTokenResponse = { access_token: string; token_type?: string; expires_in?: number };
+type MetaPagesResponse = { data: { id: string; name: string; access_token: string }[] };
+type MetaPageFields = { id: string; instagram_business_account?: { id: string } };
+
+// Flujo "app instalada" igual que gmailAuthorize: listener local temporal, nada de servidor
+// público. A diferencia de Google, Meta no tiene refresh token — el token de Página que devuelve
+// /me/accounts, derivado de un token de usuario ya intercambiado por uno de larga duración, no
+// expira bajo condiciones normales (ver documentación de Meta citada en el roadmap); si algún día
+// se invalida, se repite esta autorización a mano.
+async function metaAuthorize(pool: Pool) {
+ const appId = process.env.META_APP_ID;
+ const appSecret = process.env.META_APP_SECRET;
+ if (!appId || !appSecret) throw new Error('Faltan META_APP_ID o META_APP_SECRET');
+ const key = loadEncryptionKey(process.env);
+ const port = z.coerce.number().int().min(1024).max(65535).parse(process.env.VERIDIS_META_OAUTH_CALLBACK_PORT ?? '8732');
+ const redirectUri = `http://localhost:${port}/oauth2callback`;
+ const state = randomUUID();
+ const authUrl = `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth?${new URLSearchParams({
+  client_id: appId, redirect_uri: redirectUri, scope: META_SCOPES.join(','), response_type: 'code', state,
+ }).toString()}`;
+ process.stderr.write(`Abre esta URL en el navegador, con sesión iniciada como administrador de la Página:\n\n${authUrl}\n\nEsperando autorización en ${redirectUri} ...\n`);
+ const code = await new Promise<string>((resolve, reject) => {
+  const server = createServer((req, res) => {
+   const url = new URL(req.url ?? '/', redirectUri);
+   if (url.pathname !== '/oauth2callback') { res.writeHead(404); res.end(); return; }
+   const returnedCode = url.searchParams.get('code');
+   const authError = url.searchParams.get('error_description') ?? url.searchParams.get('error');
+   res.setHeader('content-type', 'text/html; charset=utf-8');
+   if (authError || !returnedCode || url.searchParams.get('state') !== state) {
+    res.writeHead(400); res.end('<p>Autorización rechazada, incompleta o con estado inválido. Puedes cerrar esta pestaña.</p>');
+    server.close(() => reject(new Error(authError ?? 'Sin código de autorización o estado inválido')));
+    return;
+   }
+   res.writeHead(200); res.end('<p>Autorización recibida. Puedes cerrar esta pestaña.</p>');
+   server.close(() => resolve(returnedCode));
+  });
+  server.listen(port, '127.0.0.1');
+  server.once('error', reject);
+ });
+ const shortLived = await fetch(`https://graph.facebook.com/${META_GRAPH_VERSION}/oauth/access_token?${new URLSearchParams({
+  client_id: appId, redirect_uri: redirectUri, client_secret: appSecret, code,
+ }).toString()}`).then((r) => r.json() as Promise<MetaTokenResponse>);
+ const longLived = await fetch(`https://graph.facebook.com/${META_GRAPH_VERSION}/oauth/access_token?${new URLSearchParams({
+  grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: shortLived.access_token,
+ }).toString()}`).then((r) => r.json() as Promise<MetaTokenResponse>);
+ if (!longLived.access_token) throw new Error('Meta no devolvió un token de usuario de larga duración');
+ const pages = await fetch(`https://graph.facebook.com/${META_GRAPH_VERSION}/me/accounts?${new URLSearchParams({
+  access_token: longLived.access_token,
+ }).toString()}`).then((r) => r.json() as Promise<MetaPagesResponse>);
+ if (!pages.data?.length) throw new Error('La cuenta autorizada no administra ninguna Página de Facebook');
+ const preferredPageId = process.env.META_PAGE_ID;
+ const page = preferredPageId ? pages.data.find((p) => p.id === preferredPageId) : pages.data[0];
+ if (!page) throw new Error(`No se encontró la Página "${preferredPageId}" entre las administradas: ${pages.data.map((p) => `${p.name} (${p.id})`).join(', ')}`);
+ if (!preferredPageId && pages.data.length > 1) {
+  process.stderr.write(`Hay varias Páginas administradas; se usó la primera (${page.name}, ${page.id}). Para elegir otra, repite con META_PAGE_ID=<id> entre: ${pages.data.map((p) => `${p.name} (${p.id})`).join(', ')}\n`);
+ }
+ const pageFields = await fetch(`https://graph.facebook.com/${META_GRAPH_VERSION}/${page.id}?${new URLSearchParams({
+  fields: 'instagram_business_account', access_token: page.access_token,
+ }).toString()}`).then((r) => r.json() as Promise<MetaPageFields>);
+ const encrypted = encryptSecret(page.access_token, key);
+ await pool.query(
+  `INSERT INTO veridis_runtime_v1.meta_accounts(page_id, page_access_token_encrypted, ig_user_id)
+   VALUES($1,$2,$3)
+   ON CONFLICT (page_id) DO UPDATE SET page_access_token_encrypted=$2, ig_user_id=$3, updated_at=clock_timestamp()`,
+  [page.id, encrypted, pageFields.instagram_business_account?.id ?? null],
+ );
+ process.stderr.write(`Página "${page.name}" (${page.id}) autorizada y guardada`
+  + (pageFields.instagram_business_account ? `, con Instagram Business vinculado (${pageFields.instagram_business_account.id}).\n` : ', sin cuenta de Instagram Business vinculada.\n'));
+}
+
+// Llamado desde serve(): sin fila autorizada todavía, las herramientas de Meta simplemente fallan
+// como "no configurado" — nunca tumba el arranque del servidor, igual criterio que Gmail/ClickUp.
+async function loadMetaClient(pool: Pool): Promise<void> {
+ const row = await pool.query('SELECT page_id, page_access_token_encrypted, ig_user_id FROM veridis_runtime_v1.meta_accounts LIMIT 1').catch(() => null);
+ if (!row?.rows[0]) return;
+ const key = loadEncryptionKey(process.env);
+ const pageAccessToken = decryptSecret(row.rows[0].page_access_token_encrypted as Buffer, key);
+ configureMeta({ pageId: row.rows[0].page_id as string, pageAccessToken, igUserId: (row.rows[0].ig_user_id as string | null) ?? null });
+}
+
 async function main() {
  const [command, configFile, tokenFile] = process.argv.slice(2);
  if (!process.env.DATABASE_URL) throw new Error('Falta DATABASE_URL');
@@ -166,6 +257,7 @@ async function main() {
    if (telegramConfig) startTelegramBridge(office, telegramConfig);
   }
   await loadGmailClient(pool);
+  await loadMetaClient(pool);
   // Las tareas programadas disparan expedientes reales sin que nadie le dé clic a nada; solo
   // tiene sentido si office/ ya está habilitado, y sigue necesitando su propio interruptor
   // explícito (un operador puede querer office/ real sin disparos automáticos todavía).
@@ -184,6 +276,7 @@ async function main() {
  try {
   if (command === 'migrate') { await migrate(pool); return; }
   if (command === 'gmail-authorize') { await gmailAuthorize(pool); return; }
+  if (command === 'meta-authorize') { await metaAuthorize(pool); return; }
   if (command === 'export-memory') {
    const vaultPath = vaultPathFromEnv(process.env);
    if (!vaultPath) throw new Error('Falta VERIDIS_MEMORY_VAULT_PATH');
@@ -209,7 +302,7 @@ async function main() {
    process.stderr.write(`\nSi no se puede escanear, el secreto manual es: ${secret}\nRespaldo guardado en el archivo privado indicado.\n`);
    return;
   }
-  if (command !== 'provision' || !configFile || !tokenFile) throw new Error('Uso: migrate | serve | provision config.json archivo-de-token | totp-enroll config.json archivo-de-respaldo.txt | gmail-authorize | export-memory');
+  if (command !== 'provision' || !configFile || !tokenFile) throw new Error('Uso: migrate | serve | provision config.json archivo-de-token | totp-enroll config.json archivo-de-respaldo.txt | gmail-authorize | meta-authorize | export-memory');
   const config = z.object({ principal: Principal, scope: AccessScope, expiresAt: z.iso.datetime({ offset: true }),
    permissions: z.array(z.object({ principal: Principal, operations: z.array(Operation).min(1), resourceType: z.string(), resourceIds: z.array(z.string()).min(1) }).strict()),
   }).strict().parse(JSON.parse(readFileSync(configFile, 'utf8')));

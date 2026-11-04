@@ -17,6 +17,7 @@ import { describeConnections } from './mcp-tools.js';
 const SIDE_EFFECTING_TOOLS = new Set([
   'pdf.generate', 'video.render', 'voice.generate', 'music.generate', 'email.draft', 'drive.upload',
   'calendar.create_event', 'sheets.create', 'meet.create_space', 'slides.create', 'memory.write', 'mcp.connect',
+  'social.publish_facebook', 'social.publish_instagram',
 ]);
 
 // pdf.generate (tool 'generate_pdf') produce un entregable con efecto secundario real (un
