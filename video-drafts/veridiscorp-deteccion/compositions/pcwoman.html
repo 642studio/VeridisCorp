@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #root-pw { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #scene-canvas-pw { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #glow-canvas-pw { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #scanbar-pw {
+        position: absolute; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(57,255,106,0.9), transparent);
+        box-shadow: 0 0 24px 6px rgba(57,255,106,0.55);
+        pointer-events: none;
+      }
+      #scan-pw {
+        position: absolute; inset: -20px;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px);
+        pointer-events: none;
+      }
+      #grid-tex-pw {
+        position: absolute; inset: 0;
+        background:
+          repeating-linear-gradient(0deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px),
+          repeating-linear-gradient(90deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px);
+        pointer-events: none;
+      }
+      #vignette-pw {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
+      }
+      #caption-pw {
+        position: absolute; left: 96px; bottom: 90px;
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 34px;
+        letter-spacing: 0.1em; text-transform: uppercase; color: #39ff6a; opacity: 0;
+        text-shadow: 0 0 18px rgba(57,255,106,0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-2pxa"
+      id="root-pw"
+      data-composition-id="pcwoman-3d"
+      data-start="0"
+      data-duration="6"
+      data-width="1920"
+      data-height="1080"
+    >
+      <canvas data-hf-id="hf-hibr" id="scene-canvas-pw" class="clip" data-start="0" data-duration="6" data-track-index="1"></canvas>
+      <canvas data-hf-id="hf-83b5" id="glow-canvas-pw" class="clip" data-start="0" data-duration="6" data-track-index="1" data-layout-allow-overflow></canvas>
+      <div data-hf-id="hf-ovsc" id="grid-tex-pw" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-4683" id="scan-pw" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-rkvi" id="scanbar-pw" class="clip" data-start="0" data-duration="6" data-track-index="2" data-layout-allow-overflow data-layout-ignore></div>
+      <div data-hf-id="hf-5mi6" id="vignette-pw" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-63xu" id="caption-pw" class="clip" data-start="3.6" data-duration="2.4" data-hold="true">Objeto detectado — figura humana</div>
+
+      <div data-hf-id="hf-uso8" id="s-hud" data-composition-id="hud" data-composition-src="compositions/components/telemetry-hud.html"
+           data-start="0" data-duration="6" data-track-index="3" style="--bg: transparent"
+           data-variable-values='{"readouts":"estado:escaneando,perfiles:74,con esqueleto:12/12,revisor:activo","emphasize":0,"accent":"green","exit":"none"}'></div>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.getElementById("root-pw");
+        var duration = Math.max(0.001, parseFloat(root.dataset.duration) || 6);
+        var clock = { t: 0 };
+        var scene = { duration: duration, clock: clock, render: null };
+        window.__pcwoman3d = scene;
+        window.__hf = window.__hf || {};
+        window.__hf.buildReady = window.__hf.buildReady || {};
+        window.__hf.buildReady["pcwoman-3d"] = new Promise(function (resolve) { scene.ready = resolve; });
+
+        var tl = gsap.timeline({ paused: true });
+        tl.to(clock, {
+          t: duration, duration: duration, ease: "none",
+          onUpdate: function () { if (scene.render) scene.render(clock.t); },
+        }, 0);
+        tl.fromTo("#caption-pw", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 3.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["pcwoman-3d"] = tl;
+      })();
+    </script>
+
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.184.0/+esm";
+
+      const host = window.__pcwoman3d;
+      const GREEN = new THREE.Color(0x39ff6a);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("scene-canvas-pw"),
+        antialias: true, alpha: true, preserveDrawingBuffer: true,
+      });
+      renderer.setPixelRatio(1);
+      renderer.setSize(1920, 1080, false);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.NoToneMapping;
+
+      // Cheap, deterministic bloom: after each WebGL render, draw a blurred,
+      // brightened copy of the same canvas on top with additive blending. A
+      // 2D canvas composite, not a shader pass — simple, and still a pure
+      // function of the frame just rendered, nothing time-based.
+      const glowCanvas = document.getElementById("glow-canvas-pw");
+      glowCanvas.width = 1920;
+      glowCanvas.height = 1080;
+      const glowCtx = glowCanvas.getContext("2d");
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(32, 1920 / 1080, 0.1, 100);
+
+      // the_pc_woman: CC-BY-4.0 (Sketchfab, autor ASP — ver
+      // assets/the_pc_woman-LICENSE.txt), licencia limpia, rig genérico
+      // "ValveBiped" sin personaje de terceros identificado. Solo se usan
+      // su malla y su esqueleto; el material/textura propio se descarta,
+      // igual que con el resto de figuras humanoides de la serie. El asset
+      // no trae clip de animación (gltf.animations está vacío), así que se
+      // muestra en bind pose estática, sin AnimationMixer.
+      const wireMat = new THREE.MeshBasicMaterial({ color: GREEN, wireframe: true, transparent: true, opacity: 0.9 });
+      const fillMat = new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.16, depthWrite: false });
+
+      const grid = new THREE.GridHelper(7, 28, 0x39ff6a, 0x166534);
+      grid.material.transparent = true;
+      grid.material.opacity = 0.35;
+      grid.position.y = -0.02;
+      scene.add(grid);
+
+      const { GLTFLoader } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/loaders/GLTFLoader.js/+esm");
+      const gltf = await new GLTFLoader().loadAsync("assets/the_pc_woman.glb");
+      const model = gltf.scene;
+      model.updateMatrixWorld(true);
+
+      // No animation clip, so no pose-aware computeBoundingBox() dance
+      // needed here — a plain Box3.setFromObject(model) on the bind pose
+      // is exactly the pose we're going to render, every frame.
+      const fitBox = new THREE.Box3().setFromObject(model);
+      const fitSize = fitBox.getSize(new THREE.Vector3());
+      const scale = 1.85 / Math.max(fitSize.y, 0.05);
+      model.scale.setScalar(scale);
+      const fitCenter = fitBox.getCenter(new THREE.Vector3());
+      model.position.x -= fitCenter.x * scale;
+      model.position.z -= fitCenter.z * scale;
+      model.position.y -= fitBox.min.y * scale;
+
+      const wireModel = model;
+      wireModel.traverse((o) => { if (o.isMesh) o.material = wireMat; });
+      scene.add(wireModel);
+
+      const { clone: skeletonClone } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/utils/SkeletonUtils.js/+esm");
+      const fillClone = skeletonClone(model);
+      fillClone.traverse((o) => { if (o.isMesh) o.material = fillMat; });
+      scene.add(fillClone);
+
+      const scanbarEl = document.getElementById("scanbar-pw");
+
+      host.render = (t) => {
+        const p = t / host.duration;
+        const angle = THREE.MathUtils.lerp(-0.6, 0.9, p);
+        const dist = THREE.MathUtils.lerp(4.4, 3.5, Math.min(1, p * 1.3));
+        camera.position.set(Math.sin(angle) * dist, 1.15, Math.cos(angle) * dist);
+        camera.lookAt(0, 0.95, 0);
+
+        renderer.render(scene, camera);
+
+        glowCtx.clearRect(0, 0, 1920, 1080);
+        glowCtx.filter = "blur(9px) brightness(1.7)";
+        glowCtx.globalCompositeOperation = "lighter";
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.filter = "blur(22px) brightness(1.3)";
+        glowCtx.globalAlpha = 0.6;
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.globalAlpha = 1;
+
+        // Scan sweep: a sawtooth in [0,1) over a 1.6s period, pure function of t.
+        const sweep = (t / 1.6) % 1;
+        scanbarEl.style.top = (sweep * 1080) + "px";
+      };
+      host.render(host.clock.t);
+      host.ready();
+    </script>
+  </body>
+</html>

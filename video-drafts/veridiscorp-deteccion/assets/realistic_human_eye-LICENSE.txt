@@ -1,0 +1,18 @@
+realistic_human_eye.glb
+
+Title: "Realistic human eye"
+Author: MisterH (https://sketchfab.com/TGVMisterH)
+Source: https://sketchfab.com/3d-models/realistic-human-eye-f2370371544c4b029123da0b7d7e2457
+License: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+License confirmed directly from the glTF binary's embedded `asset.extras.license`
+field (Sketchfab writes this into the export itself), not just the Sketchfab web
+page — see agents/video-production/knowledge/hyperframes-elementos-3d.md for the
+parsing technique. Attribution required: "Realistic human eye" by MisterH,
+licensed CC-BY-4.0.
+
+Used here for mesh geometry, its own baked material/texture, and its own node
+animation (a short rotation/scale loop plus a morph-target blink, not a skinned
+rig). Unlike the wireframe-only treatment used for other candidates, this
+model's own texture is shown directly — it's covered by the same CC-BY-4.0
+license as the geometry, not a separate unconfirmed asset.

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #root-fr { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #scene-canvas-fr { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #glow-canvas-fr { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #scanbar-fr {
+        position: absolute; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(57,255,106,0.9), transparent);
+        box-shadow: 0 0 24px 6px rgba(57,255,106,0.55);
+        pointer-events: none;
+      }
+      #scan-fr {
+        position: absolute; inset: -20px;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px);
+        pointer-events: none;
+      }
+      #grid-tex-fr {
+        position: absolute; inset: 0;
+        background:
+          repeating-linear-gradient(0deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px),
+          repeating-linear-gradient(90deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px);
+        pointer-events: none;
+      }
+      #vignette-fr {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
+      }
+      #caption-fr {
+        position: absolute; left: 96px; bottom: 90px;
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 34px;
+        letter-spacing: 0.1em; text-transform: uppercase; color: #39ff6a; opacity: 0;
+        text-shadow: 0 0 18px rgba(57,255,106,0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-cfvh"
+      id="root-fr"
+      data-composition-id="figura-3d"
+      data-start="0"
+      data-duration="6"
+      data-width="1920"
+      data-height="1080"
+    >
+      <canvas data-hf-id="hf-hibr" id="scene-canvas-fr" class="clip" data-start="0" data-duration="6" data-track-index="1"></canvas>
+      <canvas data-hf-id="hf-83b5" id="glow-canvas-fr" class="clip" data-start="0" data-duration="6" data-track-index="1" data-layout-allow-overflow></canvas>
+      <div data-hf-id="hf-ovsc" id="grid-tex-fr" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-4683" id="scan-fr" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-rkvi" id="scanbar-fr" class="clip" data-start="0" data-duration="6" data-track-index="2" data-layout-allow-overflow data-layout-ignore></div>
+      <div data-hf-id="hf-5mi6" id="vignette-fr" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-wp79" id="caption-fr" class="clip" data-start="3.6" data-duration="2.4" data-hold="true">Objeto detectado — unidad robot</div>
+
+      <div data-hf-id="hf-djy8" id="s-hud" data-composition-id="hud" data-composition-src="compositions/components/telemetry-hud.html"
+           data-start="0" data-duration="6" data-track-index="3" style="--bg: transparent"
+           data-variable-values='{"readouts":"estado:escaneando,perfiles:74,marcha:estable,revisor:activo","emphasize":0,"accent":"green","exit":"none"}'></div>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.getElementById("root-fr");
+        var duration = Math.max(0.001, parseFloat(root.dataset.duration) || 6);
+        var clock = { t: 0 };
+        var scene = { duration: duration, clock: clock, render: null };
+        window.__figura3d = scene;
+        window.__hf = window.__hf || {};
+        window.__hf.buildReady = window.__hf.buildReady || {};
+        window.__hf.buildReady["figura-3d"] = new Promise(function (resolve) { scene.ready = resolve; });
+
+        var tl = gsap.timeline({ paused: true });
+        tl.to(clock, {
+          t: duration, duration: duration, ease: "none",
+          onUpdate: function () { if (scene.render) scene.render(clock.t); },
+        }, 0);
+        tl.fromTo("#caption-fr", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 3.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["figura-3d"] = tl;
+      })();
+    </script>
+
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.184.0/+esm";
+
+      const host = window.__figura3d;
+      const GREEN = new THREE.Color(0x39ff6a);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("scene-canvas-fr"),
+        antialias: true, alpha: true, preserveDrawingBuffer: true,
+      });
+      renderer.setPixelRatio(1);
+      renderer.setSize(1920, 1080, false);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.NoToneMapping;
+
+      // Cheap, deterministic bloom: after each WebGL render, draw a blurred,
+      // brightened copy of the same canvas on top with additive blending. A
+      // 2D canvas composite, not a shader pass — simple, and still a pure
+      // function of the frame just rendered, nothing time-based.
+      const glowCanvas = document.getElementById("glow-canvas-fr");
+      glowCanvas.width = 1920;
+      glowCanvas.height = 1080;
+      const glowCtx = glowCanvas.getContext("2d");
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(32, 1920 / 1080, 0.1, 100);
+
+      // RobotExpressive: modelo propio de los ejemplos oficiales de three.js
+      // (MIT — ver assets/RobotExpressive-LICENSE.txt), mismo origen y base
+      // de licencia que Soldier.glb en veridiscorp-retro-figura. Sustituye a
+      // fixer_robot.glb (Sketchfab "Standard", sin permiso de reuso — ver
+      // MODELOS-CANDIDATOS-3D.md). Solo se usan su malla, su esqueleto y su
+      // propio clip de animación: el material/textura propio nunca se usa,
+      // se reemplaza por completo por el wireframe + relleno de abajo.
+      const wireMat = new THREE.MeshBasicMaterial({ color: GREEN, wireframe: true, transparent: true, opacity: 0.9 });
+      const fillMat = new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.16, depthWrite: false });
+
+      const grid = new THREE.GridHelper(7, 28, 0x39ff6a, 0x166534);
+      grid.material.transparent = true;
+      grid.material.opacity = 0.35;
+      grid.position.y = -0.02;
+      scene.add(grid);
+
+      const { GLTFLoader } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/loaders/GLTFLoader.js/+esm");
+      const gltf = await new GLTFLoader().loadAsync("assets/RobotExpressive.glb");
+      const model = gltf.scene;
+
+      let walkClip = null;
+      if (gltf.animations && gltf.animations.length) {
+        walkClip = gltf.animations.find((c) => c.name === "Walking") || gltf.animations[0];
+      }
+
+      // Fit to the clip's MEDIAN-sized pose, not one arbitrary sample and not
+      // a union of every sample — ghostly_chihuahua.glb (a different asset,
+      // see agents/video-production/knowledge/) taught this the hard way:
+      // one broken vertex/bone there reported the exact same huge size at
+      // every single sampled time, and a plain bind-pose Box3 ignores skin
+      // deformation entirely. Sampling several points and taking the middle
+      // one survives either failure mode without needing to know which
+      // frame (if any) is the bad one.
+      const fitMixer = new THREE.AnimationMixer(model);
+      const samples = [];
+      let clipDuration = 1;
+      if (walkClip) {
+        clipDuration = walkClip.duration;
+        fitMixer.clipAction(walkClip).play();
+        const SAMPLES = 16;
+        for (let i = 0; i <= SAMPLES; i += 1) {
+          fitMixer.setTime((clipDuration * i) / SAMPLES);
+          model.updateMatrixWorld(true);
+          const sampleBox = new THREE.Box3();
+          model.traverse((o) => {
+            if (!o.isMesh) return;
+            if (o.isSkinnedMesh) o.computeBoundingBox();
+            else o.geometry.computeBoundingBox();
+            sampleBox.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+          });
+          if (!sampleBox.isEmpty()) {
+            const s = sampleBox.getSize(new THREE.Vector3());
+            samples.push({ box: sampleBox, maxDim: Math.max(s.x, s.y, s.z) });
+          }
+        }
+        fitMixer.setTime(0);
+      }
+      samples.sort((a, b) => a.maxDim - b.maxDim);
+      const median = samples[Math.floor(samples.length / 2)];
+
+      // Defensive fallback, not needed for RobotExpressive.glb itself (a
+      // well-formed export with a normal walk cycle) but kept because it's
+      // cheap insurance: if every sampled computeBoundingBox() came back an
+      // identical, near-zero-spread size — the broken-skin signature seen
+      // on fixer_robot.glb and ghostly_chihuahua.glb (see
+      // MODELOS-CANDIDATOS-3D.md) — fall back to the un-posed
+      // Box3.setFromObject(model) instead of fitting to a degenerate box.
+      const spread = median ? samples[samples.length - 1].maxDim - samples[0].maxDim : 0;
+      const posedLooksBroken = median && spread < median.maxDim * 0.01;
+      const fitBox = !posedLooksBroken && median ? median.box : new THREE.Box3().setFromObject(model);
+      const fitSize = fitBox.getSize(new THREE.Vector3());
+      const scale = 1.85 / Math.max(fitSize.y, 0.05);
+      model.scale.setScalar(scale);
+      // fitBox was measured before this scale was applied (and before
+      // model.position moved) — scale its own numbers to match, rather than
+      // re-measuring from a different, now-inconsistent pose.
+      const fitCenter = fitBox.getCenter(new THREE.Vector3());
+      model.position.x -= fitCenter.x * scale;
+      model.position.z -= fitCenter.z * scale;
+      model.position.y -= fitBox.min.y * scale;
+
+      const wireModel = model;
+      wireModel.traverse((o) => { if (o.isMesh) o.material = wireMat; });
+      scene.add(wireModel);
+
+      const { clone: skeletonClone } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/utils/SkeletonUtils.js/+esm");
+      const fillClone = skeletonClone(model);
+      fillClone.traverse((o) => { if (o.isMesh) o.material = fillMat; });
+      scene.add(fillClone);
+
+      // Deterministic pose: AnimationMixer.setTime(t) recomputes bone matrices
+      // purely from t (no internal accumulation), so seeking back and forth
+      // lands on the exact same pose every time.
+      const mixerWire = new THREE.AnimationMixer(wireModel);
+      const mixerFill = new THREE.AnimationMixer(fillClone);
+      if (walkClip) {
+        mixerWire.clipAction(walkClip).play();
+        mixerFill.clipAction(walkClip).play();
+      }
+
+      const scanbarEl = document.getElementById("scanbar-fr");
+
+      host.render = (t) => {
+        const p = t / host.duration;
+        const angle = THREE.MathUtils.lerp(-0.55, 0.35, p);
+        const dist = THREE.MathUtils.lerp(4.6, 3.6, Math.min(1, p * 1.3));
+        camera.position.set(Math.sin(angle) * dist, 1.15, Math.cos(angle) * dist);
+        camera.lookAt(0, 0.95, 0);
+
+        const animT = (t * 0.6) % clipDuration;
+        mixerWire.setTime(animT);
+        mixerFill.setTime(animT);
+
+        renderer.render(scene, camera);
+
+        glowCtx.clearRect(0, 0, 1920, 1080);
+        glowCtx.filter = "blur(9px) brightness(1.7)";
+        glowCtx.globalCompositeOperation = "lighter";
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.filter = "blur(22px) brightness(1.3)";
+        glowCtx.globalAlpha = 0.6;
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.globalAlpha = 1;
+
+        // Scan sweep: a sawtooth in [0,1) over a 1.6s period, pure function of t.
+        const sweep = (t / 1.6) % 1;
+        scanbarEl.style.top = (sweep * 1080) + "px";
+      };
+      host.render(host.clock.t);
+      host.ready();
+    </script>
+  </body>
+</html>

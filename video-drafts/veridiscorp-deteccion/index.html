@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* Shared palette at the real document :root — telemetry-hud and other
+         registry components read --bg/--fg/etc. with var(--bg, fallback),
+         and without a real top-level declaration they fall back to their
+         own generic default (a navy blue, not this series' green) instead
+         of inheriting anything useful. Matches veridiscorp-retro-hud's own
+         :root block. Per-mount style="--bg: transparent" overrides still
+         take precedence where used, same as before. */
+      :root {
+        --bg: #020805;
+        --fg: #39ff6a;
+        --muted: #1f8a46;
+        --border: #1f8a46;
+        --surface: #06140a;
+        --brand: #39ff6a;
+        --font-mono: "Space Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Master cut: this file hosts no visual content of its own — it only
+      sequences the already-built, already-verified scenes as
+      data-composition-src mounts, each with its own data-start offset.
+      Same pattern veridiscorp-retro-hud/index.html already uses to
+      sequence its own two sub-compositions (title card + HUD).
+    -->
+    <div data-hf-id="hf-ntpc"
+      id="root"
+      data-composition-id="deteccion"
+      data-start="0"
+      data-duration="41"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!--
+        yt-lcd-background.html and telemetry-hud.html mounted DIRECTLY here
+        (one nesting level, same depth every other scene in this file
+        uses), not through an intro.html wrapper. Two-plus levels of
+        nesting (master -> intro.html -> yt-lcd-background.html) hit a real
+        render-pipeline bug: yt-lcd-background's own custom-property/
+        background styling came out correct in `check`/`snapshot` but wrong
+        (stuck on the light-mode fallback colour) in the actual `render`
+        output, reproduced across repeated renders and a cleared warm
+        browser pool, while the identical file renders correctly both
+        standalone and at this single nesting depth. Flattening to one
+        level sidesteps it entirely — matches veridiscorp-retro-hud's own
+        index.html structure, just inlined into the master cut.
+      -->
+      <div data-hf-id="hf-zqyj" id="s-title" data-composition-id="title" data-composition-src="compositions/yt-lcd-background.html"
+           data-start="0" data-duration="3" data-track-index="1"
+           data-width="1920" data-height="1080"></div>
+
+      <div id="s-hud-intro" data-composition-id="hud-intro" data-composition-src="compositions/components/telemetry-hud.html"
+           data-start="3" data-duration="4" data-track-index="1" style="--bg: transparent"
+           data-variable-values='{"readouts":"perfiles:56,con herramienta real:20/56,fase:arranque,revisor:activo","emphasize":0,"accent":"green","exit":"none"}'></div>
+
+      <div data-hf-id="hf-ppfk" id="s-figura-robot" data-composition-id="figura-robot" data-composition-src="compositions/figura-robot.html"
+           data-start="7" data-duration="6" data-track-index="1"></div>
+
+      <div data-hf-id="hf-cqrj" id="s-pcwoman" data-composition-id="pcwoman" data-composition-src="compositions/pcwoman.html"
+           data-start="13" data-duration="6" data-track-index="1"></div>
+
+      <div data-hf-id="hf-d6s0" id="s-ojo" data-composition-id="ojo" data-composition-src="compositions/ojo.html"
+           data-start="19" data-duration="6" data-track-index="1"></div>
+
+      <div data-hf-id="hf-u92i" id="s-red-agentes" data-composition-id="red-agentes" data-composition-src="compositions/red-agentes.html"
+           data-start="25" data-duration="6" data-track-index="1"></div>
+
+      <div data-hf-id="hf-r5hd" id="s-flujo-tareas" data-composition-id="flujo-tareas" data-composition-src="compositions/flujo-tareas.html"
+           data-start="31" data-duration="6" data-track-index="1"></div>
+
+      <div data-hf-id="hf-v219" id="s-outro" data-composition-id="outro" data-composition-src="compositions/outro.html"
+           data-start="37" data-duration="4" data-track-index="1"></div>
+
+      <!-- Voz en off (ElevenLabs, ES) — una línea por escena, cronometrada para
+           terminar justo antes de la caption on-screen de cada escena (que
+           aparece a +3.6s dentro de su escena), así la voz narra y luego la
+           caption confirma. -->
+      <audio id="voice-l1" class="clip" src="assets/voice/l1-title.wav"
+             data-start="0.5" data-duration="1.44" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l2" class="clip" src="assets/voice/l2-hud.wav"
+             data-start="3.4" data-duration="3.065" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l3" class="clip" src="assets/voice/l3-robot.wav"
+             data-start="7.6" data-duration="2.183" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l4" class="clip" src="assets/voice/l4-pcwoman.wav"
+             data-start="13.6" data-duration="1.486" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l5" class="clip" src="assets/voice/l5-ojo.wav"
+             data-start="19.6" data-duration="1.486" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l6" class="clip" src="assets/voice/l6-red.wav"
+             data-start="25.6" data-duration="2.276" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l7" class="clip" src="assets/voice/l7-flujo.wav"
+             data-start="31.6" data-duration="3.297" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l8" class="clip" src="assets/voice/l8-outro.wav"
+             data-start="37.3" data-duration="3.204" data-track-index="5" data-volume="1"></audio>
+
+      <!-- SFX (CC0/CC BY vía Openverse, ver assets/sfx/CREDITS.md) — alineados
+           a cada momento de confirmación visual (caption / HUD / sweep). -->
+      <audio id="sfx-l2" class="clip" src="assets/sfx/ui-click.mp3"
+             data-start="3.4" data-duration="0.6" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-l3" class="clip" src="assets/sfx/beep.mp3"
+             data-start="10.6" data-duration="0.15" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-l4" class="clip" src="assets/sfx/beep.mp3"
+             data-start="16.6" data-duration="0.15" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-l5" class="clip" src="assets/sfx/beep.mp3"
+             data-start="22.6" data-duration="0.15" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-l6" class="clip" src="assets/sfx/whoosh.mp3"
+             data-start="25.6" data-duration="3.2" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-l7" class="clip" src="assets/sfx/click.mp3"
+             data-start="34.6" data-duration="2.3" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-l8" class="clip" src="assets/sfx/chime.mp3"
+             data-start="37.4" data-duration="0.35" data-track-index="6" data-volume="0.35"></audio>
+
+      <!-- Música de fondo (HeyGen catalog, retrieve) — el track dura 30s y el
+           corte dura 41s, así que se cruza (crossfade) con un segundo mount
+           del mismo archivo desde 28s para cubrir hasta el final sin salto.
+           data-automation agacha el volumen mientras alguien habla
+           (0.4x) y vuelve a 1x en los huecos instrumentales. -->
+      <audio id="bgm-1" class="clip" src="assets/bgm/track.mp3"
+             data-start="0" data-duration="30" data-track-index="7" data-volume="0.22"
+             data-fade-out="2"
+             data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":1},{"t":0.35,"v":1},{"t":0.5,"v":0.4},{"t":1.94,"v":0.4},{"t":2.14,"v":1},{"t":3.25,"v":1},{"t":3.4,"v":0.4},{"t":6.465,"v":0.4},{"t":6.665,"v":1},{"t":7.45,"v":1},{"t":7.6,"v":0.4},{"t":9.783,"v":0.4},{"t":9.983,"v":1},{"t":13.45,"v":1},{"t":13.6,"v":0.4},{"t":15.086,"v":0.4},{"t":15.286,"v":1},{"t":19.45,"v":1},{"t":19.6,"v":0.4},{"t":21.086,"v":0.4},{"t":21.286,"v":1},{"t":25.45,"v":1},{"t":25.6,"v":0.4},{"t":27.876,"v":0.4},{"t":28,"v":1}]}]}'></audio>
+      <audio id="bgm-2" class="clip" src="assets/bgm/track.mp3"
+             data-start="28" data-duration="13" data-track-index="8" data-volume="0.22"
+             data-fade-in="2" data-fade-out="1"
+             data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":1},{"t":3.45,"v":1},{"t":3.6,"v":0.4},{"t":6.897,"v":0.4},{"t":7.097,"v":1},{"t":9.15,"v":1},{"t":9.3,"v":0.4},{"t":12.504,"v":0.4},{"t":12.704,"v":1},{"t":13,"v":1}]}]}'></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["deteccion"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

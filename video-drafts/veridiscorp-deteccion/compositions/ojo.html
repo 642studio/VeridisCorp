@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #root-ey { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #scene-canvas-ey { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #glow-canvas-ey { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #scanbar-ey {
+        position: absolute; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(57,255,106,0.9), transparent);
+        box-shadow: 0 0 24px 6px rgba(57,255,106,0.55);
+        pointer-events: none;
+      }
+      #scan-ey {
+        position: absolute; inset: -20px;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px);
+        pointer-events: none;
+      }
+      #grid-tex-ey {
+        position: absolute; inset: 0;
+        background:
+          repeating-linear-gradient(0deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px),
+          repeating-linear-gradient(90deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px);
+        pointer-events: none;
+      }
+      #vignette-ey {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
+      }
+      #caption-ey {
+        position: absolute; left: 96px; bottom: 90px;
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 34px;
+        letter-spacing: 0.1em; text-transform: uppercase; color: #39ff6a; opacity: 0;
+        text-shadow: 0 0 18px rgba(57,255,106,0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-i3mh"
+      id="root-ey"
+      data-composition-id="ojo-3d"
+      data-start="0"
+      data-duration="6"
+      data-width="1920"
+      data-height="1080"
+    >
+      <canvas data-hf-id="hf-hibr" id="scene-canvas-ey" class="clip" data-start="0" data-duration="6" data-track-index="1"></canvas>
+      <canvas data-hf-id="hf-83b5" id="glow-canvas-ey" class="clip" data-start="0" data-duration="6" data-track-index="1" data-layout-allow-overflow></canvas>
+      <div data-hf-id="hf-ovsc" id="grid-tex-ey" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-4683" id="scan-ey" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-rkvi" id="scanbar-ey" class="clip" data-start="0" data-duration="6" data-track-index="2" data-layout-allow-overflow data-layout-ignore></div>
+      <div data-hf-id="hf-5mi6" id="vignette-ey" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-qgy2" id="caption-ey" class="clip" data-start="3.6" data-duration="2.4" data-hold="true">Objeto detectado — muestra biométrica</div>
+
+      <div data-hf-id="hf-kklm" id="s-hud" data-composition-id="hud" data-composition-src="compositions/components/telemetry-hud.html"
+           data-start="0" data-duration="6" data-track-index="3" style="--bg: transparent"
+           data-variable-values='{"readouts":"estado:escaneando,perfiles:12,iris:coincidencia 94%,revisor:activo","emphasize":0,"accent":"green","exit":"none"}'></div>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.getElementById("root-ey");
+        var duration = Math.max(0.001, parseFloat(root.dataset.duration) || 6);
+        var clock = { t: 0 };
+        var scene = { duration: duration, clock: clock, render: null };
+        window.__ojo3d = scene;
+        window.__hf = window.__hf || {};
+        window.__hf.buildReady = window.__hf.buildReady || {};
+        window.__hf.buildReady["ojo-3d"] = new Promise(function (resolve) { scene.ready = resolve; });
+
+        var tl = gsap.timeline({ paused: true });
+        tl.to(clock, {
+          t: duration, duration: duration, ease: "none",
+          onUpdate: function () { if (scene.render) scene.render(clock.t); },
+        }, 0);
+        tl.fromTo("#caption-ey", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 3.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["ojo-3d"] = tl;
+      })();
+    </script>
+
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.184.0/+esm";
+
+      const host = window.__ojo3d;
+      const GREEN = new THREE.Color(0x39ff6a);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("scene-canvas-ey"),
+        antialias: true, alpha: true, preserveDrawingBuffer: true,
+      });
+      renderer.setPixelRatio(1);
+      renderer.setSize(1920, 1080, false);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.NoToneMapping;
+
+      // Cheap, deterministic bloom: after each WebGL render, draw a blurred,
+      // brightened copy of the same canvas on top with additive blending. A
+      // 2D canvas composite, not a shader pass — simple, and still a pure
+      // function of the frame just rendered, nothing time-based.
+      const glowCanvas = document.getElementById("glow-canvas-ey");
+      glowCanvas.width = 1920;
+      glowCanvas.height = 1080;
+      const glowCtx = glowCanvas.getContext("2d");
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(28, 1920 / 1080, 0.05, 100);
+
+      // realistic_human_eye.glb: CC-BY-4.0 (Sketchfab, autor MisterH — ver
+      // assets/realistic_human_eye-LICENSE.txt), licencia limpia y sin
+      // personaje de terceros de por medio — confirmada desde el propio
+      // binario (asset.extras.license), no solo el nombre del archivo. A
+      // diferencia de fixer_robot/Soldier, aquí SÍ usamos el material y la
+      // textura horneada propios del modelo (son parte del mismo asset con
+      // licencia clara): el look es "objeto real bajo escáner", no
+      // holograma de alambre.
+      const grid = new THREE.GridHelper(7, 28, 0x39ff6a, 0x166534);
+      grid.material.transparent = true;
+      grid.material.opacity = 0.25;
+      grid.position.y = -1.1;
+      scene.add(grid);
+
+      // Keep the key light neutral/white so the eye's own baked texture
+      // detail (iris colour, sclera veins) reads clearly — the first pass
+      // used a strong green rim light that looked fine in the compressed
+      // snapshot thumbnail but, verified against a real extracted frame,
+      // washed the iris out into a flat green blob. The scene's green
+      // identity comes from the grid, scanbar and wire shell around the
+      // eye, not from tinting the organic material itself.
+      scene.add(new THREE.AmbientLight(0x3a3a3a, 1.4));
+      const key = new THREE.DirectionalLight(0xffffff, 2.2);
+      key.position.set(1.4, 1.8, 2.2);
+      scene.add(key);
+      const fill = new THREE.DirectionalLight(0xffffff, 1.1);
+      fill.position.set(-1.6, 0.4, -1.8);
+      scene.add(fill);
+      const rim = new THREE.DirectionalLight(0x39ff6a, 0.12);
+      rim.position.set(-1.6, 0.4, -1.8);
+      scene.add(rim);
+
+      const { GLTFLoader } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/loaders/GLTFLoader.js/+esm");
+      const gltf = await new GLTFLoader().loadAsync("assets/realistic_human_eye.glb");
+      const model = gltf.scene;
+      const clip = gltf.animations && gltf.animations[0] ? gltf.animations[0] : null;
+      const clipDuration = clip ? clip.duration : 1;
+
+      // Not a SkinnedMesh (no skin in this asset, just node rotation/scale +
+      // a morph target), so a plain Box3.setFromObject after seeking the
+      // mixer measures the real animated extent correctly — no need for the
+      // computeBoundingBox() workaround that fixer_robot/ghostly_chihuahua
+      // needed for skin deformation. Still sample a few points and take the
+      // median, cheap insurance against a one-off outlier pose.
+      const fitMixer = new THREE.AnimationMixer(model);
+      const samples = [];
+      if (clip) {
+        fitMixer.clipAction(clip).play();
+        const SAMPLES = 8;
+        for (let i = 0; i <= SAMPLES; i += 1) {
+          fitMixer.setTime((clipDuration * i) / SAMPLES);
+          model.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(model);
+          if (!box.isEmpty()) {
+            const s = box.getSize(new THREE.Vector3());
+            samples.push({ box, maxDim: Math.max(s.x, s.y, s.z) });
+          }
+        }
+        fitMixer.setTime(0);
+      }
+      samples.sort((a, b) => a.maxDim - b.maxDim);
+      const median = samples[Math.floor(samples.length / 2)];
+      const fitBox = median ? median.box : new THREE.Box3().setFromObject(model);
+      const fitSize = fitBox.getSize(new THREE.Vector3());
+      const scale = 1.7 / Math.max(fitSize.x, fitSize.y, fitSize.z, 0.001);
+      model.scale.setScalar(scale);
+      const fitCenter = fitBox.getCenter(new THREE.Vector3());
+      model.position.x -= fitCenter.x * scale;
+      model.position.y -= fitCenter.y * scale;
+      model.position.z -= fitCenter.z * scale;
+      scene.add(model);
+
+      // Translucent wireframe "scan shell": a plain icosphere, not a clone
+      // of the eye's own geometry — the abstract-shape case from the
+      // knowledge doc (no need for a real rig/mesh here, just a scan motif
+      // around the real object).
+      const shellMat = new THREE.MeshBasicMaterial({ color: GREEN, wireframe: true, transparent: true, opacity: 0.35 });
+      const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 1), shellMat);
+      scene.add(shell);
+
+      const mixer = new THREE.AnimationMixer(model);
+      if (clip) mixer.clipAction(clip).play();
+
+      const scanbarEl = document.getElementById("scanbar-ey");
+
+      host.render = (t) => {
+        const p = t / host.duration;
+        const angle = THREE.MathUtils.lerp(-0.5, 0.75, p);
+        const dist = THREE.MathUtils.lerp(4.6, 4.1, p);
+        camera.position.set(Math.sin(angle) * dist, 0.25, Math.cos(angle) * dist);
+        camera.lookAt(0, 0, 0);
+
+        const animT = clip ? (t * 0.7) % clipDuration : 0;
+        mixer.setTime(animT);
+        shell.rotation.y = t * 0.35;
+        shell.rotation.x = t * 0.12;
+
+        renderer.render(scene, camera);
+
+        glowCtx.clearRect(0, 0, 1920, 1080);
+        glowCtx.filter = "blur(9px) brightness(1.6)";
+        glowCtx.globalCompositeOperation = "lighter";
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.filter = "blur(22px) brightness(1.25)";
+        glowCtx.globalAlpha = 0.5;
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.globalAlpha = 1;
+
+        // Scan sweep: a sawtooth in [0,1) over a 1.6s period, pure function of t.
+        const sweep = (t / 1.6) % 1;
+        scanbarEl.style.top = (sweep * 1080) + "px";
+      };
+      host.render(host.clock.t);
+      host.ready();
+    </script>
+  </body>
+</html>

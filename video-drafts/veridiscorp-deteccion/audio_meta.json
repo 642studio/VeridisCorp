@@ -1,0 +1,433 @@
+{
+  "tts_provider": "elevenlabs",
+  "voice_id": "SAz9YHcvj6GT2YYXdXww",
+  "bgm": {
+    "path": "assets/bgm/track.mp3",
+    "volume": 0.9,
+    "query": "dark cyberpunk tech synth minimal driving retro",
+    "mode": "retrieve",
+    "duration_s": 30
+  },
+  "bgm_pending": false,
+  "bgm_provider": "heygen",
+  "bgm_pid": null,
+  "bgm_log": null,
+  "bgm_mode": "retrieve",
+  "bgm_target_duration_s": null,
+  "bgm_seed_duration_s": null,
+  "bgm_loop_count": null,
+  "voices": [
+    {
+      "id": "l1-title",
+      "path": "assets/voice/l1-title.wav",
+      "duration_s": 1.44,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Sistema",
+          "start": 0.06,
+          "end": 0.44
+        },
+        {
+          "id": "w1",
+          "text": "de",
+          "start": 0.44,
+          "end": 0.56
+        },
+        {
+          "id": "w2",
+          "text": "detección.",
+          "start": 0.56,
+          "end": 1.16
+        }
+      ]
+    },
+    {
+      "id": "l2-hud",
+      "path": "assets/voice/l2-hud.wav",
+      "duration_s": 3.065,
+      "words": [
+        {
+          "id": "w0",
+          "text": "56",
+          "start": 0.11,
+          "end": 0.52
+        },
+        {
+          "id": "w1",
+          "text": "perfiles,",
+          "start": 0.52,
+          "end": 1.32
+        },
+        {
+          "id": "w2",
+          "text": "20",
+          "start": 1.51,
+          "end": 1.72
+        },
+        {
+          "id": "w3",
+          "text": "con",
+          "start": 1.72,
+          "end": 1.88
+        },
+        {
+          "id": "w4",
+          "text": "herramienta",
+          "start": 1.88,
+          "end": 2.45
+        },
+        {
+          "id": "w5",
+          "text": "real.",
+          "start": 2.47,
+          "end": 2.75
+        }
+      ]
+    },
+    {
+      "id": "l3-robot",
+      "path": "assets/voice/l3-robot.wav",
+      "duration_s": 2.183,
+      "words": [
+        {
+          "id": "w0",
+          "text": "El",
+          "start": 0.06,
+          "end": 0.13
+        },
+        {
+          "id": "w1",
+          "text": "sistema",
+          "start": 0.13,
+          "end": 0.59
+        },
+        {
+          "id": "w2",
+          "text": "detecta",
+          "start": 0.59,
+          "end": 1.04
+        },
+        {
+          "id": "w3",
+          "text": "una",
+          "start": 1.04,
+          "end": 1.24
+        },
+        {
+          "id": "w4",
+          "text": "unidad",
+          "start": 1.24,
+          "end": 1.62
+        },
+        {
+          "id": "w5",
+          "text": "robot.",
+          "start": 1.62,
+          "end": 2.18
+        }
+      ]
+    },
+    {
+      "id": "l4-pcwoman",
+      "path": "assets/voice/l4-pcwoman.wav",
+      "duration_s": 1.486,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Detecta",
+          "start": 0.06,
+          "end": 0.32
+        },
+        {
+          "id": "w1",
+          "text": "una",
+          "start": 0.36,
+          "end": 0.46
+        },
+        {
+          "id": "w2",
+          "text": "figura",
+          "start": 0.46,
+          "end": 0.75
+        },
+        {
+          "id": "w3",
+          "text": "humana.",
+          "start": 0.75,
+          "end": 1.17
+        }
+      ]
+    },
+    {
+      "id": "l5-ojo",
+      "path": "assets/voice/l5-ojo.wav",
+      "duration_s": 1.486,
+      "words": [
+        {
+          "id": "w0",
+          "text": "y",
+          "start": 0.05,
+          "end": 0.05
+        },
+        {
+          "id": "w1",
+          "text": "una",
+          "start": 0.05,
+          "end": 0.2
+        },
+        {
+          "id": "w2",
+          "text": "muestra",
+          "start": 0.2,
+          "end": 0.54
+        },
+        {
+          "id": "w3",
+          "text": "biométrica.",
+          "start": 0.55,
+          "end": 1.19
+        }
+      ]
+    },
+    {
+      "id": "l6-red",
+      "path": "assets/voice/l6-red.wav",
+      "duration_s": 2.276,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Cada",
+          "start": 0.09,
+          "end": 0.24
+        },
+        {
+          "id": "w1",
+          "text": "detección",
+          "start": 0.24,
+          "end": 0.78
+        },
+        {
+          "id": "w2",
+          "text": "activa",
+          "start": 0.78,
+          "end": 1.14
+        },
+        {
+          "id": "w3",
+          "text": "la",
+          "start": 1.14,
+          "end": 1.24
+        },
+        {
+          "id": "w4",
+          "text": "red",
+          "start": 1.26,
+          "end": 1.4
+        },
+        {
+          "id": "w5",
+          "text": "de",
+          "start": 1.45,
+          "end": 1.54
+        },
+        {
+          "id": "w6",
+          "text": "agentes.",
+          "start": 1.61,
+          "end": 2
+        }
+      ]
+    },
+    {
+      "id": "l7-flujo",
+      "path": "assets/voice/l7-flujo.wav",
+      "duration_s": 3.297,
+      "words": [
+        {
+          "id": "w0",
+          "text": "La",
+          "start": 0.05,
+          "end": 0.12
+        },
+        {
+          "id": "w1",
+          "text": "tarea",
+          "start": 0.12,
+          "end": 0.42
+        },
+        {
+          "id": "w2",
+          "text": "viaja",
+          "start": 0.42,
+          "end": 0.72
+        },
+        {
+          "id": "w3",
+          "text": "del",
+          "start": 0.72,
+          "end": 0.9
+        },
+        {
+          "id": "w4",
+          "text": "encargo",
+          "start": 0.9,
+          "end": 1.3
+        },
+        {
+          "id": "w5",
+          "text": "al",
+          "start": 1.37,
+          "end": 1.44
+        },
+        {
+          "id": "w6",
+          "text": "cierre,",
+          "start": 1.44,
+          "end": 1.94
+        },
+        {
+          "id": "w7",
+          "text": "sin",
+          "start": 1.95,
+          "end": 2.09
+        },
+        {
+          "id": "w8",
+          "text": "intervención",
+          "start": 2.09,
+          "end": 2.69
+        },
+        {
+          "id": "w9",
+          "text": "manual.",
+          "start": 2.69,
+          "end": 3
+        }
+      ]
+    },
+    {
+      "id": "l8-outro",
+      "path": "assets/voice/l8-outro.wav",
+      "duration_s": 3.204,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Detección",
+          "start": 0.04,
+          "end": 0.58
+        },
+        {
+          "id": "w1",
+          "text": "Delegación",
+          "start": 0.58,
+          "end": 1.22
+        },
+        {
+          "id": "w2",
+          "text": "Ejecución.",
+          "start": 1.22,
+          "end": 1.88
+        },
+        {
+          "id": "w3",
+          "text": "Un",
+          "start": 1.96,
+          "end": 2.01
+        },
+        {
+          "id": "w4",
+          "text": "solo",
+          "start": 2.01,
+          "end": 2.28
+        },
+        {
+          "id": "w5",
+          "text": "sistema.",
+          "start": 2.28,
+          "end": 2.91
+        }
+      ]
+    }
+  ],
+  "sfx": [
+    {
+      "id": "l2-hud",
+      "name": "ui click",
+      "file": "assets/sfx/ui-click.mp3",
+      "source": "openverse",
+      "duration_s": 0.599,
+      "license": "cc0",
+      "credit": "\"UI click\" by Ranner is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l3-robot",
+      "name": "beep",
+      "file": "assets/sfx/beep.mp3",
+      "source": "openverse",
+      "duration_s": 0.12,
+      "license": "cc0",
+      "credit": "\"Outtake Beep-1k.wav\" by slappy13 is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l4-pcwoman",
+      "name": "beep",
+      "file": "assets/sfx/beep.mp3",
+      "source": "openverse",
+      "duration_s": 0.12,
+      "license": "cc0",
+      "credit": "\"Outtake Beep-1k.wav\" by slappy13 is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l5-ojo",
+      "name": "beep",
+      "file": "assets/sfx/beep.mp3",
+      "source": "openverse",
+      "duration_s": 0.12,
+      "license": "cc0",
+      "credit": "\"Outtake Beep-1k.wav\" by slappy13 is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l6-red",
+      "name": "whoosh",
+      "file": "assets/sfx/whoosh.mp3",
+      "source": "openverse",
+      "duration_s": 3.155,
+      "license": "cc0",
+      "credit": "\"Deep Whoosh #1\" by Kinoton is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l7-flujo",
+      "name": "click",
+      "file": "assets/sfx/click.mp3",
+      "source": "openverse",
+      "duration_s": 2.31,
+      "license": "cc0",
+      "credit": "\"Mouse click sounds\" by Masgame is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l8-outro",
+      "name": "chime",
+      "file": "assets/sfx/chime.mp3",
+      "source": "openverse",
+      "duration_s": 0.323,
+      "license": "cc0",
+      "credit": "\"Chime Notification\" by Jofae is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    }
+  ],
+  "total_duration_s": 18.437
+}

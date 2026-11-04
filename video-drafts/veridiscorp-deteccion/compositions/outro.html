@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #grid-tex {
+        position: absolute; inset: 0;
+        background:
+          repeating-linear-gradient(0deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px),
+          repeating-linear-gradient(90deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px);
+        pointer-events: none;
+      }
+      #scan {
+        position: absolute; inset: -20px;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px);
+        pointer-events: none;
+      }
+      #vignette {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+      }
+      #wordmark {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        text-align: center; opacity: 0;
+      }
+      #wordmark .title {
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 86px;
+        letter-spacing: 0.12em; color: #eafff0;
+        text-shadow: 0 0 28px rgba(57,255,106,0.75), 0 0 6px rgba(234,255,240,0.6);
+      }
+      #wordmark .subtitle {
+        margin-top: 18px;
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 28px;
+        letter-spacing: 0.2em; text-transform: uppercase; color: #39ff6a;
+        text-shadow: 0 0 14px rgba(57,255,106,0.55);
+      }
+      #sweep {
+        position: absolute; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(57,255,106,0.9), transparent);
+        box-shadow: 0 0 24px 6px rgba(57,255,106,0.55);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-j14u"
+      id="root"
+      data-composition-id="outro"
+      data-start="0"
+      data-duration="4"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div data-hf-id="hf-ovsc" id="grid-tex" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-4683" id="scan" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-eceq" id="sweep" class="clip" data-start="0" data-duration="4" data-track-index="2" data-layout-allow-overflow data-layout-ignore></div>
+      <div data-hf-id="hf-5mi6" id="vignette" data-layout-allow-overflow></div>
+
+      <div data-hf-id="hf-x2lq" id="wordmark" class="clip" data-start="0" data-duration="4" data-track-index="1">
+        <div data-hf-id="hf-i1by" class="title">VERIDISCORP</div>
+        <div data-hf-id="hf-45es" class="subtitle">642 studio — motor de automatización</div>
+      </div>
+
+      <div data-hf-id="hf-e4of" id="s-hud" data-composition-id="hud" data-composition-src="compositions/components/telemetry-hud.html"
+           data-start="0" data-duration="4" data-track-index="3" style="--bg: transparent"
+           data-variable-values='{"readouts":"estado:completo,escenas:6,fase:arranque,revisor:activo","emphasize":0,"accent":"green","exit":"none"}'></div>
+    </div>
+
+    <script>
+      (function () {
+        // Not getElementById("root"): several sibling compositions in this
+        // master cut share the literal id "root" once flattened into one
+        // document, and getElementById always returns the first one.
+        var root = document.querySelector('[data-composition-id="outro"]');
+        var duration = Math.max(0.001, parseFloat(root.dataset.duration) || 4);
+        var sweepEl = document.getElementById("sweep");
+
+        var tl = gsap.timeline({ paused: true });
+        tl.fromTo("#wordmark", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.2);
+        tl.to({ v: 0 }, {
+          v: 1, duration: duration, ease: "none",
+          onUpdate: function () {
+            var t = tl.time();
+            var sweep = (t / 1.6) % 1;
+            sweepEl.style.top = (sweep * 1080) + "px";
+          },
+        }, 0);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["outro"] = tl;
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+the_pc_woman.glb
+
+Title: "The PC Woman"
+Author: ASP (https://sketchfab.com/whutdaheckisgoingononyouon)
+Source: https://sketchfab.com/3d-models/the-pc-woman-15d2f77749e94af9822f67692dca0e83
+License: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+License confirmed directly from the glTF binary's embedded `asset.extras.license`
+field, same technique as realistic_human_eye-LICENSE.txt — see
+agents/video-production/knowledge/hyperframes-elementos-3d.md.
+
+The skeleton uses "ValveBiped" bone naming (Valve's standard biped rig, widely
+reused across Source-engine-adjacent community models) — a generic rig naming
+convention, not a named copyrighted character. No specific franchise character
+match found (unlike victor_von_doom.glb, tv_woman.glb, or
+the_perfect_steve_rigged.glb, which were flagged and excluded for that reason
+in MODELOS-CANDIDATOS-3D.md).
+
+Used here for mesh geometry and skeleton only, in a static bind pose (the asset
+has no baked animation clip — gltf.animations is empty). Material/texture
+discarded, replaced with the wireframe + translucent-fill treatment used for
+every other humanoid figure in this series (see veridiscorp-retro-figura).

@@ -1,0 +1,17 @@
+{
+  "provider": "elevenlabs",
+  "voice": "SAz9YHcvj6GT2YYXdXww",
+  "tts_model": "eleven_multilingual_v2",
+  "lang": "es",
+  "lines": [
+    { "id": "l1-title", "text": "Sistema de detección." },
+    { "id": "l2-hud", "text": "Cincuenta y seis perfiles. Veinte con herramienta real.", "sfx": ["ui click"] },
+    { "id": "l3-robot", "text": "El sistema detecta una unidad robot.", "sfx": ["beep"] },
+    { "id": "l4-pcwoman", "text": "Detecta una figura humana.", "sfx": ["beep"] },
+    { "id": "l5-ojo", "text": "Y una muestra biométrica.", "sfx": ["beep"] },
+    { "id": "l6-red", "text": "Cada detección activa la red de agentes.", "sfx": ["whoosh"] },
+    { "id": "l7-flujo", "text": "La tarea viaja del encargo al cierre, sin intervención manual.", "sfx": ["click"] },
+    { "id": "l8-outro", "text": "Detección, delegación, ejecución. Un solo sistema.", "sfx": ["chime"] }
+  ],
+  "bgm": { "mode": "retrieve", "query": "dark cyberpunk tech synth minimal driving retro" }
+}

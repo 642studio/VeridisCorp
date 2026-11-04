@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #root-ft { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #020805; }
+      #scene-canvas-ft { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #glow-canvas-ft { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #labels-ft { position: absolute; inset: 0; pointer-events: none; }
+      .node-label {
+        position: absolute; transform: translate(-50%, -50%);
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 18px;
+        letter-spacing: 0.08em; text-transform: uppercase; color: #a9ffc4;
+        text-shadow: 0 0 10px rgba(57,255,106,0.8), 0 0 2px #020805;
+        white-space: nowrap;
+      }
+      #scanbar-ft {
+        position: absolute; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, rgba(57,255,106,0.9), transparent);
+        box-shadow: 0 0 24px 6px rgba(57,255,106,0.55);
+        pointer-events: none;
+      }
+      #scan-ft {
+        position: absolute; inset: -20px;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 3px);
+        pointer-events: none;
+      }
+      #grid-tex-ft {
+        position: absolute; inset: 0;
+        background:
+          repeating-linear-gradient(0deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px),
+          repeating-linear-gradient(90deg, rgba(57,255,106,0.05) 0 1px, transparent 1px 28px);
+        pointer-events: none;
+      }
+      #vignette-ft {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
+      }
+      #caption-ft {
+        position: absolute; left: 96px; bottom: 90px;
+        font-family: "Space Mono", monospace; font-weight: 700; font-size: 34px;
+        letter-spacing: 0.1em; text-transform: uppercase; color: #39ff6a; opacity: 0;
+        text-shadow: 0 0 18px rgba(57,255,106,0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-d9jd"
+      id="root-ft"
+      data-composition-id="flujo-3d"
+      data-start="0"
+      data-duration="6"
+      data-width="1920"
+      data-height="1080"
+    >
+      <canvas data-hf-id="hf-hibr" id="scene-canvas-ft" class="clip" data-start="0" data-duration="6" data-track-index="1"></canvas>
+      <canvas data-hf-id="hf-83b5" id="glow-canvas-ft" class="clip" data-start="0" data-duration="6" data-track-index="1" data-layout-allow-overflow></canvas>
+      <div data-hf-id="hf-ovsc" id="grid-tex-ft" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-4683" id="scan-ft" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-rkvi" id="scanbar-ft" class="clip" data-start="0" data-duration="6" data-track-index="2" data-layout-allow-overflow data-layout-ignore></div>
+      <div data-hf-id="hf-eech" id="labels-ft" class="clip" data-start="0" data-duration="6" data-track-index="2" data-layout-allow-overflow data-layout-ignore></div>
+      <div data-hf-id="hf-5mi6" id="vignette-ft" data-layout-allow-overflow></div>
+      <div data-hf-id="hf-1d6r" id="caption-ft" class="clip" data-start="3.6" data-duration="2.4" data-hold="true">Flujo de tareas — encargo a completado</div>
+
+      <div data-hf-id="hf-o2t3" id="s-hud" data-composition-id="hud" data-composition-src="compositions/components/telemetry-hud.html"
+           data-start="0" data-duration="6" data-track-index="3" style="--bg: transparent"
+           data-variable-values='{"readouts":"estado:procesando,etapas:5,en curso:3,revisor:activo","emphasize":0,"accent":"green","exit":"none"}'></div>
+    </div>
+
+    <script>
+      (function () {
+        var root = document.getElementById("root-ft");
+        var duration = Math.max(0.001, parseFloat(root.dataset.duration) || 6);
+        var clock = { t: 0 };
+        var scene = { duration: duration, clock: clock, render: null };
+        window.__flujo3d = scene;
+        window.__hf = window.__hf || {};
+        window.__hf.buildReady = window.__hf.buildReady || {};
+        window.__hf.buildReady["flujo-3d"] = new Promise(function (resolve) { scene.ready = resolve; });
+
+        var tl = gsap.timeline({ paused: true });
+        tl.to(clock, {
+          t: duration, duration: duration, ease: "none",
+          onUpdate: function () { if (scene.render) scene.render(clock.t); },
+        }, 0);
+        tl.fromTo("#caption-ft", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 3.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["flujo-3d"] = tl;
+      })();
+    </script>
+
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.184.0/+esm";
+
+      const host = window.__flujo3d;
+      const GREEN = new THREE.Color(0x39ff6a);
+      const WHITE_GREEN = new THREE.Color(0xeafff0);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById("scene-canvas-ft"),
+        antialias: true, alpha: true, preserveDrawingBuffer: true,
+      });
+      renderer.setPixelRatio(1);
+      renderer.setSize(1920, 1080, false);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.NoToneMapping;
+
+      // Cheap, deterministic bloom (same technique as the rest of this
+      // series): a blurred, brightened 2D copy of the just-rendered canvas,
+      // composited on top with additive blending — not a shader pass.
+      const glowCanvas = document.getElementById("glow-canvas-ft");
+      glowCanvas.width = 1920;
+      glowCanvas.height = 1080;
+      const glowCtx = glowCanvas.getContext("2d");
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(34, 1920 / 1080, 0.1, 100);
+
+      const grid = new THREE.GridHelper(8, 32, 0x39ff6a, 0x166534);
+      grid.material.transparent = true;
+      grid.material.opacity = 0.22;
+      grid.position.y = -1.2;
+      scene.add(grid);
+
+      // VeridisCorp's real task lifecycle (docs/company-organization.md):
+      // a delegate's encargo becomes a department plan, the plan's tasks
+      // get assigned, and "una tarea pasa por revisión antes de
+      // completarse". Fully procedural — an abstract path + node markers,
+      // same "no 3D model, no licensing question" case as
+      // veridiscorp-red-agentes.
+      const STAGES = [
+        { label: "ENCARGO", p: new THREE.Vector3(-2.7, 0.85, -0.5) },
+        { label: "PLAN", p: new THREE.Vector3(-1.3, -0.35, 0.55) },
+        { label: "TAREA", p: new THREE.Vector3(0, 0.6, -0.35) },
+        { label: "REVISIÓN", p: new THREE.Vector3(1.3, -0.4, 0.5) },
+        { label: "COMPLETADO", p: new THREE.Vector3(2.7, 0.55, -0.25) },
+      ];
+
+      const curve = new THREE.CatmullRomCurve3(STAGES.map((s) => s.p), false, "catmullrom", 0.4);
+      const curvePoints = curve.getPoints(120);
+      const pathGeo = new THREE.BufferGeometry().setFromPoints(curvePoints);
+      const pathMat = new THREE.LineBasicMaterial({ color: GREEN, transparent: true, opacity: 0.45 });
+      scene.add(new THREE.Line(pathGeo, pathMat));
+
+      const stageWireMat = new THREE.MeshBasicMaterial({ color: GREEN, wireframe: true, transparent: true, opacity: 0.85 });
+      const stageFillMat = new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.12, depthWrite: false });
+      const endWireMat = new THREE.MeshBasicMaterial({ color: WHITE_GREEN, wireframe: true, transparent: true, opacity: 0.95 });
+      const endFillMat = new THREE.MeshBasicMaterial({ color: WHITE_GREEN, transparent: true, opacity: 0.2, depthWrite: false });
+
+      const labelsEl = document.getElementById("labels-ft");
+      STAGES.forEach((s, i) => {
+        const isEnd = i === STAGES.length - 1;
+        const geo = new THREE.IcosahedronGeometry(isEnd ? 0.26 : 0.2, 1);
+        const wire = new THREE.Mesh(geo, isEnd ? endWireMat : stageWireMat);
+        wire.position.copy(s.p);
+        scene.add(wire);
+        const fill = new THREE.Mesh(geo, isEnd ? endFillMat : stageFillMat);
+        fill.position.copy(s.p);
+        scene.add(fill);
+        s.mesh = wire;
+
+        const div = document.createElement("div");
+        div.className = "node-label";
+        div.textContent = s.label;
+        labelsEl.appendChild(div);
+        s.labelEl = div;
+      });
+
+      // Packets travelling along the curve: a staggered "train" rather than
+      // one packet, so the pipeline reads as continuously flowing. Each
+      // packet draws two faint echoes a little behind it on the SAME
+      // frame (not accumulated across frames) for a cheap, still
+      // deterministic comet-tail — a pure function of t, same spirit as
+      // the rest of the bloom treatment.
+      const PACKET_COUNT = 3;
+      const PACKET_PERIOD = 2.4;
+      const packetMat = new THREE.MeshBasicMaterial({ color: WHITE_GREEN, transparent: true, opacity: 0.95 });
+      const echoMat1 = new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.4 });
+      const echoMat2 = new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.18 });
+      const packetGeo = new THREE.SphereGeometry(0.07, 12, 12);
+      const packets = [];
+      for (let i = 0; i < PACKET_COUNT; i += 1) {
+        const head = new THREE.Mesh(packetGeo, packetMat);
+        const echo1 = new THREE.Mesh(packetGeo, echoMat1);
+        const echo2 = new THREE.Mesh(packetGeo, echoMat2);
+        scene.add(head, echo1, echo2);
+        packets.push({ head, echo1, echo2, offset: i / PACKET_COUNT });
+      }
+
+      const wrap01 = (x) => ((x % 1) + 1) % 1;
+
+      const scanbarEl = document.getElementById("scanbar-ft");
+      const projected = new THREE.Vector3();
+
+      host.render = (t) => {
+        const p = t / host.duration;
+        const angle = THREE.MathUtils.lerp(-0.5, 0.65, p);
+        const dist = THREE.MathUtils.lerp(6.6, 6.1, p);
+        camera.position.set(Math.sin(angle) * dist, 2.3, Math.cos(angle) * dist);
+        camera.lookAt(0, -0.05, 0);
+
+        STAGES.forEach((s, i) => {
+          const pulse = 1 + Math.sin(t * 1.6 + i * 0.9) * 0.05;
+          s.mesh.scale.setScalar(pulse);
+        });
+
+        packets.forEach((pk) => {
+          const u = wrap01(t / PACKET_PERIOD + pk.offset);
+          pk.head.position.copy(curve.getPointAt(u));
+          pk.echo1.position.copy(curve.getPointAt(wrap01(u - 0.012)));
+          pk.echo2.position.copy(curve.getPointAt(wrap01(u - 0.024)));
+        });
+
+        renderer.render(scene, camera);
+
+        glowCtx.clearRect(0, 0, 1920, 1080);
+        glowCtx.filter = "blur(8px) brightness(1.7)";
+        glowCtx.globalCompositeOperation = "lighter";
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.filter = "blur(20px) brightness(1.3)";
+        glowCtx.globalAlpha = 0.55;
+        glowCtx.drawImage(renderer.domElement, 0, 0);
+        glowCtx.globalAlpha = 1;
+
+        STAGES.forEach((s) => {
+          projected.copy(s.p).project(camera);
+          const x = (projected.x * 0.5 + 0.5) * 1920;
+          const y = (1 - (projected.y * 0.5 + 0.5)) * 1080;
+          s.labelEl.style.left = x + "px";
+          s.labelEl.style.top = (y - 34) + "px";
+          s.labelEl.style.opacity = projected.z < 1 ? "1" : "0";
+        });
+
+        // Scan sweep: a sawtooth in [0,1) over a 1.6s period, pure function of t.
+        const sweep = (t / 1.6) % 1;
+        scanbarEl.style.top = (sweep * 1080) + "px";
+      };
+      host.render(host.clock.t);
+      host.ready();
+    </script>
+  </body>
+</html>

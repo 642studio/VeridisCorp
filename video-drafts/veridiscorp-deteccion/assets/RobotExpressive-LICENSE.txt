@@ -1,0 +1,26 @@
+RobotExpressive.glb
+
+Source: the official three.js repository's own bundled example models
+(mrdoob/three.js, examples/models/gltf/RobotExpressive/RobotExpressive.glb),
+same origin and license basis already used for Soldier.glb in this series
+(see veridiscorp-retro-figura/assets/Soldier-LICENSE.txt) — the three.js
+repository is MIT licensed, covering its examples/models directory.
+
+```
+https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/RobotExpressive/RobotExpressive.glb
+```
+
+Originally created by Tomás Laulhé (commonly cited as CC0 in its wider
+distribution) and donated to the three.js project for its own official demos.
+
+Replaces fixer_robot.glb (Sketchfab, license "Standard" — confirmed from the
+binary's own asset.extras.license field — no permission to reuse at all; see
+MODELOS-CANDIDATOS-3D.md). The encuadre/fit code that was built and verified
+against fixer_robot.glb is kept as-is, only the asset path and animation clip
+name changed: 14 named clips available (Dance, Death, Idle, Jump, No, Punch,
+Running, Sitting, Standing, ThumbsUp, Walking, WalkJump, Wave, Yes); "Walking"
+used here to match the walking-figure motif of the rest of this series.
+
+Used for mesh geometry, skeleton and its own "Walking" clip only — the
+model's own material/texture is discarded and replaced with the wireframe +
+translucent-fill treatment used for every humanoid figure in this series.
