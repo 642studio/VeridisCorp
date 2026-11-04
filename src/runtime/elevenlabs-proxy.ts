@@ -18,14 +18,16 @@ const DEFAULT_MODEL_ID = 'eleven_multilingual_v2';
 // validar (va directo en la URL del proveedor).
 export const VOICE_ID_PATTERN = /^[A-Za-z0-9]{1,64}$/;
 
-export async function synthesizeElevenLabs(pool: Pool, token: string, text: string, voiceIdOverride?: string | null): Promise<{ contentType: string; body: Buffer }> {
- await requireSession(pool, token);
- const apiKey = process.env.VERIDIS_ELEVENLABS_API_KEY;
+// Núcleo real, sin sesión: lo usa tanto synthesizeElevenLabs (UI, exige sesión abajo) como
+// voice.generate (herramienta de office/, src/office/tools.ts) — ese caller ya pasó por
+// allowedTools antes de llegar aquí, no necesita otra capa de sesión de navegador.
+export async function synthesizeElevenLabsForTool(env: NodeJS.ProcessEnv, text: string, voiceIdOverride?: string | null): Promise<{ contentType: string; body: Buffer }> {
+ const apiKey = env.VERIDIS_ELEVENLABS_API_KEY;
  if (!apiKey) throw new RuntimeError(503, 'ElevenLabs no configurado en el servidor');
  if (typeof text !== 'string' || !text.trim() || text.length > TEXT_MAX) throw new RuntimeError(400, 'Texto inválido');
  const voiceId = (voiceIdOverride?.trim() && VOICE_ID_PATTERN.test(voiceIdOverride.trim()) ? voiceIdOverride.trim() : null)
-  || process.env.VERIDIS_ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE_ID;
- const modelId = process.env.VERIDIS_ELEVENLABS_MODEL_ID?.trim() || DEFAULT_MODEL_ID;
+  || env.VERIDIS_ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE_ID;
+ const modelId = env.VERIDIS_ELEVENLABS_MODEL_ID?.trim() || DEFAULT_MODEL_ID;
  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
   method: 'POST',
   headers: { 'content-type': 'application/json', accept: 'audio/mpeg', 'xi-api-key': apiKey },
@@ -40,6 +42,11 @@ export async function synthesizeElevenLabs(pool: Pool, token: string, text: stri
  const contentType = response.headers.get('content-type') ?? 'audio/mpeg';
  const audioBody = Buffer.from(await response.arrayBuffer());
  return { contentType, body: audioBody };
+}
+
+export async function synthesizeElevenLabs(pool: Pool, token: string, text: string, voiceIdOverride?: string | null): Promise<{ contentType: string; body: Buffer }> {
+ await requireSession(pool, token);
+ return synthesizeElevenLabsForTool(process.env, text, voiceIdOverride);
 }
 
 export type ElevenLabsVoice = { voiceId: string; name: string; category: string | null; previewUrl: string | null };

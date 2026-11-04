@@ -13,13 +13,13 @@ import type { StructuredRequest } from '../src/office/model-providers.js';
 
 const cfg = (id: string) => ({ configurable: { thread_id: id }, recursionLimit: 500 });
 
-test('el organigrama conecta departamentos y subdepartamentos con 56 perfiles con el CEO', () => {
+test('el organigrama conecta departamentos y subdepartamentos con 57 perfiles con el CEO', () => {
   const directory = officeRegistry.organization!;
   assert.equal(directory.executive().id, 'ceo');
   assert.equal(directory.snapshot().departments.length, 13);
-  assert.equal(officeRegistry.list().length, 56);
-  assert.equal(directory.team('ceo').length, 55);
-  assert.deepEqual(directory.team('cm').map((a) => a.id).sort(), ['content', 'social-analyst']);
+  assert.equal(officeRegistry.list().length, 57);
+  assert.equal(directory.team('ceo').length, 56);
+  assert.deepEqual(directory.team('cm').map((a) => a.id).sort(), ['content', 'social-analyst', 'video-production']);
   assert(directory.canDelegate('cto', 'network'));
   assert(!directory.canDelegate('cto', 'finance-budget'));
   assert(!directory.canDelegate('content', 'social-analyst'));

@@ -15,8 +15,8 @@ import { describeConnections } from './mcp-tools.js';
 // secundario real — nunca se le ofrece a review(), ver más abajo. Toda herramienta nueva con
 // efecto real debe sumarse aquí (email.draft se escapó de esta lista una vez; no debe repetirse).
 const SIDE_EFFECTING_TOOLS = new Set([
-  'pdf.generate', 'email.draft', 'drive.upload', 'calendar.create_event', 'sheets.create',
-  'meet.create_space', 'slides.create', 'memory.write', 'mcp.connect',
+  'pdf.generate', 'video.render', 'voice.generate', 'music.generate', 'email.draft', 'drive.upload',
+  'calendar.create_event', 'sheets.create', 'meet.create_space', 'slides.create', 'memory.write', 'mcp.connect',
 ]);
 
 // pdf.generate (tool 'generate_pdf') produce un entregable con efecto secundario real (un
@@ -37,6 +37,26 @@ export async function persistGeneratedPdf(pool: Pool, orderId: string, args: Rec
     [randomUUID(), orderId, parsed.filename, parsed.contentType, content, inputHash, content.length],
   );
   return JSON.stringify({ fileId: result.rows[0].id as string, filename: parsed.filename, pages: parsed.pages });
+}
+
+// Mismo patrón e idempotencia que persistGeneratedPdf — video.render (tool 'render_video') produce
+// el otro entregable con efecto secundario real de office_files. 'pages' se reutiliza como 0 porque
+// esa columna no existe para video; durationSeconds y quality sí viajan en la metadata segura.
+export async function persistGeneratedVideo(pool: Pool, orderId: string, args: Record<string, unknown>, rawOutput: string): Promise<string> {
+  const parsed = JSON.parse(rawOutput) as { filename: string; contentType: string; durationSeconds: number | null; quality: string; base64: string };
+  const content = Buffer.from(parsed.base64, 'base64');
+  const inputHash = createHash('sha256').update(JSON.stringify({ orderId, args })).digest('hex');
+  const result = await pool.query(
+    `INSERT INTO veridis_runtime_v1.office_files(id, order_id, filename, content_type, content, input_hash, size_bytes)
+     VALUES($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (order_id, input_hash) DO UPDATE SET filename = EXCLUDED.filename
+     RETURNING id`,
+    [randomUUID(), orderId, parsed.filename, parsed.contentType, content, inputHash, content.length],
+  );
+  return JSON.stringify({
+    fileId: result.rows[0].id as string, filename: parsed.filename,
+    durationSeconds: parsed.durationSeconds, quality: parsed.quality,
+  });
 }
 
 // Herramientas reales, acotadas por allowedTools (agents/<id>/config.json): sin ninguna permitida
@@ -198,12 +218,13 @@ async function gatherAllowedTools(
       const args = (call.args ?? {}) as Record<string, unknown>;
       let output: string;
       try {
-        if (call.name === 'generate_pdf' && !persist) throw new Error('Esta sesión no puede guardar documentos generados');
+        if ((call.name === 'generate_pdf' || call.name === 'render_video') && !persist) throw new Error('Esta sesión no puede guardar documentos generados');
         if (!tool) output = 'Herramienta no disponible.';
         else {
           // metadata: quién llama (las conexiones MCP registran qué agente y qué expediente las crearon o usaron).
           output = await tool.invoke(args as never, { metadata: { veridisAgentId: agent.id, veridisOrderId: persist?.orderId ?? null } });
           if (call.name === 'generate_pdf' && persist) output = await persistGeneratedPdf(persist.pool, persist.orderId, args, output);
+          if (call.name === 'render_video' && persist) output = await persistGeneratedVideo(persist.pool, persist.orderId, args, output);
         }
       } catch (error) { output = 'La herramienta falló: ' + (error instanceof Error ? error.message : 'error desconocido'); }
       const query = typeof args.query === 'string' ? args.query : typeof args.expression === 'string' ? args.expression

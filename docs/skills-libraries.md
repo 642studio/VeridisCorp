@@ -21,6 +21,7 @@ documento y en `docs/third-party-notices.md`.
 | trailofbits/skills | CC BY-SA 4.0 | Solo ideas (un derivado tendría que ser CC BY-SA) |
 | deanpeters/Product-Manager-Skills | CC BY-NC-SA | Solo ideas |
 | VoltAgent/awesome-agent-skills, zhuyansen/awesome-claude-code-skills-collections | MIT / CC0 (solo listas) | Índices de enlaces; cada repo enlazado tiene su licencia |
+| heygen-com/hyperframes | Apache-2.0 | Adaptado: contrato de render y oficio de medios para `video-production` (2026-11-03). No es una skill de puesto administrativo: es el motor HTML→video que usa esta plaza; ver `docs/third-party-notices.md` |
 
 ## Qué sacar, por puesto (huecos: hoy solo marketing tiene knowledge)
 
@@ -57,6 +58,7 @@ Fuente principal: headcount (`plugins/<depto>/skills/<skill>/SKILL.md`); otras e
 | knowledge-curator, cto | Registro de decisiones (ADR), memoria cruda contra decisiones aprobadas | agentic architecture-decision-records; claude-skills decision-logger |
 | ceo, coo, cto | Constructores contra revisores, niveles de autoridad (ideas de diseño) | headcount executive/agent-hierarchy |
 | marketing-review, content | Tipos de afirmación y la prueba que exige cada una (adaptar a PROFECO/COFEPRIS) | goose claims-gate |
+| video-production (nuevo, validado con un render real el 2026-11-04 fuera del motor) | Contrato de render HTML→video, flujo spec→build→check→preview→render, catálogo de bloques, resolución de medios (voz vía el proxy propio de ElevenLabs en vez de la voz nativa del proveedor), defaults prohibidos, y las dos rutas de conexión (local autoalojada vs. MCP alojado de HeyGen) | heygen-com/hyperframes, skills `hyperframes`/`hyperframes-cli`/`hyperframes-registry`/`media-use` |
 | frontend, content | SEO técnico y visibilidad en respuestas de IA, negocio local | goose improve-search-visibility/references |
 
 Descartado en todas: herramientas de vendors que no usamos (AWS, Azure, GCP, Stripe, Jira, Snowflake…),

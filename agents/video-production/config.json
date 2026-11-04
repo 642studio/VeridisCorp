@@ -1,0 +1,32 @@
+{
+  "id": "video-production",
+  "name": "Veridis_video_production",
+  "version": "2.3.0",
+  "capabilities": [
+    "marketing.video"
+  ],
+  "allowedTools": ["video.render", "voice.generate", "music.generate"],
+  "organization": {
+    "title": "Producción audiovisual",
+    "departmentId": "marketing",
+    "level": "specialist",
+    "reportsToId": "cm"
+  },
+  "knowledge": [
+    {
+      "id": "mkt-hyperframes-contrato",
+      "title": "Contrato y flujo de trabajo de HyperFrames",
+      "path": "hyperframes-contrato-y-flujo.md"
+    },
+    {
+      "id": "mkt-hyperframes-medios-voz",
+      "title": "Medios, voz y avatares para video con HyperFrames",
+      "path": "hyperframes-medios-y-voz.md"
+    },
+    {
+      "id": "mkt-hyperframes-conexiones",
+      "title": "Conexiones e infraestructura: local autoalojado vs. MCP alojado de HeyGen",
+      "path": "hyperframes-conexiones.md"
+    }
+  ]
+}

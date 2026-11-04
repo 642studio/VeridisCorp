@@ -98,6 +98,19 @@ CREATE TABLE IF NOT EXISTS veridis_runtime_v1.office_files (
 );
 CREATE INDEX IF NOT EXISTS runtime_office_files_order ON veridis_runtime_v1.office_files(order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS runtime_office_files_dedupe ON veridis_runtime_v1.office_files(order_id, input_hash);
+-- Biblioteca de medios generados (voz, música), reusable entre expedientes — a diferencia de
+-- office_files (dedupe por order_id: el mismo texto en dos expedientes se regenera dos veces), aquí
+-- el dedupe es solo por request_hash: un mismo texto/estilo/voz, sin importar qué expediente lo pida,
+-- reusa el archivo ya generado en vez de gastar otra llamada al proveedor. request_params queda para
+-- auditoría (qué se pidió exactamente), nunca se usa para igualar — eso es trabajo de request_hash.
+CREATE TABLE IF NOT EXISTS veridis_runtime_v1.media_library (
+ id uuid PRIMARY KEY, kind text NOT NULL, provider text NOT NULL,
+ request_hash text NOT NULL, request_params jsonb NOT NULL,
+ content bytea NOT NULL, content_type text NOT NULL, size_bytes integer NOT NULL,
+ created_by_agent_id text, created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ last_used_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS runtime_media_library_dedupe ON veridis_runtime_v1.media_library(kind, provider, request_hash);
 -- Ledger plano de cada llamada a modelo dentro de un expediente de oficina (ModelCallRecord,
 -- office/models.ts), para el panel de consumo (office/usage.ts). Es la contraparte de
 -- assistant_messages para el chat: aquí una fila por llamada real, no un snapshot acumulado — el

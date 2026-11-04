@@ -14,7 +14,7 @@ import { createRuntimeServer } from './http.js';
 import { httpDeliveryConnector, realModelGateway } from './providers.js';
 import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
-import { configureGmail, configureMemory } from '../office/tools.js';
+import { configureGmail, configureMemory, configureMediaLibrary } from '../office/tools.js';
 import { configureRepos, parseRepos } from '../office/repo-tools.js';
 import { configureMcp } from '../office/mcp-tools.js';
 import { McpStore } from './mcp-store.js';
@@ -115,6 +115,10 @@ async function main() {
  if (!process.env.DATABASE_URL) throw new Error('Falta DATABASE_URL');
  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10, connectionTimeoutMillis: 5000 });
  if (command === 'serve') {
+  // Biblioteca de medios (voice.generate/music.generate, src/office/tools.ts): sin ligarla a
+  // VERIDIS_OFFICE_ENABLED como memoria/MCP — es solo caché de lectura/escritura, no abre ninguna
+  // ruta de ejecución nueva, así que no hay motivo para condicionarla.
+  configureMediaLibrary(pool);
   if (!process.env.VERIDIS_DELIVERY_URL) throw new Error('Falta VERIDIS_DELIVERY_URL');
   // Reserva configurada por el operador para la tarifa y límites del modelo. No hay tarifa implícita verificada.
   const modelReservationMicros = z.coerce.number().int().positive().parse(process.env.VERIDIS_MODEL_RESERVATION_MICROS);

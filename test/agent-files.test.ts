@@ -26,9 +26,9 @@ function fixture() {
   return { root, config, save, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-test('los 56 perfiles se cargan desde sus carpetas con instrucciones y contexto', () => {
+test('los 57 perfiles se cargan desde sus carpetas con instrucciones y contexto', () => {
   const agents = loadAgentCatalog(projectAgentDirectory());
-  assert.equal(agents.length, 56);
+  assert.equal(agents.length, 57);
   assert(agents.every((agent) => agent.instructions && agent.context && ['2.1.0', '2.2.0', '2.3.0'].includes(agent.version)));
   // Cada documento de knowledge dice de dónde sale en su primera línea (atribución de licencias:
   // docs/third-party-notices.md) y el total por puesto queda lejos del tope de 64 KB, porque va

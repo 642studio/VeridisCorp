@@ -1,13 +1,19 @@
 import { tool, type StructuredToolInterface } from '@langchain/core/tools';
 import { HumanMessage } from '@langchain/core/messages';
 import { spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { z } from 'zod';
+import type { Pool } from 'pg';
 import type { OAuth2Client } from 'google-auth-library';
 import { createProfileModel } from './model-providers.js';
 import type { ResolvedProfile } from './models.js';
 import type { AccessScope, CorporateMemoryRecord } from '../governance/contracts.js';
 import type { MemoryQueryResult } from '../runtime/memory-store.js';
+import { synthesizeElevenLabsForTool } from '../runtime/elevenlabs-proxy.js';
+import { generateMusic } from '../runtime/sunoapi-proxy.js';
 import { REPO_TOOLS } from './repo-tools.js';
 import { MCP_TOOLS } from './mcp-tools.js';
 
@@ -404,6 +410,216 @@ export const pdfGenerateTool = tool(
   },
 );
 
+// Imagen propia (docker/video-renderer/, construida localmente con `docker build`, no bajada de
+// un registro de terceros): Node 22 + FFmpeg + Chromium de Debian + la CLI de HyperFrames fijada
+// a 0.9.9 (probada el 2026-11-04; ver agents/video-production/knowledge/). A diferencia de
+// pdf.generate, aquí el modelo SÍ escribe HTML/CSS/JS libre (es el contrato de HyperFrames, no un
+// descuido), así que el aislamiento es el de code.sandbox, no el de pdf.generate: sin red
+// (--network none; el contenedor ya trae su propia copia de GSAP para que la composición no
+// necesite el CDN), memoria y cpu acotadas, directorio del proyecto desechable por llamada. No usa
+// --read-only: Chrome necesita escribir su propio perfil y caché de proceso.
+const VIDEO_RENDERER_IMAGE = 'veridis-video-renderer:latest';
+const MAX_VIDEO_FILES = 60;
+const MAX_VIDEO_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_PROJECT_BYTES = 40 * 1024 * 1024;
+// Un video de 22.5s tardó ~40s dentro del contenedor (GPU por software, más lento que fuera de
+// Docker) en la prueba real — 5 minutos deja margen real sin dejar un tool-call colgado para
+// siempre si algo se traba.
+const VIDEO_RENDER_TIMEOUT_MS = 5 * 60 * 1000;
+
+function runVideoRendererCli(
+  projectDir: string, args: string[], timeoutMs: number,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('docker', [
+      'run', '--rm', '--network', 'none', '--memory', '2g', '--cpus', '2', '--shm-size', '1g',
+      '-v', `${projectDir}:/workspace`, '--workdir', '/workspace', VIDEO_RENDERER_IMAGE, ...args,
+    ], { timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = ''; let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', reject);
+    child.on('close', (exitCode, signal) => {
+      if (signal) reject(new Error(`El renderizador se interrumpió (${signal}), probablemente por el límite de tiempo`));
+      // stdout es el JSON de `check` (puede superar fácilmente 20 KB en un video largo con muchos
+      // hallazgos de craft) — truncarlo rompía JSON.parse y escondía el error real detrás del log
+      // de progreso de stderr. stdout solo se acota como tope de DoS, muy por encima de un reporte
+      // real; stderr sí se recorta corto porque solo es log de progreso, nunca datos a parsear.
+      else resolve({ exitCode: exitCode ?? -1, stdout: stdout.slice(0, 2_000_000), stderr: stderr.slice(0, 4000) });
+    });
+  });
+}
+
+const videoFileSchema = z.object({
+  path: z.string().trim().min(1).max(200)
+    .regex(/^[A-Za-z0-9_][A-Za-z0-9_.-]*(\/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$/, 'Ruta relativa inválida')
+    .refine((p) => !p.includes('..'), 'La ruta no puede contener ..'),
+  contentBase64: z.string().min(1).describe('Contenido del archivo en base64 (texto o binario, p. ej. el audio ya generado)'),
+}).strict();
+
+const videoRenderSchema = z.object({
+  files: z.array(videoFileSchema).min(1).max(MAX_VIDEO_FILES)
+    .describe('Árbol completo del proyecto HyperFrames: index.html en la raíz, compositions/*.html, '
+      + 'assets/* (incluida cualquier voz ya generada). No incluyas GSAP: el contenedor ya pone su '
+      + 'propia copia en assets/vendor/gsap.min.js — referencia esa ruta local, nunca un CDN.'),
+  quality: z.enum(['draft', 'delivery']).default('draft')
+    .describe('draft mientras iteras, delivery para el entregable final'),
+}).strict();
+
+async function writeVideoProjectFiles(projectDir: string, files: z.infer<typeof videoFileSchema>[]): Promise<void> {
+  if (!files.some((file) => file.path === 'index.html')) throw new Error('El proyecto necesita un index.html en la raíz');
+  let totalBytes = 0;
+  for (const file of files) {
+    const buffer = Buffer.from(file.contentBase64, 'base64');
+    if (buffer.length > MAX_VIDEO_FILE_BYTES) throw new Error(`"${file.path}" excede el tamaño máximo por archivo`);
+    totalBytes += buffer.length;
+    if (totalBytes > MAX_VIDEO_PROJECT_BYTES) throw new Error('El proyecto excede el tamaño máximo permitido');
+    const resolved = path.resolve(projectDir, file.path);
+    // Defensa adicional a la validación de zod de arriba: nunca escribir fuera del directorio efímero.
+    if (!resolved.startsWith(projectDir + path.sep)) throw new Error(`Ruta fuera del proyecto: "${file.path}"`);
+    await mkdir(path.dirname(resolved), { recursive: true });
+    await writeFile(resolved, buffer);
+  }
+}
+
+// Devuelve metadata + los bytes en base64, igual que pdf.generate — y, igual que pdf.generate,
+// gatherToolResults() en intelligence.ts intercepta esta herramienta en particular para persistir
+// el archivo real y sustituir el resultado por metadata segura antes de que llegue al modelo.
+export const videoRenderTool = tool(
+  async ({ files, quality }: z.infer<typeof videoRenderSchema>) => {
+    const projectDir = await mkdtemp(path.join(tmpdir(), 'veridis-video-'));
+    try {
+      await writeVideoProjectFiles(projectDir, files);
+
+      const check = await runVideoRendererCli(projectDir, ['check', '--json'], VIDEO_RENDER_TIMEOUT_MS);
+      let checkReport: { ok?: boolean; layout?: { duration?: number } } = {};
+      try { checkReport = JSON.parse(check.stdout) as typeof checkReport; } catch { /* sin JSON válido: se trata como falla abajo */ }
+      if (check.exitCode !== 0 || checkReport.ok !== true) {
+        const sections = ['lint', 'runtime', 'layout', 'contrast', 'craft', 'audio'] as const;
+        const findings = sections.flatMap((key) => {
+          const section = (checkReport as Record<string, unknown>)[key] as { errorCount?: number; findings?: { code: string; message: string }[] } | undefined;
+          return section?.errorCount ? (section.findings ?? []).map((f) => `${key}: ${f.code} — ${f.message}`) : [];
+        });
+        throw new Error(`La composición no pasó la revisión (check). Corrige y vuelve a intentar:\n`
+          + (findings.join('\n').slice(0, 1500) || check.stderr.slice(0, 1000) || 'check falló sin más detalle'));
+      }
+
+      const outputName = 'render.mp4';
+      const render = await runVideoRendererCli(projectDir, ['render', '--quality', quality, '-o', outputName], VIDEO_RENDER_TIMEOUT_MS);
+      if (render.exitCode !== 0) {
+        throw new Error(`El render falló: ${render.stderr.slice(0, 1000) || render.stdout.slice(0, 1000) || 'sin más detalle'}`);
+      }
+      const videoBytes = await readFile(path.join(projectDir, outputName))
+        .catch(() => { throw new Error('El render terminó pero no se encontró el archivo de salida'); });
+      if (!videoBytes.length) throw new Error('El render produjo un archivo vacío');
+
+      return JSON.stringify({
+        filename: 'video.mp4', contentType: 'video/mp4',
+        durationSeconds: checkReport.layout?.duration ?? null, quality,
+        base64: videoBytes.toString('base64'),
+      });
+    } finally {
+      await rm(projectDir, { recursive: true, force: true }).catch(() => {});
+    }
+  },
+  {
+    name: 'render_video',
+    description: 'Renderiza un proyecto real de HyperFrames (HTML+CSS+GSAP siguiendo el contrato de '
+      + 'agents/video-production/knowledge/) a un MP4 real, en un contenedor aislado y sin red. '
+      + 'Corre `check` antes de renderizar y falla con el detalle exacto si no pasa (contraste, texto '
+      + 'bajo el mínimo legible, reglas del contrato) — corrige la composición y vuelve a llamar. '
+      + '"quality": "draft" mientras iteras, "delivery" solo para el entregable final.',
+    schema: videoRenderSchema,
+  },
+);
+
+// Biblioteca de medios generados (veridis_runtime_v1.media_library, src/runtime/database.ts):
+// antes de pedirle a un proveedor voz o música nueva, busca si ya se generó exactamente lo mismo
+// (mismo texto/estilo/voz) para cualquier expediente, no solo el actual — a diferencia de
+// office_files (pdf.generate, video.render), que de-duplica solo dentro de un mismo order_id. Sin
+// pool configurado (configureMediaLibrary en src/runtime/cli.ts), sigue funcionando pero sin caché:
+// cada llamada genera de nuevo, nunca falla por no tener dónde guardar.
+let mediaLibraryPool: Pool | null = null;
+export function configureMediaLibrary(pool: Pool | null): void {
+  mediaLibraryPool = pool;
+}
+
+async function resolveOrGenerateMedia(
+  kind: 'voice' | 'music', provider: string, requestParams: Record<string, unknown>,
+  generate: () => Promise<{ contentType: string; body: Buffer }>,
+): Promise<{ contentType: string; base64: string; cached: boolean }> {
+  const requestHash = createHash('sha256').update(JSON.stringify({ kind, provider, ...requestParams })).digest('hex');
+  if (mediaLibraryPool) {
+    const existing = await mediaLibraryPool.query(
+      'SELECT content, content_type FROM veridis_runtime_v1.media_library WHERE kind=$1 AND provider=$2 AND request_hash=$3',
+      [kind, provider, requestHash],
+    );
+    const row = existing.rows[0] as { content: Buffer; content_type: string } | undefined;
+    if (row) {
+      await mediaLibraryPool.query(
+        'UPDATE veridis_runtime_v1.media_library SET last_used_at=clock_timestamp() WHERE kind=$1 AND provider=$2 AND request_hash=$3',
+        [kind, provider, requestHash],
+      );
+      return { contentType: row.content_type, base64: row.content.toString('base64'), cached: true };
+    }
+  }
+  const generated = await generate();
+  if (mediaLibraryPool) {
+    // ON CONFLICT DO NOTHING: dos llamadas concurrentes con el mismo request_hash pueden perder la
+    // carrera contra el índice único; la que pierde simplemente no vuelve a escribir, no falla.
+    await mediaLibraryPool.query(
+      `INSERT INTO veridis_runtime_v1.media_library(id, kind, provider, request_hash, request_params, content, content_type, size_bytes)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (kind, provider, request_hash) DO NOTHING`,
+      [randomUUID(), kind, provider, requestHash, JSON.stringify(requestParams), generated.body, generated.contentType, generated.body.length],
+    );
+  }
+  return { contentType: generated.contentType, base64: generated.body.toString('base64'), cached: false };
+}
+
+const voiceGenerateSchema = z.object({
+  text: z.string().trim().min(1).max(2000).describe('Texto exacto a convertir en voz'),
+  voiceId: z.string().trim().max(64).optional().describe('voice_id de ElevenLabs; vacío usa la voz configurada por defecto'),
+}).strict();
+
+// A diferencia de pdf.generate/video.render, esto no persiste en office_files (no es un entregable
+// final del expediente, es un insumo — el texto a convertir en voz lo decide video-production para
+// luego incluirlo como assets/ al llamar video.render). Por eso no exige `persist`.
+export const voiceGenerateTool = tool(
+  async ({ text, voiceId }: z.infer<typeof voiceGenerateSchema>) => {
+    const result = await resolveOrGenerateMedia('voice', 'elevenlabs', { text, voiceId: voiceId ?? null }, () => synthesizeElevenLabsForTool(process.env, text, voiceId ?? null));
+    return JSON.stringify({ filename: 'voz.mp3', contentType: result.contentType, cached: result.cached, base64: result.base64 });
+  },
+  {
+    name: 'generate_voice',
+    description: 'Convierte texto a voz real con el proxy de ElevenLabs ya conectado. Si ya se generó '
+      + 'exactamente este texto antes (con la misma voz), reusa el audio de la biblioteca de medios sin '
+      + 'volver a llamar al proveedor. Mide la duración real del resultado (ffprobe) antes de fijar los '
+      + 'tiempos de una composición de video — nunca se debe estimar por conteo de caracteres.',
+    schema: voiceGenerateSchema,
+  },
+);
+
+const musicGenerateSchema = z.object({
+  prompt: z.string().trim().min(1).max(3000).describe('Idea central de la pista, en inglés o español'),
+  style: z.string().trim().min(1).max(1000).describe('Estilo/género/instrumentación, en inglés (indexado así por el proveedor)'),
+  instrumental: z.boolean().default(true).describe('true: sin voces cantadas — lo normal para una cama de fondo que no debe competir con la narración'),
+}).strict();
+
+export const musicGenerateTool = tool(
+  async ({ prompt, style, instrumental }: z.infer<typeof musicGenerateSchema>) => {
+    const result = await resolveOrGenerateMedia('music', 'sunoapi', { prompt, style, instrumental }, () => generateMusic(process.env, { prompt, style, instrumental }));
+    return JSON.stringify({ filename: 'musica.mp3', contentType: result.contentType, cached: result.cached, base64: result.base64 });
+  },
+  {
+    name: 'generate_music',
+    description: 'Genera una pista de música real con sunoapi.org (IA, no voz hablada — para eso usa '
+      + 'generate_voice). Tarda de segundos a unos minutos (genera y espera, no requiere otra llamada). '
+      + 'Si ya se generó una pista con el mismo prompt/estilo antes, reusa la de la biblioteca de medios '
+      + 'sin gastar otra generación. Para una cama de fondo de video, instrumental=true casi siempre.',
+    schema: musicGenerateSchema,
+  },
+);
+
 // Pendiente de probar en vivo: falta BRAVE... no, falta CLICKUP_API_KEY y CLICKUP_TEAM_ID (el id
 // de espacio de trabajo, no el de una lista). Solo lectura: lista tareas reales del equipo y
 // filtra por palabra clave en el cliente, sin crear, mover ni cerrar nada.
@@ -793,6 +1009,9 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInter
   'memory.write': memoryWriteTool,
   'memory.query': memoryQueryTool,
   'pdf.generate': pdfGenerateTool,
+  'video.render': videoRenderTool,
+  'voice.generate': voiceGenerateTool,
+  'music.generate': musicGenerateTool,
   'email.draft': gmailDraftTool,
   'email.read': gmailReadTool,
   'drive.upload': driveUploadTool,
