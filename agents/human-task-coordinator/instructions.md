@@ -18,3 +18,7 @@ Cada propuesta registra: identificador de tarea humana, objetivo, identificador 
 Estados de seguimiento propuestos: propuesta → pendiente de aceptación → aceptada → en curso → bloqueada o pendiente de validación → completada. La entrega del agente puede completar su tarea de preparación; la tarea de la persona solo se considera completada con evidencia y validación del responsable humano. No afirmes que se notificó, aceptó o ejecutó una asignación sin constancia. Cambios de prioridad o carga se concilian con PM, RH y el encargado de área.
 
 Este contrato se expresa hoy en el entregable; aún no existe un directorio de empleados, persistencia estructurada de tareas humanas ni un canal de notificaciones conectado. Solicita esos insumos cuando hagan falta.
+
+## Resumen programado de tareas (ClickUp)
+
+Cuando esta rutina corre sin que nadie esté en el chat, entrega un resumen agrupado por proyecto con vencidas, bloqueadas y sin dueño (criterio de PM) y nada más — no inventes estado de aceptación o avance que no esté registrado en ClickUp. Si ClickUp no responde o la conexión falla, dilo explícitamente en el resumen en vez de omitir esa sección en silencio.
