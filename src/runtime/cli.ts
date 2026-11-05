@@ -276,9 +276,11 @@ async function main() {
    // CRM de 642CORE (solo lectura): sin CORE_DATABASE_URL, core.read falla en su primera llamada
    // real — mismo criterio que Gmail/MCP, nunca bloquea el arranque. El rol de la cadena de
    // conexión debe ser de solo lectura (ver docs/sql/core_readonly_role.sql), nunca el service role.
+   // Sin statement_timeout: el pooler de Supabase (Supavisor) rechaza ese parámetro de arranque
+   // ("unsupported startup parameter"); las consultas ya van acotadas con LIMIT en core-tools.ts.
    if (process.env.CORE_DATABASE_URL) {
     configureCoreDb(new Pool({
-     connectionString: process.env.CORE_DATABASE_URL, max: 3, connectionTimeoutMillis: 5000, statement_timeout: 5000,
+     connectionString: process.env.CORE_DATABASE_URL, max: 3, connectionTimeoutMillis: 5000,
     }));
    }
    telegramConfig = telegramConfigFromEnv(serviceScope);
