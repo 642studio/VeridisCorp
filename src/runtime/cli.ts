@@ -17,7 +17,7 @@ import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
 import { configureGmail, configureMeta, configureMemory, configureMediaLibrary } from '../office/tools.js';
 import { configureRepos, parseRepos } from '../office/repo-tools.js';
-import { configureCoreDb } from '../office/core-tools.js';
+import { configureCoreDb, configureCoreWriteDb } from '../office/core-tools.js';
 import { configureMcp } from '../office/mcp-tools.js';
 import { McpStore } from './mcp-store.js';
 import { officeRegistry } from '../office/registry.js';
@@ -281,6 +281,14 @@ async function main() {
    if (process.env.CORE_DATABASE_URL) {
     configureCoreDb(new Pool({
      connectionString: process.env.CORE_DATABASE_URL, max: 3, connectionTimeoutMillis: 5000,
+    }));
+   }
+   // Escritura del CRM (core.write): conexión separada con su propio rol, solo INSERT en tres
+   // tablas aditivas (ver docs/sql/core_write_role.sql). Sin CORE_WRITE_DATABASE_URL, core.write
+   // falla en su primera llamada real — igual que el resto, nunca bloquea el arranque.
+   if (process.env.CORE_WRITE_DATABASE_URL) {
+    configureCoreWriteDb(new Pool({
+     connectionString: process.env.CORE_WRITE_DATABASE_URL, max: 3, connectionTimeoutMillis: 5000,
     }));
    }
    telegramConfig = telegramConfigFromEnv(serviceScope);

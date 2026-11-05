@@ -126,6 +126,7 @@ Detalle completo de cada una (schema exacto, scopes de OAuth, flujo de autorizac
 
 | Herramienta | Qué hace de verdad | Agentes con acceso hoy |
 | --- | --- | --- |
+| `core.write` | Crea (nunca edita ni borra) una nota de actividad, una solicitud de contenido o un contacto en el CRM de 642CORE (`crm_add_activity_note`, `crm_create_content_request`, `crm_create_contact`); rol de Postgres separado de `core.read` con `GRANT INSERT` solo en esas tres tablas (`docs/sql/core_write_role.sql`) | `cm`, `pm` |
 | `pdf.generate` | Genera un PDF real (WeasyPrint, Docker propio), lo guarda en Postgres | `content`, `market-research`, `research`, `investment-research`, `data-analyst` |
 | `email.draft` | Crea un borrador real de Gmail — **nunca envía solo** | `content` |
 | `drive.upload` | Sube un archivo real a Drive (solo ve lo que crea, scope `drive.file`) | `content`, `market-research`, `research`, `investment-research`, `data-analyst` |

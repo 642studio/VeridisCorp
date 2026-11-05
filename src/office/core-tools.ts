@@ -23,6 +23,26 @@ function db(): Pool {
   return pool;
 }
 
+// Escritura del CRM (allowedTools "core.write"): conexión separada, con su propio rol de
+// Postgres (core_write, docs/sql/core_write_role.sql) que solo tiene INSERT en tres tablas
+// aditivas — nunca UPDATE/DELETE, nunca sobre clients/client_packages/client_brands. Por eso
+// vive en un Pool distinto al de lectura: si algún día se revoca o rota, no afecta a core.read.
+let writePool: Pool | null = null;
+export function configureCoreWriteDb(client: Pool | null): void { writePool = client; }
+
+function writeDb(): Pool {
+  if (!writePool) throw new Error('Escritura del CRM no configurada (falta CORE_WRITE_DATABASE_URL)');
+  return writePool;
+}
+
+async function resolveClientId(client: string): Promise<{ id: string; legal_name: string } | null> {
+  const { rows } = await db().query(
+    `select id, legal_name from public.clients where id::text = $1 or slug = $1 limit 1`,
+    [client.trim()],
+  );
+  return rows[0] ?? null;
+}
+
 const MAX_ROWS = 50;
 const Limit = z.number().int().min(1).max(MAX_ROWS).default(15);
 const SearchText = z.string().trim().min(2).max(100);
@@ -120,6 +140,96 @@ export const crmSearchContactsTool = tool(
 );
 
 export const CORE_TOOLS: StructuredToolInterface[] = [crmListClientsTool, crmGetClientTool, crmSearchContactsTool];
+
+// --- Escritura (core.write): solo INSERT, nunca UPDATE/DELETE, nunca sobre clients mismo. ---
+
+const ActivityCategory = z.enum(['nota', 'seguimiento', 'alerta', 'otro'])
+  .describe('nota: observación general; seguimiento: algo que requiere acción futura; alerta: algo que el equipo debe saber pronto; otro: cualquier otro caso');
+
+export const crmAddActivityNoteTool = tool(
+  async ({ client, category, title, detail }) => {
+    const found = await resolveClientId(client);
+    if (!found) return `No existe ningún cliente con id/slug "${client}". No se guardó nada.`;
+    const { rows } = await writeDb().query(
+      `insert into public.client_activity_log(client_id, category, title, detail)
+       values ($1, $2, $3, $4) returning id, created_at`,
+      [found.id, category, title.trim(), detail?.trim() || null],
+    );
+    return clip(JSON.stringify({ guardado: true, id: rows[0].id, cliente: found.legal_name, created_at: rows[0].created_at }));
+  },
+  {
+    name: 'crm_add_activity_note',
+    description: 'Agrega una nota al historial de actividad de un cliente del CRM (solo crea, nunca edita ni borra notas existentes).',
+    schema: z.object({
+      client: z.string().trim().min(1).max(80).describe('id (uuid) o slug del cliente'),
+      category: ActivityCategory,
+      title: z.string().trim().min(3).max(140),
+      detail: z.string().trim().max(2000).optional(),
+    }),
+  },
+);
+
+const RequestType = z.enum(['diseno', 'adjuntar_foto', 'cambio', 'otro']);
+const RequestPriority = z.enum(['low', 'normal', 'high']).default('normal');
+
+export const crmCreateContentRequestTool = tool(
+  async ({ client, type, title, description, priority }) => {
+    const found = await resolveClientId(client);
+    if (!found) return `No existe ningún cliente con id/slug "${client}". No se creó nada.`;
+    const { rows } = await writeDb().query(
+      `insert into public.content_requests(client_id, type, title, description, priority)
+       values ($1, $2, $3, $4, $5) returning id, status, created_at`,
+      [found.id, type, title.trim(), description?.trim() || null, priority],
+    );
+    return clip(JSON.stringify({
+      creada: true, id: rows[0].id, cliente: found.legal_name, status: rows[0].status, created_at: rows[0].created_at,
+    }));
+  },
+  {
+    name: 'crm_create_content_request',
+    description: 'Crea una solicitud de contenido para un cliente del CRM (queda en estado "pending" para que alguien del equipo la tome). Solo crea, nunca cambia el estado de una solicitud existente.',
+    schema: z.object({
+      client: z.string().trim().min(1).max(80).describe('id (uuid) o slug del cliente'),
+      type: RequestType,
+      title: z.string().trim().min(3).max(140),
+      description: z.string().trim().max(2000).optional(),
+      priority: RequestPriority,
+    }),
+  },
+);
+
+export const crmCreateContactTool = tool(
+  async ({ client, name, email, phone, role }) => {
+    const found = await resolveClientId(client);
+    if (!found) return `No existe ningún cliente con id/slug "${client}". No se creó nada.`;
+    const { rows } = await writeDb().query(
+      `insert into public.client_contacts(client_id, name, email, phone, role)
+       values ($1, $2, $3, $4, $5) returning id, created_at`,
+      [found.id, name.trim(), email?.trim() || null, phone?.trim() || null, role?.trim() || 'contacto'],
+    );
+    return clip(JSON.stringify({ creado: true, id: rows[0].id, cliente: found.legal_name, created_at: rows[0].created_at }));
+  },
+  {
+    name: 'crm_create_contact',
+    description: 'Agrega un contacto nuevo a un cliente del CRM. Solo crea; no edita ni borra contactos existentes (para eso hace falta a alguien del equipo).',
+    schema: z.object({
+      client: z.string().trim().min(1).max(80).describe('id (uuid) o slug del cliente'),
+      name: z.string().trim().min(2).max(140),
+      email: z.string().trim().email().max(140).optional(),
+      phone: z.string().trim().max(40).optional(),
+      role: z.string().trim().max(60).optional().describe('rol del contacto, por ejemplo "gerente" o "dueño"'),
+    }),
+  },
+);
+
+export const CORE_WRITE_TOOLS: StructuredToolInterface[] = [crmAddActivityNoteTool, crmCreateContentRequestTool, crmCreateContactTool];
+
+export async function describeCoreWrite(): Promise<string | null> {
+  if (!writePool) return null;
+  return 'Escritura del CRM disponible (642CORE): crm_add_activity_note, crm_create_content_request y '
+    + 'crm_create_contact. Las tres solo CREAN — nunca editan ni borran nada existente. Usa crm_list_clients '
+    + 'o crm_get_client primero para confirmar el cliente correcto antes de escribir.';
+}
 
 // Lo que el agente necesita saber antes de elegir: si el CRM está disponible y cuántos
 // clientes reales tiene hoy, igual que describeRepos() hace con los repositorios.
