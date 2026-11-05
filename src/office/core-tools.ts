@@ -1,4 +1,5 @@
 import { tool, type StructuredToolInterface } from '@langchain/core/tools';
+import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 import { clip } from './repo-tools.js';
@@ -150,12 +151,15 @@ export const crmAddActivityNoteTool = tool(
   async ({ client, category, title, detail }) => {
     const found = await resolveClientId(client);
     if (!found) return `No existe ningún cliente con id/slug "${client}". No se guardó nada.`;
-    const { rows } = await writeDb().query(
-      `insert into public.client_activity_log(client_id, category, title, detail)
-       values ($1, $2, $3, $4) returning id, created_at`,
-      [found.id, category, title.trim(), detail?.trim() || null],
+    // Sin RETURNING a propósito: core_write solo tiene INSERT (nunca SELECT) en esta tabla, y
+    // RETURNING exige también SELECT sobre lo insertado — el id se genera aquí, no en la base.
+    const id = randomUUID();
+    await writeDb().query(
+      `insert into public.client_activity_log(id, client_id, category, title, detail)
+       values ($1, $2, $3, $4, $5)`,
+      [id, found.id, category, title.trim(), detail?.trim() || null],
     );
-    return clip(JSON.stringify({ guardado: true, id: rows[0].id, cliente: found.legal_name, created_at: rows[0].created_at }));
+    return clip(JSON.stringify({ guardado: true, id, cliente: found.legal_name, created_at: new Date().toISOString() }));
   },
   {
     name: 'crm_add_activity_note',
@@ -176,14 +180,14 @@ export const crmCreateContentRequestTool = tool(
   async ({ client, type, title, description, priority }) => {
     const found = await resolveClientId(client);
     if (!found) return `No existe ningún cliente con id/slug "${client}". No se creó nada.`;
-    const { rows } = await writeDb().query(
-      `insert into public.content_requests(client_id, type, title, description, priority)
-       values ($1, $2, $3, $4, $5) returning id, status, created_at`,
-      [found.id, type, title.trim(), description?.trim() || null, priority],
+    // Sin RETURNING: ver la nota en crmAddActivityNoteTool — status siempre es 'pending' al crear.
+    const id = randomUUID();
+    await writeDb().query(
+      `insert into public.content_requests(id, client_id, type, title, description, priority)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [id, found.id, type, title.trim(), description?.trim() || null, priority],
     );
-    return clip(JSON.stringify({
-      creada: true, id: rows[0].id, cliente: found.legal_name, status: rows[0].status, created_at: rows[0].created_at,
-    }));
+    return clip(JSON.stringify({ creada: true, id, cliente: found.legal_name, status: 'pending', created_at: new Date().toISOString() }));
   },
   {
     name: 'crm_create_content_request',
@@ -202,12 +206,14 @@ export const crmCreateContactTool = tool(
   async ({ client, name, email, phone, role }) => {
     const found = await resolveClientId(client);
     if (!found) return `No existe ningún cliente con id/slug "${client}". No se creó nada.`;
-    const { rows } = await writeDb().query(
-      `insert into public.client_contacts(client_id, name, email, phone, role)
-       values ($1, $2, $3, $4, $5) returning id, created_at`,
-      [found.id, name.trim(), email?.trim() || null, phone?.trim() || null, role?.trim() || 'contacto'],
+    // Sin RETURNING: ver la nota en crmAddActivityNoteTool.
+    const id = randomUUID();
+    await writeDb().query(
+      `insert into public.client_contacts(id, client_id, name, email, phone, role)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [id, found.id, name.trim(), email?.trim() || null, phone?.trim() || null, role?.trim() || 'contacto'],
     );
-    return clip(JSON.stringify({ creado: true, id: rows[0].id, cliente: found.legal_name, created_at: rows[0].created_at }));
+    return clip(JSON.stringify({ creado: true, id, cliente: found.legal_name, created_at: new Date().toISOString() }));
   },
   {
     name: 'crm_create_contact',
