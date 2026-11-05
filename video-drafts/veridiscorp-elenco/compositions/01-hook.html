@@ -1,0 +1,48 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; overflow: hidden; background: #0b0f14;
+      font-family: Inter, -apple-system, sans-serif;
+    }
+    #dots {
+      position: absolute; left: 0; right: 0; top: 840px;
+      display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+      width: 648px; margin: 0 auto; gap: 6px;
+    }
+    .dot { width: 48px; height: 48px; border-radius: 50%; background: #202c3c;
+      border: 2px solid #3d5066; opacity: 0; flex: none; }
+    #caption {
+      position: absolute; left: 90px; right: 90px; top: 1180px;
+      font-weight: 700; font-size: 44px; color: #e7eef0; text-align: center;
+    }
+    #caption .accent { color: #35e0c0; }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1080" data-height="1920">
+    <div id="dots"></div>
+    <div id="caption">Cada perfil, <span class="accent">listo</span> para activarse</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const dotsEl = document.getElementById("dots");
+    for (let i = 0; i < 56; i++) {
+      const d = document.createElement("div");
+      d.className = "dot";
+      dotsEl.appendChild(d);
+    }
+    const dots = dotsEl.querySelectorAll(".dot");
+
+    // Ya visibles desde el frame 0 (apagados) — nunca arranca vacío.
+    gsap.set(dots, { opacity: 1 });
+
+    dots.forEach((el, i) => {
+      const t = 0.1 + (i % 12) * 0.025 + Math.floor(i / 12) * 0.05;
+      tl.to(el, { backgroundColor: "#35e0c0", borderColor: "#35e0c0", duration: 0.12, ease: "none" }, t);
+    });
+
+    gsap.set("#caption", { opacity: 0, y: 10 });
+    tl.to("#caption", { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.9);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

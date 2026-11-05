@@ -1,0 +1,42 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    .card { position: absolute; left: 90px; right: 90px; background: #06140a; border: 2px solid #1f8a46;
+      border-radius: 20px; padding: 34px 38px; }
+    #card1 { top: 560px; }
+    #card2 { top: 980px; opacity: 0; }
+    .badge { display: inline-block; font-size: 28px; font-weight: 700; color: #020805; background: #39ff6a;
+      border-radius: 8px; padding: 4px 14px; letter-spacing: 0.03em; }
+    .headline { margin-top: 20px; font-weight: 800; font-size: 36px; color: #eafff0; line-height: 1.25; }
+    .tag { margin-top: 18px; font-size: 28px; color: #9fe7b4; }
+  </style>
+  <div id="root" data-composition-id="perfiles-b" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="card1" class="card">
+      <span class="badge">review</span>
+      <div class="headline">Económico para revisar</div>
+      <div class="tag">gpt-5.4-mini-2026-03-17</div>
+    </div>
+    <div id="card2" class="card">
+      <span class="badge">complex</span>
+      <div class="headline">El más potente para lo complejo</div>
+      <div class="tag">gpt-5.4-2026-03-05</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#card1", { opacity: 0.45, y: 14 });
+    tl.to("#card1", { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0);
+
+    gsap.set("#card2", { y: 14 });
+    tl.to("#card2", { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 1.75);
+
+    tl.to("#card2", { opacity: 0.88, duration: 0.65, repeat: 4, yoyo: true, ease: "sine.inOut" }, 2.5);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["perfiles-b"] = tl;
+  </script>
+</template>

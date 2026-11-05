@@ -1,0 +1,72 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; overflow: hidden; background: #020805;
+      font-family: "Space Mono", monospace;
+    }
+    #grid {
+      position: absolute; inset: 0;
+      background:
+        repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px);
+    }
+    #stage { position: absolute; left: 0; right: 0; top: 780px; text-align: center; }
+    #panel {
+      display: inline-block; width: 640px; text-align: left; background: #06140a;
+      border: 2px solid rgba(57,255,106,0.4); border-radius: 20px; padding: 36px 40px;
+    }
+    .row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .row .check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(57,255,106,0.4);
+      flex: none; display: flex; align-items: center; justify-content: center; }
+    .row .check svg { width: 14px; height: 14px; opacity: 0; }
+    .row .ln { height: 16px; border-radius: 8px; background: rgba(57,255,106,0.25); flex: 1; }
+    #toolrow { opacity: 0.4; }
+    #toolrow .ln { background: rgba(209,50,74,0.4); }
+    #toolrow .strike {
+      position: absolute; left: 60px; right: 420px; top: 148px; height: 2px; background: #d1324a;
+      transform-origin: left;
+    }
+    #caption {
+      position: absolute; left: 70px; right: 70px; top: 1500px;
+      font-weight: 700; font-size: 40px; color: #39ff6a; text-align: center;
+      text-shadow: 0 0 16px rgba(57,255,106,0.5); opacity: 0;
+    }
+  </style>
+  <div id="root" data-composition-id="revision" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="stage">
+      <div id="panel" style="position:relative">
+        <div class="row" id="r1"><div class="check"><svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10" fill="none" stroke="#39ff6a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ln"></div></div>
+        <div class="row" id="r2"><div class="check"><svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10" fill="none" stroke="#39ff6a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ln"></div></div>
+        <div class="row" id="toolrow"><div class="check"></div><div class="ln"></div></div>
+        <div class="strike"></div>
+      </div>
+    </div>
+    <div id="caption">Nunca confía en el reporte — vuelve a revisar por su cuenta</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#stage", { scale: 1.8, opacity: 0 });
+    tl.to("#stage", { scale: 1, opacity: 1, duration: 0.3, ease: "power2.out" }, 0);
+
+    gsap.set(".strike", { scaleX: 0 });
+    tl.to("#r1 svg", { opacity: 1, duration: 0.15, ease: "none" }, 0.5);
+    tl.to("#r2 svg", { opacity: 1, duration: 0.15, ease: "none" }, 0.9);
+    tl.to(".strike", { scaleX: 1, duration: 0.3, ease: "power2.inOut" }, 1.3);
+
+    // El panel sigue "latiendo" mientras la voz explica — nunca un tramo sin
+    // ningún cambio en pantalla.
+    tl.to("#panel", { borderColor: "rgba(57,255,106,0.75)", duration: 0.7, ease: "sine.inOut" }, 2.0);
+    tl.to("#panel", { borderColor: "rgba(57,255,106,0.4)", duration: 0.7, ease: "sine.inOut" }, 2.7);
+    tl.to("#panel", { borderColor: "rgba(57,255,106,0.75)", duration: 0.7, ease: "sine.inOut" }, 3.4);
+    tl.to("#panel", { borderColor: "rgba(57,255,106,0.4)", duration: 0.7, ease: "sine.inOut" }, 4.1);
+
+    tl.fromTo("#caption", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 0.5);
+    tl.to("#caption", { opacity: 0, duration: 0.2, ease: "power2.in" }, 4.85);
+
+    tl.to("#stage", { scale: 0.25, opacity: 0, duration: 0.3, ease: "power2.in" }, 5.05);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["revision"] = tl;
+  </script>
+</template>

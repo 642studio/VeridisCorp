@@ -1,0 +1,39 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace;
+      display: flex; align-items: center; justify-content: center; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #wrap { width: 860px; text-align: center; }
+    #badge { display: inline-flex; align-items: center; gap: 14px; padding: 16px 32px;
+      border-radius: 40px; border: 2px solid #39ff6a; background: #06140a; opacity: 0; }
+    #badge .pip { width: 18px; height: 18px; border-radius: 50%; background: #39ff6a;
+      box-shadow: 0 0 14px rgba(57,255,106,0.8); }
+    #badge .txt { font-weight: 800; font-size: 34px; color: #eafff0; letter-spacing: 0.04em; }
+    #headline { margin-top: 32px; font-weight: 800; font-size: 54px; line-height: 1.3; color: #eafff0; opacity: 0; }
+    #headline .accent { color: #39ff6a; }
+  </style>
+  <div id="root" data-composition-id="systemd" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="badge"><div class="pip"></div><div class="txt">ACTIVE (RUNNING)</div></div>
+      <div id="headline">Un servicio <span class="accent">real</span>.<br>Se reinicia solo, siempre.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#badge", { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0);
+    tl.fromTo("#headline", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.3);
+
+    tl.to(".pip", { opacity: 0.4, duration: 0.5, ease: "sine.inOut" }, 1.0);
+    tl.to(".pip", { opacity: 1, duration: 0.5, ease: "sine.inOut" }, 1.5);
+    tl.to(".pip", { opacity: 0.4, duration: 0.5, ease: "sine.inOut" }, 2.0);
+    tl.to(".pip", { opacity: 1, duration: 0.5, ease: "sine.inOut" }, 2.5);
+    tl.to(".pip", { opacity: 0.4, duration: 0.5, ease: "sine.inOut" }, 3.0);
+    tl.to(".pip", { opacity: 1, duration: 0.5, ease: "sine.inOut" }, 3.5);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["systemd"] = tl;
+  </script>
+</template>

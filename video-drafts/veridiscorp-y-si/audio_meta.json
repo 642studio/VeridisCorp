@@ -1,0 +1,303 @@
+{
+  "tts_provider": "elevenlabs",
+  "voice_id": "SAz9YHcvj6GT2YYXdXww",
+  "bgm": null,
+  "bgm_pending": false,
+  "bgm_provider": null,
+  "bgm_pid": null,
+  "bgm_log": null,
+  "bgm_mode": null,
+  "bgm_target_duration_s": null,
+  "bgm_seed_duration_s": null,
+  "bgm_loop_count": null,
+  "voices": [
+    {
+      "id": "l1-hook",
+      "path": "assets/voice/l1-hook.wav",
+      "duration_s": 1.765,
+      "words": [
+        {
+          "id": "w0",
+          "text": "¿Y",
+          "start": 0.07,
+          "end": 0.14
+        },
+        {
+          "id": "w1",
+          "text": "si",
+          "start": 0.14,
+          "end": 0.28
+        },
+        {
+          "id": "w2",
+          "text": "tu",
+          "start": 0.28,
+          "end": 0.42
+        },
+        {
+          "id": "w3",
+          "text": "empresa",
+          "start": 0.42,
+          "end": 0.93
+        },
+        {
+          "id": "w4",
+          "text": "corriera",
+          "start": 0.93,
+          "end": 1.45
+        },
+        {
+          "id": "w5",
+          "text": "así?",
+          "start": 1.73,
+          "end": 1.76
+        }
+      ]
+    },
+    {
+      "id": "l2-detecta",
+      "path": "assets/voice/l2-detecta.wav",
+      "duration_s": 1.3,
+      "words": [
+        {
+          "id": "w0",
+          "text": "detecta",
+          "start": 0.04,
+          "end": 0.37
+        },
+        {
+          "id": "w1",
+          "text": "en",
+          "start": 0.41,
+          "end": 0.47
+        },
+        {
+          "id": "w2",
+          "text": "segundos.",
+          "start": 0.47,
+          "end": 1.05
+        }
+      ]
+    },
+    {
+      "id": "l3-conecta",
+      "path": "assets/voice/l3-conecta.wav",
+      "duration_s": 1.672,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Conecta",
+          "start": 0.06,
+          "end": 0.44
+        },
+        {
+          "id": "w1",
+          "text": "con",
+          "start": 0.51,
+          "end": 0.65
+        },
+        {
+          "id": "w2",
+          "text": "la",
+          "start": 0.65,
+          "end": 0.78
+        },
+        {
+          "id": "w3",
+          "text": "red",
+          "start": 0.78,
+          "end": 0.98
+        },
+        {
+          "id": "w4",
+          "text": "correcta.",
+          "start": 0.98,
+          "end": 1.64
+        }
+      ]
+    },
+    {
+      "id": "l4-avanza",
+      "path": "assets/voice/l4-avanza.wav",
+      "duration_s": 1.44,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Avanza",
+          "start": 0.04,
+          "end": 0.3
+        },
+        {
+          "id": "w1",
+          "text": "sin",
+          "start": 0.35,
+          "end": 0.49
+        },
+        {
+          "id": "w2",
+          "text": "que",
+          "start": 0.49,
+          "end": 0.65
+        },
+        {
+          "id": "w3",
+          "text": "se",
+          "start": 0.65,
+          "end": 0.76
+        },
+        {
+          "id": "w4",
+          "text": "pierda.",
+          "start": 0.76,
+          "end": 1.12
+        }
+      ]
+    },
+    {
+      "id": "l5-aprueba",
+      "path": "assets/voice/l5-aprueba.wav",
+      "duration_s": 2.183,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Un",
+          "start": 0.03,
+          "end": 0.15
+        },
+        {
+          "id": "w1",
+          "text": "humano",
+          "start": 0.15,
+          "end": 0.6
+        },
+        {
+          "id": "w2",
+          "text": "siempre",
+          "start": 0.6,
+          "end": 1.12
+        },
+        {
+          "id": "w3",
+          "text": "al",
+          "start": 1.12,
+          "end": 1.21
+        },
+        {
+          "id": "w4",
+          "text": "final.",
+          "start": 1.38,
+          "end": 1.83
+        }
+      ]
+    },
+    {
+      "id": "l6-completada",
+      "path": "assets/voice/l6-completada.wav",
+      "duration_s": 1.44,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Completada,",
+          "start": 0.11,
+          "end": 0.69
+        },
+        {
+          "id": "w1",
+          "text": "a",
+          "start": 0.69,
+          "end": 0.7
+        },
+        {
+          "id": "w2",
+          "text": "tiempo.",
+          "start": 0.75,
+          "end": 1.12
+        }
+      ]
+    },
+    {
+      "id": "l7-claim",
+      "path": "assets/voice/l7-claim.wav",
+      "duration_s": 1.486,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Así",
+          "start": 0.03,
+          "end": 0.12
+        },
+        {
+          "id": "w1",
+          "text": "corre",
+          "start": 0.18,
+          "end": 0.43
+        },
+        {
+          "id": "w2",
+          "text": "una",
+          "start": 0.43,
+          "end": 0.59
+        },
+        {
+          "id": "w3",
+          "text": "empresa",
+          "start": 0.59,
+          "end": 0.95
+        },
+        {
+          "id": "w4",
+          "text": "real.",
+          "start": 0.97,
+          "end": 1.2
+        }
+      ]
+    }
+  ],
+  "sfx": [
+    {
+      "id": "l2-detecta",
+      "name": "beep",
+      "file": "assets/sfx/beep.mp3",
+      "source": "openverse",
+      "duration_s": 0.12,
+      "license": "cc0",
+      "credit": "\"Outtake Beep-1k.wav\" by slappy13 is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l3-conecta",
+      "name": "whoosh",
+      "file": "assets/sfx/whoosh.mp3",
+      "source": "openverse",
+      "duration_s": 3.155,
+      "license": "cc0",
+      "credit": "\"Deep Whoosh #1\" by Kinoton is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l5-aprueba",
+      "name": "click",
+      "file": "assets/sfx/click.mp3",
+      "source": "openverse",
+      "duration_s": 2.31,
+      "license": "cc0",
+      "credit": "\"Mouse click sounds\" by Masgame is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l6-completada",
+      "name": "chime",
+      "file": "assets/sfx/chime.mp3",
+      "source": "openverse",
+      "duration_s": 0.323,
+      "license": "cc0",
+      "credit": "\"Chime Notification\" by Jofae is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    }
+  ],
+  "total_duration_s": 11.286
+}

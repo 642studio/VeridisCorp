@@ -1,0 +1,38 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #0b0f14; font-family: Inter, -apple-system, sans-serif; }
+    #icon-wrap { position: absolute; left: 50%; top: 900px; margin-left: -110px; margin-top: -110px;
+      width: 220px; height: 220px; border-radius: 28px; background: #121a24; border: 3px solid #35e0c0;
+      display: flex; align-items: center; justify-content: center; opacity: 0; }
+    #icon-wrap svg { width: 120px; height: 120px; }
+    #caption { position: absolute; left: 90px; right: 90px; top: 1140px;
+      font-weight: 800; font-size: 54px; color: #e7eef0; text-align: center; opacity: 0; }
+    #sub { position: absolute; left: 90px; right: 90px; top: 1220px;
+      font-weight: 700; font-size: 30px; color: #61a8ff; text-align: center;
+      letter-spacing: 0.04em; text-transform: uppercase; opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="robot" data-width="1080" data-height="1920">
+    <div id="icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#35e0c0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="8" width="14" height="11" rx="2.5"></rect>
+        <circle cx="9.5" cy="13" r="1.3" fill="#35e0c0"></circle>
+        <circle cx="14.5" cy="13" r="1.3" fill="#35e0c0"></circle>
+        <path d="M12 8V4"></path>
+        <circle cx="12" cy="3" r="1.3" fill="#35e0c0"></circle>
+        <path d="M2 12h3M19 12h3"></path>
+      </svg>
+    </div>
+    <div id="caption">Detecta <span style="color:#35e0c0">lo nuevo</span></div>
+    <div id="sub">Perfil 01 · figura-robot</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#icon-wrap", { scale: 0.5 });
+    tl.to("#icon-wrap", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.8)" }, 0);
+    tl.fromTo("#caption", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 0.25);
+    tl.fromTo("#sub", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, 0.4);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["robot"] = tl;
+  </script>
+</template>

@@ -1,0 +1,27 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #wrap { position: absolute; left: 90px; right: 90px; top: 50%; margin-top: -170px; text-align: center; }
+    #claim { font-weight: 800; font-size: 50px; line-height: 1.35; color: #eafff0; }
+    #claim .accent { color: #39ff6a; text-shadow: 0 0 18px rgba(57,255,106,0.7); }
+  </style>
+  <div id="root" data-composition-id="claim" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="claim">No es al azar.<br>Es una regla,<br><span class="accent">escrita y verificable.</span></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#wrap", { opacity: 0.5, scale: 0.95 });
+    tl.to("#wrap", { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }, 0);
+
+    tl.to("#wrap", { opacity: 0.88, duration: 0.65, repeat: 3, yoyo: true, ease: "sine.inOut" }, 0.9);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["claim"] = tl;
+  </script>
+</template>

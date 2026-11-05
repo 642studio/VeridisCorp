@@ -1,0 +1,15 @@
+{
+  "provider": "elevenlabs",
+  "voice": "SAz9YHcvj6GT2YYXdXww",
+  "tts_model": "eleven_multilingual_v2",
+  "lang": "es",
+  "lines": [
+    { "id": "l1-hook", "text": "¿Y si tu empresa corriera así?" },
+    { "id": "l2-detecta", "text": "Detecta en segundos.", "sfx": ["beep"] },
+    { "id": "l3-conecta", "text": "Conecta con la red correcta.", "sfx": ["whoosh"] },
+    { "id": "l4-avanza", "text": "Avanza sin que se pierda." },
+    { "id": "l5-aprueba", "text": "Un humano, siempre, al final.", "sfx": ["click"] },
+    { "id": "l6-completada", "text": "Completada. A tiempo.", "sfx": ["chime"] },
+    { "id": "l7-claim", "text": "Así corre una empresa real." }
+  ]
+}

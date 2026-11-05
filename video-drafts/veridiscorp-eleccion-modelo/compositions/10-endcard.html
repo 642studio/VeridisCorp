@@ -1,0 +1,37 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #vignette { position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.72) 100%); }
+    #wrap { position: absolute; left: 0; right: 0; top: 50%; margin-top: -120px; text-align: center; }
+    #mark-wrap { position: relative; display: inline-block; overflow: hidden; }
+    #mark { font-weight: 800; font-size: 80px; letter-spacing: -0.01em; color: #eafff0;
+      text-shadow: 0 0 28px rgba(57,255,106,0.75), 0 0 6px rgba(234,255,240,0.6); }
+    #fillmask { position: absolute; inset: 0; background: #020805; transform-origin: left center; }
+    #cta { margin-top: 20px; font-weight: 700; font-size: 32px; letter-spacing: 0.02em; color: #39ff6a;
+      text-shadow: 0 0 14px rgba(57,255,106,0.55); opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="vignette" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="mark-wrap">
+        <div id="mark">VERIDIS<span style="color:#39ff6a">CORP</span></div>
+        <div id="fillmask"></div>
+      </div>
+      <div id="cta">Escríbenos para ver tu oficina real</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#fillmask", { scaleX: 1 });
+    tl.to("#fillmask", { scaleX: 0, duration: 0.5, ease: "power2.inOut" }, 0.1);
+    tl.fromTo("#cta", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 0.3);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

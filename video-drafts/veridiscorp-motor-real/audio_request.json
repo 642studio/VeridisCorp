@@ -1,0 +1,15 @@
+{
+  "provider": "elevenlabs",
+  "voice": "SAz9YHcvj6GT2YYXdXww",
+  "tts_model": "eleven_multilingual_v2",
+  "lang": "es",
+  "lines": [
+    { "id": "l1-hook", "text": "Esto no es un prompt a otra inteligencia artificial." },
+    { "id": "l2-langgraph", "text": "Es un motor propio, con memoria real en Postgres, coordinando sus propios agentes." },
+    { "id": "l3-proveedores", "text": "Elige entre cuatro proveedores reales, según la regla. Nunca al azar.", "sfx": ["beep"] },
+    { "id": "l4-revision", "text": "Antes de cerrar, vuelve a revisar todo por su cuenta. Nunca confía en el reporte." },
+    { "id": "l5-estados", "text": "Pendiente. Corriendo. Revisión. Completado. Un estado real, no una animación.", "sfx": ["click"] },
+    { "id": "l6-herramientas", "text": "Diecisiete herramientas con efecto real. Nada es un disfraz." },
+    { "id": "l7-claim", "text": "Un motor propio. No una envoltura." }
+  ]
+}

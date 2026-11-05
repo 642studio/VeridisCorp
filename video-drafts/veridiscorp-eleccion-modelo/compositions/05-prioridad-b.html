@@ -1,0 +1,35 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    .step { position: absolute; left: 90px; right: 90px; display: flex; align-items: center; gap: 24px; }
+    #step3 { top: 540px; }
+    #step4 { top: 740px; opacity: 0; }
+    #step5 { top: 940px; opacity: 0; }
+    .num { flex: none; width: 60px; height: 60px; border-radius: 50%; background: #39ff6a; color: #020805;
+      font-weight: 800; font-size: 28px; display: flex; align-items: center; justify-content: center; }
+    .txt { font-size: 32px; font-weight: 700; color: #eafff0; }
+  </style>
+  <div id="root" data-composition-id="prioridad-b" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="step3" class="step"><div class="num">3</div><div class="txt">Perfil del agente</div></div>
+    <div id="step4" class="step"><div class="num">4</div><div class="txt">Perfil de la etapa</div></div>
+    <div id="step5" class="step"><div class="num">5</div><div class="txt">Perfil de toda la oficina</div></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#step3", { opacity: 0.45, x: -14 });
+    tl.to("#step3", { opacity: 1, x: 0, duration: 0.28, ease: "power2.out" }, 0);
+
+    gsap.set("#step4", { x: -14 });
+    tl.to("#step4", { opacity: 1, x: 0, duration: 0.28, ease: "power2.out" }, 1.45);
+
+    gsap.set("#step5", { x: -14 });
+    tl.to("#step5", { opacity: 1, x: 0, duration: 0.28, ease: "power2.out" }, 2.9);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["prioridad-b"] = tl;
+  </script>
+</template>

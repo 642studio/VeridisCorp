@@ -1,0 +1,26 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; overflow: hidden; background: #020805;
+      font-family: "Space Mono", monospace; display: flex; align-items: center; justify-content: center;
+    }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #line { width: 860px; text-align: center; font-weight: 800; font-size: 68px; line-height: 1.3;
+      color: #eafff0; opacity: 0; }
+    #line .accent { color: #39ff6a; text-shadow: 0 0 20px rgba(57,255,106,0.75); }
+  </style>
+  <div id="root" data-composition-id="claim" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="line">Así corre una empresa <span class="accent">real</span>.</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#line", { y: 10 });
+    tl.to("#line", { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["claim"] = tl;
+  </script>
+</template>

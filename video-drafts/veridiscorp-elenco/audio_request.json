@@ -1,0 +1,16 @@
+{
+  "provider": "elevenlabs",
+  "voice": "SAz9YHcvj6GT2YYXdXww",
+  "tts_model": "eleven_multilingual_v2",
+  "lang": "es",
+  "lines": [
+    { "id": "l1-hook", "text": "Cada perfil, listo para activarse." },
+    { "id": "l2-robot", "text": "Detecta lo nuevo.", "sfx": ["beep"] },
+    { "id": "l3-pcwoman", "text": "Procesa los datos." },
+    { "id": "l4-ojo", "text": "Vigila el sistema." },
+    { "id": "l5-chihuahua", "text": "Avisa a tiempo.", "sfx": ["notification"] },
+    { "id": "l6-xbot", "text": "Conecta con el equipo.", "sfx": ["whoosh"] },
+    { "id": "l7-stat", "text": "Cincuenta y seis perfiles. Veinte, con herramienta real." },
+    { "id": "l8-claim", "text": "Un equipo. No una demo." }
+  ]
+}

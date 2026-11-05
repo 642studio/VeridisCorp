@@ -1,0 +1,11 @@
+{"id":"voice_001","type":"voice","path":"assets/voice/l1-hook.wav","source":"generated","description":"¿Y si tu empresa corriera así?","duration":1.8,"provenance":{"provider":"elevenlabs","prompt":"¿Y si tu empresa corriera así?"}}
+{"id":"voice_002","type":"voice","path":"assets/voice/l2-detecta.wav","source":"generated","description":"Detecta en segundos.","duration":1.3,"provenance":{"provider":"elevenlabs","prompt":"Detecta en segundos."}}
+{"id":"voice_003","type":"voice","path":"assets/voice/l3-conecta.wav","source":"generated","description":"Conecta con la red correcta.","duration":1.7,"provenance":{"provider":"elevenlabs","prompt":"Conecta con la red correcta."}}
+{"id":"voice_004","type":"voice","path":"assets/voice/l4-avanza.wav","source":"generated","description":"Avanza sin que se pierda.","duration":1.4,"provenance":{"provider":"elevenlabs","prompt":"Avanza sin que se pierda."}}
+{"id":"voice_005","type":"voice","path":"assets/voice/l5-aprueba.wav","source":"generated","description":"Un humano, siempre, al final.","duration":2.2,"provenance":{"provider":"elevenlabs","prompt":"Un humano, siempre, al final."}}
+{"id":"voice_006","type":"voice","path":"assets/voice/l6-completada.wav","source":"generated","description":"Completada. A tiempo.","duration":1.4,"provenance":{"provider":"elevenlabs","prompt":"Completada. A tiempo."}}
+{"id":"voice_007","type":"voice","path":"assets/voice/l7-claim.wav","source":"generated","description":"Así corre una empresa real.","duration":1.5,"provenance":{"provider":"elevenlabs","prompt":"Así corre una empresa real."}}
+{"id":"sfx_001","type":"sfx","path":"assets/sfx/beep.mp3","source":"search","description":"beep","duration":0.1,"provenance":{"provider":"openverse.audio","prompt":"beep"}}
+{"id":"sfx_002","type":"sfx","path":"assets/sfx/whoosh.mp3","source":"search","description":"whoosh","duration":3.2,"provenance":{"provider":"openverse.audio","prompt":"whoosh"}}
+{"id":"sfx_003","type":"sfx","path":"assets/sfx/click.mp3","source":"search","description":"click","duration":2.3,"provenance":{"provider":"openverse.audio","prompt":"click"}}
+{"id":"sfx_004","type":"sfx","path":"assets/sfx/chime.mp3","source":"search","description":"chime","duration":0.3,"provenance":{"provider":"openverse.audio","prompt":"chime"}}

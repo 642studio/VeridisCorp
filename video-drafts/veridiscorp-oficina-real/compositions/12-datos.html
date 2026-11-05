@@ -1,0 +1,33 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace;
+      display: flex; align-items: center; justify-content: center; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #wrap { width: 860px; text-align: center; }
+    #headline { font-weight: 800; font-size: 56px; line-height: 1.3; color: #eafff0; opacity: 0; }
+    #headline .accent { color: #39ff6a; }
+    #tag { margin-top: 24px; font-weight: 700; font-size: 28px; letter-spacing: 0.06em;
+      color: #6fae82; text-transform: uppercase; opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="datos" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="headline">Sin afectar <span class="accent">los datos</span><br>existentes</div>
+      <div id="tag">idempotente · sin pérdida</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#headline", { y: 10 });
+    tl.to("#headline", { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0);
+    tl.fromTo("#tag", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, 0.35);
+
+    tl.to("#wrap", { opacity: 0.85, duration: 0.55, ease: "sine.inOut" }, 0.9);
+    tl.to("#wrap", { opacity: 1, duration: 0.55, ease: "sine.inOut" }, 1.45);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["datos"] = tl;
+  </script>
+</template>

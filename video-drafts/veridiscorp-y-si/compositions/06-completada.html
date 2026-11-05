@@ -1,0 +1,29 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace;
+      display: flex; align-items: center; justify-content: center; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #burst { position: absolute; left: 50%; top: 50%; width: 500px; height: 500px; margin-left: -250px; margin-top: -250px;
+      border-radius: 50%; background: radial-gradient(circle, rgba(57,255,106,0.5) 0%, transparent 70%); opacity: 0; }
+    #stamp { display: inline-block; font-weight: 800; font-size: 56px; letter-spacing: 0.04em;
+      color: #eafff0; border: 5px solid #39ff6a; border-radius: 16px; padding: 14px 28px;
+      box-shadow: 0 0 40px rgba(57,255,106,0.5); opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="completada" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="burst"></div>
+    <div id="stamp">COMPLETADA</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#burst", { opacity: 1, duration: 0.2, ease: "power2.out" }, 0.1);
+    tl.to("#burst", { opacity: 0, duration: 0.7, ease: "power1.out" }, 0.3);
+    gsap.set("#stamp", { scale: 1.6 });
+    tl.to("#stamp", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.8)" }, 0.2);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["completada"] = tl;
+  </script>
+</template>

@@ -1,0 +1,22 @@
+{
+  "provider": "elevenlabs",
+  "voice": "SAz9YHcvj6GT2YYXdXww",
+  "tts_model": "eleven_multilingual_v2",
+  "lang": "es",
+  "lines": [
+    { "id": "l1-cap1", "text": "Capítulo uno." },
+    { "id": "l2-docker", "text": "La misma imagen de Docker. Nunca se cambió el Dockerfile.", "sfx": ["click"] },
+    { "id": "l3-arch", "text": "Corre igual en los dos procesadores reales." },
+    { "id": "l4-render", "text": "Un render de seis segundos. Veintisiete a veintinueve segundos, en el servidor real.", "sfx": ["beep"] },
+    { "id": "l5-antes", "text": "Antes, cuarenta segundos, en la Mac." },
+    { "id": "l6-cap2", "text": "Capítulo dos." },
+    { "id": "l7-systemd", "text": "Corre como un servicio real. Se reinicia solo, siempre." },
+    { "id": "l8-activo", "text": "Ya estaba activo, antes de esta sesión." },
+    { "id": "l9-puerto", "text": "El puerto volvió a responder. Nunca se asumió. Se verificó.", "sfx": ["notification"] },
+    { "id": "l10-cap3", "text": "Capítulo tres." },
+    { "id": "l11-migracion", "text": "La migración se aplicó sobre la base real." },
+    { "id": "l12-datos", "text": "Sin afectar los datos existentes." },
+    { "id": "l13-ffprobe", "text": "Cada video, verificado por fuera. Nunca solo confianza.", "sfx": ["chime"] },
+    { "id": "l14-claim", "text": "Oficina real. Verificada, no asumida." }
+  ]
+}

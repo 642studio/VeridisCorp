@@ -1,0 +1,36 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace;
+      display: flex; align-items: center; justify-content: center; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #wrap { text-align: center; }
+    #port { font-weight: 800; font-size: 90px; color: #eafff0; opacity: 0; }
+    #port .ok { display: inline-flex; vertical-align: middle; margin-left: 14px; }
+    #port .ok svg { width: 56px; height: 56px; }
+    #label { margin-top: 14px; font-weight: 700; font-size: 30px; letter-spacing: 0.04em;
+      color: #6fae82; text-transform: uppercase; opacity: 0; }
+    #sub { margin-top: 24px; font-weight: 800; font-size: 48px; color: #39ff6a; opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="puerto" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="port">127.0.0.1:7777<span class="ok"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="none" stroke="#39ff6a" stroke-width="2"/><path d="M7 12.5l3 3 7-7" fill="none" stroke="#39ff6a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div id="label">volvió a responder</div>
+      <div id="sub">Nunca se asumió. Se verificó.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#port", { opacity: 1, duration: 0.3, ease: "power2.out" }, 0);
+    tl.fromTo("#label", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 0.35);
+    tl.fromTo("#sub", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 1.6);
+
+    tl.to("#wrap", { opacity: 0.85, duration: 0.7, ease: "sine.inOut" }, 3.0);
+    tl.to("#wrap", { opacity: 1, duration: 0.7, ease: "sine.inOut" }, 3.7);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["puerto"] = tl;
+  </script>
+</template>

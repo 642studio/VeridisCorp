@@ -1,0 +1,31 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; overflow: hidden; background: #0b0f14;
+      font-family: Inter, -apple-system, sans-serif;
+    }
+    #wrap { position: absolute; left: 0; right: 0; top: 50%; margin-top: -120px; text-align: center; }
+    #mark-wrap { position: relative; display: inline-block; overflow: hidden; }
+    #mark { font-weight: 800; font-size: 80px; letter-spacing: -0.01em; color: #e7eef0; }
+    #fillmask { position: absolute; inset: 0; background: #0b0f14; transform-origin: left center; }
+    #cta { margin-top: 20px; font-weight: 700; font-size: 32px; letter-spacing: 0.02em; color: #35e0c0; opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1080" data-height="1920">
+    <div id="wrap">
+      <div id="mark-wrap">
+        <div id="mark">VERIDIS<span style="color:#35e0c0">CORP</span></div>
+        <div id="fillmask"></div>
+      </div>
+      <div id="cta">Escríbenos para ver tu oficina real</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#fillmask", { scaleX: 1 });
+    tl.to("#fillmask", { scaleX: 0, duration: 0.5, ease: "power2.inOut" }, 0.1);
+    tl.fromTo("#cta", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 0.75);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

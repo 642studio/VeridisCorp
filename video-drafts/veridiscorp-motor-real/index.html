@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #020805; --fg: #39ff6a; --muted: #1f8a46; --border: #1f8a46;
+        --surface: #06140a; --brand: #39ff6a; --font-mono: "Space Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #020805; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Video 1 del plan de 5 ("perfeccionar la técnica"): prueba una cámara
+      continua (zoom hacia adentro, "cae" a un punto en cada corte, la
+      siguiente capa "emerge" desde ese mismo punto) en vez de los match-cuts
+      usados en los videos anteriores. 8 capas, nunca más de 0.5s de respiro
+      mudo — la voz arranca a los 0.5s.
+    -->
+    <div id="root" data-composition-id="motor-real" data-start="0" data-duration="38.45"
+         data-width="1080" data-height="1920">
+
+      <div id="s-hook" data-composition-id="hook" data-composition-src="compositions/01-hook.html"
+           data-start="0" data-duration="4.4" data-track-index="1"></div>
+      <div id="s-engine" data-composition-id="engine" data-composition-src="compositions/02-engine.html"
+           data-start="4.4" data-duration="5.5" data-track-index="1"></div>
+      <div id="s-proveedores" data-composition-id="proveedores" data-composition-src="compositions/03-proveedores.html"
+           data-start="9.9" data-duration="5.3" data-track-index="1"></div>
+      <div id="s-revision" data-composition-id="revision" data-composition-src="compositions/04-revision.html"
+           data-start="15.2" data-duration="5.35" data-track-index="1"></div>
+      <div id="s-estados" data-composition-id="estados" data-composition-src="compositions/05-estados.html"
+           data-start="20.55" data-duration="6.4" data-track-index="1"></div>
+      <div id="s-herramientas" data-composition-id="herramientas" data-composition-src="compositions/06-herramientas.html"
+           data-start="26.95" data-duration="4.7" data-track-index="1"></div>
+      <div id="s-claim" data-composition-id="claim" data-composition-src="compositions/07-claim.html"
+           data-start="31.65" data-duration="3" data-track-index="1"></div>
+      <div id="s-endcard" data-composition-id="endcard" data-composition-src="compositions/08-endcard.html"
+           data-start="34.65" data-duration="3.8" data-track-index="1"></div>
+
+      <!-- Voz (ElevenLabs, ES) -->
+      <audio id="voice-l1" class="clip" src="assets/voice/l1-hook.wav"
+             data-start="0.5" data-duration="3.297" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l2" class="clip" src="assets/voice/l2-langgraph.wav"
+             data-start="4.9" data-duration="4.598" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l3" class="clip" src="assets/voice/l3-proveedores.wav"
+             data-start="10.4" data-duration="4.412" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l4" class="clip" src="assets/voice/l4-revision.wav"
+             data-start="15.7" data-duration="4.458" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l5" class="clip" src="assets/voice/l5-estados.wav"
+             data-start="20.85" data-duration="5.341" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l6" class="clip" src="assets/voice/l6-herramientas.wav"
+             data-start="27.25" data-duration="3.808" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l7" class="clip" src="assets/voice/l7-claim.wav"
+             data-start="31.85" data-duration="2.276" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l8" class="clip" src="assets/voice/l8-cta.wav"
+             data-start="35.05" data-duration="2.136" data-track-index="5" data-volume="1"></audio>
+
+      <!-- SFX -->
+      <audio id="sfx-beep" class="clip" src="assets/sfx/beep.mp3"
+             data-start="12" data-duration="0.12" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-click" class="clip" src="assets/sfx/click.mp3"
+             data-start="24.05" data-duration="1.2" data-track-index="6" data-volume="0.35"></audio>
+
+      <!-- Música (SunoAPI, reusa el mismo track generado para el video anterior, sigue siendo instrumental genérico) -->
+      <audio id="bgm-1" class="clip" src="assets/bgm/track.mp3"
+             data-start="0" data-duration="38.45" data-track-index="7" data-volume="0.45"
+             data-fade-out="1.5"></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["motor-real"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

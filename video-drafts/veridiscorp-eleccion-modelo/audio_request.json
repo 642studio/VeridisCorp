@@ -1,0 +1,17 @@
+{
+  "provider": "elevenlabs",
+  "voice": "SAz9YHcvj6GT2YYXdXww",
+  "tts_model": "eleven_multilingual_v2",
+  "lang": "es",
+  "lines": [
+    { "id": "l1-hook", "text": "¿Cómo elige VeridisCorp qué modelo usa en cada tarea? Nunca al azar." },
+    { "id": "l2-perfiles-a", "text": "Hay cuatro perfiles reales: uno rápido para lo simple, y uno con más razonamiento para análisis." },
+    { "id": "l2-perfiles-b", "text": "Uno económico para revisar, y el más potente para lo complejo." },
+    { "id": "l3-prioridad-a", "text": "La prioridad va de lo específico a lo general: regla exacta, luego la etapa." },
+    { "id": "l3-prioridad-b", "text": "Después el perfil de ese agente, el de la etapa, y al final el de toda la oficina." },
+    { "id": "l4-prueba-a", "text": "En una prueba real, la misma tarea gastó 338 tokens de entrada en un proveedor.", "sfx": ["beep"] },
+    { "id": "l4-prueba-b", "text": "Y 277 en otro. No es un benchmark, es solo lo que pasó esa vez." },
+    { "id": "l5-claude", "text": "El 3 de noviembre se sumó un proveedor más, con dos cuentas separadas para que una cuota agotada no bloquee a la otra.", "sfx": ["chime"] },
+    { "id": "l6-claim", "text": "Elegir el modelo correcto no es al azar. Es una regla, escrita y verificable." }
+  ]
+}

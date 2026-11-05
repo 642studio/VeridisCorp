@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f14; --fg: #e7eef0; --muted: #7c8a93; --brand: #35e0c0; --accent: #61a8ff;
+        --font-display: Inter, sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0b0f14; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Video 2 del plan de 5: misma regla de ritmo (voz desde <1s, beats de
+      2-4s), pero paleta distinta — teal/azul de veridiscorp-organigrama en
+      vez del verde CRT usado en los 2 videos y en motor-real. Prueba si el
+      ritmo se sostiene fuera del look ya probado.
+    -->
+    <div id="root" data-composition-id="elenco" data-start="0" data-duration="24"
+         data-width="1080" data-height="1920">
+
+      <div id="s-hook" data-composition-id="hook" data-composition-src="compositions/01-hook.html"
+           data-start="0" data-duration="3" data-track-index="1"></div>
+      <div id="s-robot" data-composition-id="robot" data-composition-src="compositions/02-robot.html"
+           data-start="3" data-duration="2.2" data-track-index="1"></div>
+      <div id="s-pcwoman" data-composition-id="pcwoman" data-composition-src="compositions/03-pcwoman.html"
+           data-start="5.2" data-duration="2.2" data-track-index="1"></div>
+      <div id="s-ojo" data-composition-id="ojo" data-composition-src="compositions/04-ojo.html"
+           data-start="7.4" data-duration="2.2" data-track-index="1"></div>
+      <div id="s-chihuahua" data-composition-id="chihuahua" data-composition-src="compositions/05-chihuahua.html"
+           data-start="9.6" data-duration="2.2" data-track-index="1"></div>
+      <div id="s-xbot" data-composition-id="xbot" data-composition-src="compositions/06-xbot.html"
+           data-start="11.8" data-duration="2.2" data-track-index="1"></div>
+      <div id="s-stat" data-composition-id="stat" data-composition-src="compositions/07-stat.html"
+           data-start="14" data-duration="4" data-track-index="1"></div>
+      <div id="s-claim" data-composition-id="claim" data-composition-src="compositions/08-claim.html"
+           data-start="18" data-duration="2.3" data-track-index="1"></div>
+      <div id="s-endcard" data-composition-id="endcard" data-composition-src="compositions/09-endcard.html"
+           data-start="20.3" data-duration="3.7" data-track-index="1"></div>
+
+      <!-- Voz (ElevenLabs, ES) -->
+      <audio id="voice-l1" class="clip" src="assets/voice/l1-hook.wav"
+             data-start="0.3" data-duration="2.276" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l2" class="clip" src="assets/voice/l2-robot.wav"
+             data-start="3.2" data-duration="1.3" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l3" class="clip" src="assets/voice/l3-pcwoman.wav"
+             data-start="5.4" data-duration="1.347" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l4" class="clip" src="assets/voice/l4-ojo.wav"
+             data-start="7.6" data-duration="1.393" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l5" class="clip" src="assets/voice/l5-chihuahua.wav"
+             data-start="9.8" data-duration="1.254" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l6" class="clip" src="assets/voice/l6-xbot.wav"
+             data-start="12" data-duration="1.254" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l7" class="clip" src="assets/voice/l7-stat.wav"
+             data-start="14.3" data-duration="3.251" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l8" class="clip" src="assets/voice/l8-claim.wav"
+             data-start="18.2" data-duration="1.579" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l9" class="clip" src="assets/voice/l9-cta.wav"
+             data-start="20.7" data-duration="2.136" data-track-index="5" data-volume="1"></audio>
+
+      <!-- SFX -->
+      <audio id="sfx-beep" class="clip" src="assets/sfx/beep.mp3"
+             data-start="3.2" data-duration="0.12" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-notify" class="clip" src="assets/sfx/notification.mp3"
+             data-start="9.8" data-duration="0.689" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-whoosh" class="clip" src="assets/sfx/whoosh.mp3"
+             data-start="12" data-duration="1.9" data-track-index="6" data-volume="0.35"></audio>
+
+      <!-- Música (reusa el track de SunoAPI generado antes) -->
+      <audio id="bgm-1" class="clip" src="assets/bgm/track.mp3"
+             data-start="0" data-duration="24" data-track-index="7" data-volume="0.45"
+             data-fade-out="1.2"></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["elenco"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

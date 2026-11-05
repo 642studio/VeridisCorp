@@ -1,0 +1,67 @@
+<template>
+  <style>
+    #root {
+      position: absolute; inset: 0; overflow: hidden; background: #020805;
+      font-family: "Space Mono", monospace;
+    }
+    #grid {
+      position: absolute; inset: 0;
+      background:
+        repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px);
+    }
+    #stage { position: absolute; left: 0; right: 0; top: 760px; text-align: center; }
+    .row { display: flex; justify-content: center; gap: 20px; margin-bottom: 18px; }
+    .prov {
+      width: 240px; height: 84px; border-radius: 14px; background: #06140a;
+      border: 2px solid rgba(57,255,106,0.4); display: flex; align-items: center;
+      justify-content: center; font-weight: 700; font-size: 28px; color: #6fae82;
+    }
+    .prov.on { border-color: #39ff6a; color: #eafff0; box-shadow: 0 0 24px rgba(57,255,106,0.5); }
+    #rule {
+      margin-top: 14px; font-size: 28px; color: #6fae82; letter-spacing: 0.02em; opacity: 0;
+    }
+    #caption {
+      position: absolute; left: 70px; right: 70px; top: 1500px;
+      font-weight: 700; font-size: 42px; color: #39ff6a; text-align: center;
+      text-shadow: 0 0 16px rgba(57,255,106,0.5); opacity: 0;
+    }
+  </style>
+  <div id="root" data-composition-id="proveedores" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="stage">
+      <div class="row">
+        <div class="prov" id="p1">OpenAI</div>
+        <div class="prov" id="p2">Anthropic</div>
+      </div>
+      <div class="row">
+        <div class="prov" id="p3">DeepSeek</div>
+        <div class="prov" id="p4">Google</div>
+      </div>
+      <div id="rule">según la regla: agente + etapa + capacidad</div>
+    </div>
+    <div id="caption">Elige entre cuatro proveedores reales. Nunca al azar</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#stage", { scale: 1.8, opacity: 0 });
+    tl.to("#stage", { scale: 1, opacity: 1, duration: 0.3, ease: "power2.out" }, 0);
+
+    tl.fromTo("#rule", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, 0.5);
+    tl.set("#p2", { borderColor: "#39ff6a", color: "#eafff0", boxShadow: "0 0 24px rgba(57,255,106,0.5)" }, 1.6);
+
+    // El proveedor elegido sigue latiendo — nunca un tramo sin ningún cambio.
+    tl.to("#p2", { boxShadow: "0 0 36px rgba(57,255,106,0.7)", duration: 0.7, ease: "sine.inOut" }, 2.1);
+    tl.to("#p2", { boxShadow: "0 0 24px rgba(57,255,106,0.5)", duration: 0.7, ease: "sine.inOut" }, 2.8);
+    tl.to("#p2", { boxShadow: "0 0 36px rgba(57,255,106,0.7)", duration: 0.7, ease: "sine.inOut" }, 3.5);
+    tl.to("#p2", { boxShadow: "0 0 24px rgba(57,255,106,0.5)", duration: 0.7, ease: "sine.inOut" }, 4.2);
+
+    tl.fromTo("#caption", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 0.5);
+    tl.to("#caption", { opacity: 0, duration: 0.2, ease: "power2.in" }, 4.8);
+
+    tl.to("#stage", { scale: 0.25, opacity: 0, duration: 0.3, ease: "power2.in" }, 5.0);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["proveedores"] = tl;
+  </script>
+</template>

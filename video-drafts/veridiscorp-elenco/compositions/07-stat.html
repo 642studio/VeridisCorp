@@ -1,0 +1,35 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #0b0f14; font-family: Inter, -apple-system, sans-serif; }
+    #wrap { position: absolute; left: 0; right: 0; top: 820px; text-align: center; }
+    #num { font-weight: 800; font-size: 200px; line-height: 1; color: #e7eef0; }
+    #num .of { font-size: 100px; color: #35e0c0; }
+    #label { margin-top: 16px; font-weight: 700; font-size: 32px; letter-spacing: 0.05em;
+      color: #61a8ff; text-transform: uppercase; opacity: 0; }
+    #bar-wrap { position: absolute; left: 50%; top: 1180px; margin-left: -260px; width: 520px; height: 10px;
+      background: #1a2230; border-radius: 5px; }
+    #bar-fill { width: 0%; height: 10px; border-radius: 5px; background: #35e0c0; }
+  </style>
+  <div id="root" data-composition-id="stat" data-width="1080" data-height="1920">
+    <div id="wrap">
+      <div id="num"><span id="count">0</span><span class="of">/56</span></div>
+      <div id="label">con herramienta real</div>
+    </div>
+    <div id="bar-wrap"><div id="bar-fill"></div></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const el = document.getElementById("count");
+    const STEPS = 20;
+    const END = 2.6;
+    for (let i = 0; i <= STEPS; i++) {
+      const t = (END * i) / STEPS;
+      tl.call(() => { el.textContent = String(i); }, [], t);
+    }
+    tl.fromTo("#label", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0.1);
+    tl.to("#bar-fill", { width: (20 / 56) * 100 + "%", duration: END, ease: "power1.inOut" }, 0);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["stat"] = tl;
+  </script>
+</template>

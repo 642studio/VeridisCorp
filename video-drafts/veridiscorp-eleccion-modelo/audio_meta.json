@@ -1,0 +1,902 @@
+{
+  "tts_provider": "elevenlabs",
+  "voice_id": "SAz9YHcvj6GT2YYXdXww",
+  "bgm": null,
+  "bgm_pending": false,
+  "bgm_provider": null,
+  "bgm_pid": null,
+  "bgm_log": null,
+  "bgm_mode": null,
+  "bgm_target_duration_s": null,
+  "bgm_seed_duration_s": null,
+  "bgm_loop_count": null,
+  "voices": [
+    {
+      "id": "l1-hook",
+      "path": "assets/voice/l1-hook.wav",
+      "duration_s": 4.644,
+      "words": [
+        {
+          "id": "w0",
+          "text": "¿Cómo",
+          "start": 0.06,
+          "end": 0.31
+        },
+        {
+          "id": "w1",
+          "text": "elige",
+          "start": 0.31,
+          "end": 0.62
+        },
+        {
+          "id": "w2",
+          "text": "Veridis",
+          "start": 0.62,
+          "end": 1.04
+        },
+        {
+          "id": "w3",
+          "text": "Corp,",
+          "start": 1.12,
+          "end": 1.37
+        },
+        {
+          "id": "w4",
+          "text": "qué",
+          "start": 1.54,
+          "end": 1.68
+        },
+        {
+          "id": "w5",
+          "text": "modelo",
+          "start": 1.68,
+          "end": 2.08
+        },
+        {
+          "id": "w6",
+          "text": "usa",
+          "start": 2.08,
+          "end": 2.28
+        },
+        {
+          "id": "w7",
+          "text": "en",
+          "start": 2.28,
+          "end": 2.4
+        },
+        {
+          "id": "w8",
+          "text": "cada",
+          "start": 2.45,
+          "end": 2.64
+        },
+        {
+          "id": "w9",
+          "text": "tarea?¡Nunca",
+          "start": 2.71,
+          "end": 3.62
+        },
+        {
+          "id": "w10",
+          "text": "al",
+          "start": 3.62,
+          "end": 3.73
+        },
+        {
+          "id": "w11",
+          "text": "azar!",
+          "start": 3.81,
+          "end": 4.24
+        }
+      ]
+    },
+    {
+      "id": "l2-perfiles-a",
+      "path": "assets/voice/l2-perfiles-a.wav",
+      "duration_s": 5.898,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Hay",
+          "start": 0.07,
+          "end": 0.18
+        },
+        {
+          "id": "w1",
+          "text": "cuatro",
+          "start": 0.27,
+          "end": 0.6
+        },
+        {
+          "id": "w2",
+          "text": "perfiles",
+          "start": 0.6,
+          "end": 1.15
+        },
+        {
+          "id": "w3",
+          "text": "reales,",
+          "start": 1.15,
+          "end": 1.72
+        },
+        {
+          "id": "w4",
+          "text": "uno",
+          "start": 1.87,
+          "end": 1.97
+        },
+        {
+          "id": "w5",
+          "text": "rápido",
+          "start": 1.97,
+          "end": 2.47
+        },
+        {
+          "id": "w6",
+          "text": "para",
+          "start": 2.47,
+          "end": 2.79
+        },
+        {
+          "id": "w7",
+          "text": "los",
+          "start": 2.8,
+          "end": 3.05
+        },
+        {
+          "id": "w8",
+          "text": "simple",
+          "start": 3.05,
+          "end": 3.23
+        },
+        {
+          "id": "w9",
+          "text": "y",
+          "start": 3.23,
+          "end": 3.65
+        },
+        {
+          "id": "w10",
+          "text": "uno",
+          "start": 3.65,
+          "end": 3.9
+        },
+        {
+          "id": "w11",
+          "text": "con",
+          "start": 3.98,
+          "end": 4.06
+        },
+        {
+          "id": "w12",
+          "text": "más",
+          "start": 4.06,
+          "end": 4.2
+        },
+        {
+          "id": "w13",
+          "text": "razonamiento",
+          "start": 4.2,
+          "end": 4.8
+        },
+        {
+          "id": "w14",
+          "text": "para",
+          "start": 4.8,
+          "end": 5
+        },
+        {
+          "id": "w15",
+          "text": "análisis.",
+          "start": 5,
+          "end": 5.61
+        }
+      ]
+    },
+    {
+      "id": "l2-perfiles-b",
+      "path": "assets/voice/l2-perfiles-b.wav",
+      "duration_s": 3.622,
+      "words": [
+        {
+          "id": "w0",
+          "text": "uno",
+          "start": 0.03,
+          "end": 0.2
+        },
+        {
+          "id": "w1",
+          "text": "económico",
+          "start": 0.2,
+          "end": 0.79
+        },
+        {
+          "id": "w2",
+          "text": "para",
+          "start": 0.79,
+          "end": 1.06
+        },
+        {
+          "id": "w3",
+          "text": "revisar",
+          "start": 1.07,
+          "end": 1.56
+        },
+        {
+          "id": "w4",
+          "text": "y",
+          "start": 1.61,
+          "end": 1.63
+        },
+        {
+          "id": "w5",
+          "text": "el",
+          "start": 1.63,
+          "end": 1.77
+        },
+        {
+          "id": "w6",
+          "text": "más",
+          "start": 1.77,
+          "end": 1.98
+        },
+        {
+          "id": "w7",
+          "text": "potente",
+          "start": 1.98,
+          "end": 2.48
+        },
+        {
+          "id": "w8",
+          "text": "para",
+          "start": 2.54,
+          "end": 2.74
+        },
+        {
+          "id": "w9",
+          "text": "lo",
+          "start": 2.74,
+          "end": 2.86
+        },
+        {
+          "id": "w10",
+          "text": "complejo.",
+          "start": 2.86,
+          "end": 3.36
+        }
+      ]
+    },
+    {
+      "id": "l3-prioridad-a",
+      "path": "assets/voice/l3-prioridad-a.wav",
+      "duration_s": 4.923,
+      "words": [
+        {
+          "id": "w0",
+          "text": "La",
+          "start": 0.13,
+          "end": 0.16
+        },
+        {
+          "id": "w1",
+          "text": "prioridad",
+          "start": 0.16,
+          "end": 0.7
+        },
+        {
+          "id": "w2",
+          "text": "va",
+          "start": 0.7,
+          "end": 0.83
+        },
+        {
+          "id": "w3",
+          "text": "de",
+          "start": 0.83,
+          "end": 0.96
+        },
+        {
+          "id": "w4",
+          "text": "lo",
+          "start": 0.96,
+          "end": 1.09
+        },
+        {
+          "id": "w5",
+          "text": "específico",
+          "start": 1.09,
+          "end": 1.73
+        },
+        {
+          "id": "w6",
+          "text": "a",
+          "start": 1.73,
+          "end": 1.79
+        },
+        {
+          "id": "w7",
+          "text": "lo",
+          "start": 1.79,
+          "end": 1.85
+        },
+        {
+          "id": "w8",
+          "text": "general.",
+          "start": 1.93,
+          "end": 2.5
+        },
+        {
+          "id": "w9",
+          "text": "Regla",
+          "start": 2.66,
+          "end": 2.85
+        },
+        {
+          "id": "w10",
+          "text": "exacta,",
+          "start": 2.85,
+          "end": 3.41
+        },
+        {
+          "id": "w11",
+          "text": "luego",
+          "start": 3.41,
+          "end": 3.76
+        },
+        {
+          "id": "w12",
+          "text": "la",
+          "start": 3.76,
+          "end": 3.9
+        },
+        {
+          "id": "w13",
+          "text": "etapa.",
+          "start": 3.9,
+          "end": 4.49
+        }
+      ]
+    },
+    {
+      "id": "l3-prioridad-b",
+      "path": "assets/voice/l3-prioridad-b.wav",
+      "duration_s": 4.458,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Después",
+          "start": 0.06,
+          "end": 0.41
+        },
+        {
+          "id": "w1",
+          "text": "el",
+          "start": 0.41,
+          "end": 0.48
+        },
+        {
+          "id": "w2",
+          "text": "perfil",
+          "start": 0.53,
+          "end": 0.88
+        },
+        {
+          "id": "w3",
+          "text": "de",
+          "start": 0.88,
+          "end": 1
+        },
+        {
+          "id": "w4",
+          "text": "ese",
+          "start": 1,
+          "end": 1.11
+        },
+        {
+          "id": "w5",
+          "text": "agente,",
+          "start": 1.19,
+          "end": 1.66
+        },
+        {
+          "id": "w6",
+          "text": "el",
+          "start": 1.7,
+          "end": 1.84
+        },
+        {
+          "id": "w7",
+          "text": "de",
+          "start": 1.84,
+          "end": 1.99
+        },
+        {
+          "id": "w8",
+          "text": "la",
+          "start": 2.07,
+          "end": 2.16
+        },
+        {
+          "id": "w9",
+          "text": "etapa,",
+          "start": 2.16,
+          "end": 2.67
+        },
+        {
+          "id": "w10",
+          "text": "y",
+          "start": 2.67,
+          "end": 2.72
+        },
+        {
+          "id": "w11",
+          "text": "al",
+          "start": 2.72,
+          "end": 2.77
+        },
+        {
+          "id": "w12",
+          "text": "final",
+          "start": 2.84,
+          "end": 3.11
+        },
+        {
+          "id": "w13",
+          "text": "el",
+          "start": 3.11,
+          "end": 3.22
+        },
+        {
+          "id": "w14",
+          "text": "de",
+          "start": 3.22,
+          "end": 3.24
+        },
+        {
+          "id": "w15",
+          "text": "toda",
+          "start": 3.35,
+          "end": 3.56
+        },
+        {
+          "id": "w16",
+          "text": "la",
+          "start": 3.56,
+          "end": 3.67
+        },
+        {
+          "id": "w17",
+          "text": "oficina.",
+          "start": 3.67,
+          "end": 4.12
+        }
+      ]
+    },
+    {
+      "id": "l4-prueba-a",
+      "path": "assets/voice/l4-prueba-a.wav",
+      "duration_s": 5.201,
+      "words": [
+        {
+          "id": "w0",
+          "text": "En",
+          "start": 0.06,
+          "end": 0.12
+        },
+        {
+          "id": "w1",
+          "text": "una",
+          "start": 0.12,
+          "end": 0.31
+        },
+        {
+          "id": "w2",
+          "text": "prueba",
+          "start": 0.31,
+          "end": 0.69
+        },
+        {
+          "id": "w3",
+          "text": "real,",
+          "start": 0.69,
+          "end": 0.94
+        },
+        {
+          "id": "w4",
+          "text": "la",
+          "start": 1.11,
+          "end": 1.24
+        },
+        {
+          "id": "w5",
+          "text": "misma",
+          "start": 1.24,
+          "end": 1.65
+        },
+        {
+          "id": "w6",
+          "text": "tarea",
+          "start": 1.65,
+          "end": 2
+        },
+        {
+          "id": "w7",
+          "text": "gastó",
+          "start": 2.09,
+          "end": 2.46
+        },
+        {
+          "id": "w8",
+          "text": "338",
+          "start": 2.46,
+          "end": 3.16
+        },
+        {
+          "id": "w9",
+          "text": "tokens",
+          "start": 3.21,
+          "end": 3.7
+        },
+        {
+          "id": "w10",
+          "text": "de",
+          "start": 3.75,
+          "end": 3.82
+        },
+        {
+          "id": "w11",
+          "text": "entrada",
+          "start": 3.82,
+          "end": 4.2
+        },
+        {
+          "id": "w12",
+          "text": "en",
+          "start": 4.2,
+          "end": 4.29
+        },
+        {
+          "id": "w13",
+          "text": "un",
+          "start": 4.29,
+          "end": 4.38
+        },
+        {
+          "id": "w14",
+          "text": "proveedor.",
+          "start": 4.38,
+          "end": 4.83
+        }
+      ]
+    },
+    {
+      "id": "l4-prueba-b",
+      "path": "assets/voice/l4-prueba-b.wav",
+      "duration_s": 4.551,
+      "words": [
+        {
+          "id": "w0",
+          "text": "y",
+          "start": 0.04,
+          "end": 0.12
+        },
+        {
+          "id": "w1",
+          "text": "277",
+          "start": 0.12,
+          "end": 1.2
+        },
+        {
+          "id": "w2",
+          "text": "en",
+          "start": 1.27,
+          "end": 1.48
+        },
+        {
+          "id": "w3",
+          "text": "otro.",
+          "start": 1.48,
+          "end": 2.14
+        },
+        {
+          "id": "w4",
+          "text": "No",
+          "start": 2.14,
+          "end": 2.24
+        },
+        {
+          "id": "w5",
+          "text": "es",
+          "start": 2.24,
+          "end": 2.34
+        },
+        {
+          "id": "w6",
+          "text": "un",
+          "start": 2.34,
+          "end": 2.43
+        },
+        {
+          "id": "w7",
+          "text": "benchmark,",
+          "start": 2.43,
+          "end": 2.95
+        },
+        {
+          "id": "w8",
+          "text": "es",
+          "start": 3.03,
+          "end": 3.11
+        },
+        {
+          "id": "w9",
+          "text": "solo",
+          "start": 3.11,
+          "end": 3.34
+        },
+        {
+          "id": "w10",
+          "text": "lo",
+          "start": 3.34,
+          "end": 3.45
+        },
+        {
+          "id": "w11",
+          "text": "que",
+          "start": 3.45,
+          "end": 3.56
+        },
+        {
+          "id": "w12",
+          "text": "pasó",
+          "start": 3.62,
+          "end": 3.85
+        },
+        {
+          "id": "w13",
+          "text": "esa",
+          "start": 3.85,
+          "end": 4.01
+        },
+        {
+          "id": "w14",
+          "text": "vez.",
+          "start": 4.01,
+          "end": 4.28
+        }
+      ]
+    },
+    {
+      "id": "l5-claude",
+      "path": "assets/voice/l5-claude.wav",
+      "duration_s": 6.594,
+      "words": [
+        {
+          "id": "w0",
+          "text": "El",
+          "start": 0.07,
+          "end": 0.13
+        },
+        {
+          "id": "w1",
+          "text": "3",
+          "start": 0.13,
+          "end": 0.33
+        },
+        {
+          "id": "w2",
+          "text": "de",
+          "start": 0.33,
+          "end": 0.46
+        },
+        {
+          "id": "w3",
+          "text": "noviembre",
+          "start": 0.46,
+          "end": 1.04
+        },
+        {
+          "id": "w4",
+          "text": "se",
+          "start": 1.04,
+          "end": 1.17
+        },
+        {
+          "id": "w5",
+          "text": "sumó",
+          "start": 1.17,
+          "end": 1.41
+        },
+        {
+          "id": "w6",
+          "text": "un",
+          "start": 1.46,
+          "end": 1.56
+        },
+        {
+          "id": "w7",
+          "text": "proveedor",
+          "start": 1.56,
+          "end": 2.14
+        },
+        {
+          "id": "w8",
+          "text": "más,",
+          "start": 2.14,
+          "end": 2.51
+        },
+        {
+          "id": "w9",
+          "text": "con",
+          "start": 2.58,
+          "end": 2.69
+        },
+        {
+          "id": "w10",
+          "text": "dos",
+          "start": 2.69,
+          "end": 2.87
+        },
+        {
+          "id": "w11",
+          "text": "cuentas",
+          "start": 2.87,
+          "end": 3.28
+        },
+        {
+          "id": "w12",
+          "text": "separadas",
+          "start": 3.28,
+          "end": 3.78
+        },
+        {
+          "id": "w13",
+          "text": "para",
+          "start": 3.86,
+          "end": 3.96
+        },
+        {
+          "id": "w14",
+          "text": "que",
+          "start": 3.96,
+          "end": 4.12
+        },
+        {
+          "id": "w15",
+          "text": "una",
+          "start": 4.12,
+          "end": 4.31
+        },
+        {
+          "id": "w16",
+          "text": "cuota",
+          "start": 4.31,
+          "end": 4.64
+        },
+        {
+          "id": "w17",
+          "text": "agotada",
+          "start": 4.71,
+          "end": 5.1
+        },
+        {
+          "id": "w18",
+          "text": "no",
+          "start": 5.1,
+          "end": 5.23
+        },
+        {
+          "id": "w19",
+          "text": "bloquea",
+          "start": 5.23,
+          "end": 5.69
+        },
+        {
+          "id": "w20",
+          "text": "la",
+          "start": 5.69,
+          "end": 5.82
+        },
+        {
+          "id": "w21",
+          "text": "otra.",
+          "start": 5.82,
+          "end": 6.29
+        }
+      ]
+    },
+    {
+      "id": "l6-claim",
+      "path": "assets/voice/l6-claim.wav",
+      "duration_s": 4.598,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Elegir",
+          "start": 0.06,
+          "end": 0.36
+        },
+        {
+          "id": "w1",
+          "text": "el",
+          "start": 0.36,
+          "end": 0.48
+        },
+        {
+          "id": "w2",
+          "text": "modelo",
+          "start": 0.48,
+          "end": 0.84
+        },
+        {
+          "id": "w3",
+          "text": "correcto",
+          "start": 0.84,
+          "end": 1.34
+        },
+        {
+          "id": "w4",
+          "text": "no",
+          "start": 1.34,
+          "end": 1.46
+        },
+        {
+          "id": "w5",
+          "text": "es",
+          "start": 1.46,
+          "end": 1.58
+        },
+        {
+          "id": "w6",
+          "text": "al",
+          "start": 1.58,
+          "end": 1.7
+        },
+        {
+          "id": "w7",
+          "text": "azar,",
+          "start": 1.7,
+          "end": 2.02
+        },
+        {
+          "id": "w8",
+          "text": "es",
+          "start": 2.35,
+          "end": 2.41
+        },
+        {
+          "id": "w9",
+          "text": "una",
+          "start": 2.41,
+          "end": 2.67
+        },
+        {
+          "id": "w10",
+          "text": "regla,",
+          "start": 2.67,
+          "end": 3.22
+        },
+        {
+          "id": "w11",
+          "text": "escrita",
+          "start": 3.22,
+          "end": 3.57
+        },
+        {
+          "id": "w12",
+          "text": "y",
+          "start": 3.57,
+          "end": 3.62
+        },
+        {
+          "id": "w13",
+          "text": "verificable.",
+          "start": 3.62,
+          "end": 4.28
+        }
+      ]
+    }
+  ],
+  "sfx": [],
+  "total_duration_s": 44.489
+}

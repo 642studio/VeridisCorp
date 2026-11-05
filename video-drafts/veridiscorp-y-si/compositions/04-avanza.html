@@ -1,0 +1,31 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace;
+      display: flex; align-items: center; justify-content: center; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #wrap { text-align: center; width: 700px; }
+    #track { position: relative; left: 60px; right: 60px; height: 8px; background: rgba(57,255,106,0.18);
+      border-radius: 4px; margin: 0 auto 28px; width: 560px; }
+    #fill { width: 0%; height: 8px; border-radius: 4px; background: #39ff6a;
+      box-shadow: 0 0 18px rgba(57,255,106,0.7); }
+    #word { font-weight: 800; font-size: 58px; color: #eafff0; opacity: 0; }
+    #word .accent { color: #39ff6a; }
+  </style>
+  <div id="root" data-composition-id="avanza" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="track"><div id="fill"></div></div>
+      <div id="word"><span class="accent">Avanza</span> sin que se pierda</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#fill", { width: "100%", duration: 0.9, ease: "power1.inOut" }, 0.1);
+    tl.fromTo("#word", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 0.4);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["avanza"] = tl;
+  </script>
+</template>

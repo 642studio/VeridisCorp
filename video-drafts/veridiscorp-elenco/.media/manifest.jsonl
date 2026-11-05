@@ -1,0 +1,11 @@
+{"id":"voice_001","type":"voice","path":"assets/voice/l1-hook.wav","source":"generated","description":"Cada perfil, listo para activarse.","duration":2.3,"provenance":{"provider":"elevenlabs","prompt":"Cada perfil, listo para activarse."}}
+{"id":"voice_002","type":"voice","path":"assets/voice/l2-robot.wav","source":"generated","description":"Detecta lo nuevo.","duration":1.3,"provenance":{"provider":"elevenlabs","prompt":"Detecta lo nuevo."}}
+{"id":"voice_003","type":"voice","path":"assets/voice/l3-pcwoman.wav","source":"generated","description":"Procesa los datos.","duration":1.3,"provenance":{"provider":"elevenlabs","prompt":"Procesa los datos."}}
+{"id":"voice_004","type":"voice","path":"assets/voice/l4-ojo.wav","source":"generated","description":"Vigila el sistema.","duration":1.4,"provenance":{"provider":"elevenlabs","prompt":"Vigila el sistema."}}
+{"id":"voice_005","type":"voice","path":"assets/voice/l5-chihuahua.wav","source":"generated","description":"Avisa a tiempo.","duration":1.3,"provenance":{"provider":"elevenlabs","prompt":"Avisa a tiempo."}}
+{"id":"voice_006","type":"voice","path":"assets/voice/l6-xbot.wav","source":"generated","description":"Conecta con el equipo.","duration":1.3,"provenance":{"provider":"elevenlabs","prompt":"Conecta con el equipo."}}
+{"id":"voice_007","type":"voice","path":"assets/voice/l7-stat.wav","source":"generated","description":"Cincuenta y seis perfiles. Veinte, con herramienta real.","duration":3.3,"provenance":{"provider":"elevenlabs","prompt":"Cincuenta y seis perfiles. Veinte, con herramienta real."}}
+{"id":"voice_008","type":"voice","path":"assets/voice/l8-claim.wav","source":"generated","description":"Un equipo. No una demo.","duration":1.6,"provenance":{"provider":"elevenlabs","prompt":"Un equipo. No una demo."}}
+{"id":"sfx_001","type":"sfx","path":"assets/sfx/beep.mp3","source":"search","description":"beep","duration":0.1,"provenance":{"provider":"openverse.audio","prompt":"beep"}}
+{"id":"sfx_002","type":"sfx","path":"assets/sfx/notification.mp3","source":"search","description":"notification","duration":0.7,"provenance":{"provider":"openverse.audio","prompt":"notification"}}
+{"id":"sfx_003","type":"sfx","path":"assets/sfx/whoosh.mp3","source":"search","description":"whoosh","duration":3.2,"provenance":{"provider":"openverse.audio","prompt":"whoosh"}}

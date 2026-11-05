@@ -1,0 +1,46 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #020805; font-family: "Space Mono", monospace; }
+    #grid { position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(90deg, rgba(57,255,106,0.06) 0 1px, transparent 1px 28px); }
+    #wrap { position: absolute; left: 90px; right: 90px; top: 760px; text-align: center; }
+    #q { font-weight: 800; font-size: 54px; line-height: 1.32; color: #eafff0; }
+    #azar { margin-top: 28px; font-weight: 700; font-size: 34px; letter-spacing: 0.02em; color: #39ff6a;
+      text-shadow: 0 0 16px rgba(57,255,106,0.6); opacity: 0.5; }
+    #glyph { position: absolute; left: 0; right: 0; top: 1280px; text-align: center; }
+    #glyph svg { width: 220px; height: 220px; }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1080" data-height="1920">
+    <div id="grid" data-layout-allow-overflow></div>
+    <div id="wrap">
+      <div id="q">¿Cómo elige VeridisCorp<br>qué modelo usa<br>en cada tarea?</div>
+      <div id="azar">Nunca al azar.</div>
+    </div>
+    <div id="glyph">
+      <svg viewBox="0 0 120 120" fill="none" stroke="#39ff6a" stroke-width="3">
+        <circle cx="60" cy="18" r="9" fill="#06140a" stroke="#39ff6a"/>
+        <circle cx="20" cy="100" r="9" fill="#06140a" stroke="#39ff6a"/>
+        <circle cx="60" cy="100" r="9" fill="#06140a" stroke="#39ff6a"/>
+        <circle cx="100" cy="100" r="9" fill="#06140a" stroke="#39ff6a"/>
+        <path id="p1" d="M60 27 L20 91" stroke-dasharray="4 4"/>
+        <path id="p2" d="M60 27 L60 91" stroke-dasharray="4 4"/>
+        <path id="p3" d="M60 27 L100 91" stroke-dasharray="4 4"/>
+      </svg>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#wrap", { opacity: 0.5, y: 10 });
+    tl.to("#wrap", { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0);
+    gsap.set("#glyph", { opacity: 0.4, scale: 0.9 });
+    tl.to("#glyph", { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }, 0.1);
+    tl.to("#azar", { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.55);
+
+    // Respiro para evitar dead_stretch mientras la voz sigue sonando.
+    tl.to("#wrap", { opacity: 0.88, duration: 0.7, repeat: 4, yoyo: true, ease: "sine.inOut" }, 1.1);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

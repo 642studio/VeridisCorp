@@ -1,0 +1,724 @@
+{
+  "tts_provider": "elevenlabs",
+  "voice_id": "SAz9YHcvj6GT2YYXdXww",
+  "bgm": null,
+  "bgm_pending": false,
+  "bgm_provider": null,
+  "bgm_pid": null,
+  "bgm_log": null,
+  "bgm_mode": null,
+  "bgm_target_duration_s": null,
+  "bgm_seed_duration_s": null,
+  "bgm_loop_count": null,
+  "voices": [
+    {
+      "id": "l1-cap1",
+      "path": "assets/voice/l1-cap1.wav",
+      "duration_s": 1.207,
+      "words": [
+        {
+          "id": "w0",
+          "text": "CAPÍTULO",
+          "start": 0.08,
+          "end": 0.71
+        },
+        {
+          "id": "w1",
+          "text": "1",
+          "start": 0.71,
+          "end": 0.87
+        }
+      ]
+    },
+    {
+      "id": "l2-docker",
+      "path": "assets/voice/l2-docker.wav",
+      "duration_s": 3.111,
+      "words": [
+        {
+          "id": "w0",
+          "text": "La",
+          "start": 0.05,
+          "end": 0.14
+        },
+        {
+          "id": "w1",
+          "text": "misma",
+          "start": 0.14,
+          "end": 0.5
+        },
+        {
+          "id": "w2",
+          "text": "imagen",
+          "start": 0.5,
+          "end": 0.91
+        },
+        {
+          "id": "w3",
+          "text": "de",
+          "start": 0.93,
+          "end": 1.06
+        },
+        {
+          "id": "w4",
+          "text": "Docker.",
+          "start": 1.12,
+          "end": 1.65
+        },
+        {
+          "id": "w5",
+          "text": "Nunca",
+          "start": 1.65,
+          "end": 1.83
+        },
+        {
+          "id": "w6",
+          "text": "se",
+          "start": 1.87,
+          "end": 1.91
+        },
+        {
+          "id": "w7",
+          "text": "cambió",
+          "start": 1.97,
+          "end": 2.22
+        },
+        {
+          "id": "w8",
+          "text": "el",
+          "start": 2.22,
+          "end": 2.31
+        },
+        {
+          "id": "w9",
+          "text": "Dockerfile.",
+          "start": 2.31,
+          "end": 2.84
+        }
+      ]
+    },
+    {
+      "id": "l3-arch",
+      "path": "assets/voice/l3-arch.wav",
+      "duration_s": 2.183,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Corre",
+          "start": 0.09,
+          "end": 0.27
+        },
+        {
+          "id": "w1",
+          "text": "igual",
+          "start": 0.27,
+          "end": 0.54
+        },
+        {
+          "id": "w2",
+          "text": "en",
+          "start": 0.54,
+          "end": 0.65
+        },
+        {
+          "id": "w3",
+          "text": "los",
+          "start": 0.65,
+          "end": 0.77
+        },
+        {
+          "id": "w4",
+          "text": "dos",
+          "start": 0.82,
+          "end": 0.92
+        },
+        {
+          "id": "w5",
+          "text": "procesadores",
+          "start": 1,
+          "end": 1.63
+        },
+        {
+          "id": "w6",
+          "text": "reales.",
+          "start": 1.63,
+          "end": 2.04
+        }
+      ]
+    },
+    {
+      "id": "l4-render",
+      "path": "assets/voice/l4-render.wav",
+      "duration_s": 4.737,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Un",
+          "start": 0.02,
+          "end": 0.16
+        },
+        {
+          "id": "w1",
+          "text": "render",
+          "start": 0.16,
+          "end": 0.63
+        },
+        {
+          "id": "w2",
+          "text": "de",
+          "start": 0.63,
+          "end": 0.8
+        },
+        {
+          "id": "w3",
+          "text": "6",
+          "start": 0.8,
+          "end": 1.04
+        },
+        {
+          "id": "w4",
+          "text": "segundos,",
+          "start": 1.04,
+          "end": 1.85
+        },
+        {
+          "id": "w5",
+          "text": "27",
+          "start": 1.85,
+          "end": 2.32
+        },
+        {
+          "id": "w6",
+          "text": "a",
+          "start": 2.32,
+          "end": 2.39
+        },
+        {
+          "id": "w7",
+          "text": "29",
+          "start": 2.39,
+          "end": 2.86
+        },
+        {
+          "id": "w8",
+          "text": "segundos",
+          "start": 2.86,
+          "end": 3.46
+        },
+        {
+          "id": "w9",
+          "text": "en",
+          "start": 3.54,
+          "end": 3.62
+        },
+        {
+          "id": "w10",
+          "text": "el",
+          "start": 3.62,
+          "end": 3.72
+        },
+        {
+          "id": "w11",
+          "text": "servidor",
+          "start": 3.72,
+          "end": 4.12
+        },
+        {
+          "id": "w12",
+          "text": "real.",
+          "start": 4.12,
+          "end": 4.4
+        }
+      ]
+    },
+    {
+      "id": "l5-antes",
+      "path": "assets/voice/l5-antes.wav",
+      "duration_s": 2.183,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Antes,",
+          "start": 0.02,
+          "end": 0.41
+        },
+        {
+          "id": "w1",
+          "text": "40",
+          "start": 0.51,
+          "end": 0.82
+        },
+        {
+          "id": "w2",
+          "text": "segundos",
+          "start": 0.83,
+          "end": 1.27
+        },
+        {
+          "id": "w3",
+          "text": "en",
+          "start": 1.41,
+          "end": 1.49
+        },
+        {
+          "id": "w4",
+          "text": "la",
+          "start": 1.49,
+          "end": 1.62
+        },
+        {
+          "id": "w5",
+          "text": "Mac.",
+          "start": 1.62,
+          "end": 1.85
+        }
+      ]
+    },
+    {
+      "id": "l6-cap2",
+      "path": "assets/voice/l6-cap2.wav",
+      "duration_s": 1.115,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Capítulo",
+          "start": 0.08,
+          "end": 0.85
+        },
+        {
+          "id": "w1",
+          "text": "2",
+          "start": 0.85,
+          "end": 1.15
+        }
+      ]
+    },
+    {
+      "id": "l7-systemd",
+      "path": "assets/voice/l7-systemd.wav",
+      "duration_s": 3.669,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Corre",
+          "start": 0.08,
+          "end": 0.31
+        },
+        {
+          "id": "w1",
+          "text": "como",
+          "start": 0.31,
+          "end": 0.58
+        },
+        {
+          "id": "w2",
+          "text": "un",
+          "start": 0.58,
+          "end": 0.69
+        },
+        {
+          "id": "w3",
+          "text": "servicio",
+          "start": 0.73,
+          "end": 1.23
+        },
+        {
+          "id": "w4",
+          "text": "real.",
+          "start": 1.23,
+          "end": 1.92
+        },
+        {
+          "id": "w5",
+          "text": "Se",
+          "start": 1.98,
+          "end": 2.05
+        },
+        {
+          "id": "w6",
+          "text": "reinicia",
+          "start": 2.05,
+          "end": 2.54
+        },
+        {
+          "id": "w7",
+          "text": "solo,",
+          "start": 2.58,
+          "end": 2.94
+        },
+        {
+          "id": "w8",
+          "text": "siempre.",
+          "start": 2.94,
+          "end": 3.46
+        }
+      ]
+    },
+    {
+      "id": "l8-activo",
+      "path": "assets/voice/l8-activo.wav",
+      "duration_s": 2.136,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Ya",
+          "start": 0.03,
+          "end": 0.11
+        },
+        {
+          "id": "w1",
+          "text": "estaba",
+          "start": 0.11,
+          "end": 0.44
+        },
+        {
+          "id": "w2",
+          "text": "activo",
+          "start": 0.44,
+          "end": 0.76
+        },
+        {
+          "id": "w3",
+          "text": "antes",
+          "start": 0.76,
+          "end": 1.03
+        },
+        {
+          "id": "w4",
+          "text": "de",
+          "start": 1.03,
+          "end": 1.14
+        },
+        {
+          "id": "w5",
+          "text": "esta",
+          "start": 1.14,
+          "end": 1.33
+        },
+        {
+          "id": "w6",
+          "text": "sesión.",
+          "start": 1.39,
+          "end": 1.83
+        }
+      ]
+    },
+    {
+      "id": "l9-puerto",
+      "path": "assets/voice/l9-puerto.wav",
+      "duration_s": 3.622,
+      "words": [
+        {
+          "id": "w0",
+          "text": "El",
+          "start": 0.05,
+          "end": 0.11
+        },
+        {
+          "id": "w1",
+          "text": "puerto",
+          "start": 0.11,
+          "end": 0.44
+        },
+        {
+          "id": "w2",
+          "text": "volvió",
+          "start": 0.44,
+          "end": 0.76
+        },
+        {
+          "id": "w3",
+          "text": "a",
+          "start": 0.76,
+          "end": 0.8
+        },
+        {
+          "id": "w4",
+          "text": "responder.",
+          "start": 0.81,
+          "end": 1.52
+        },
+        {
+          "id": "w5",
+          "text": "Nunca",
+          "start": 1.62,
+          "end": 1.83
+        },
+        {
+          "id": "w6",
+          "text": "se",
+          "start": 1.83,
+          "end": 1.96
+        },
+        {
+          "id": "w7",
+          "text": "asumió.",
+          "start": 1.96,
+          "end": 2.35
+        },
+        {
+          "id": "w8",
+          "text": "Se",
+          "start": 2.71,
+          "end": 2.72
+        },
+        {
+          "id": "w9",
+          "text": "verificó.",
+          "start": 2.72,
+          "end": 3.36
+        }
+      ]
+    },
+    {
+      "id": "l10-cap3",
+      "path": "assets/voice/l10-cap3.wav",
+      "duration_s": 1.207,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Capítulo",
+          "start": 0.08,
+          "end": 0.84
+        },
+        {
+          "id": "w1",
+          "text": "3",
+          "start": 1.15,
+          "end": 1.2
+        }
+      ]
+    },
+    {
+      "id": "l11-migracion",
+      "path": "assets/voice/l11-migracion.wav",
+      "duration_s": 2.276,
+      "words": [
+        {
+          "id": "w0",
+          "text": "La",
+          "start": 0.05,
+          "end": 0.11
+        },
+        {
+          "id": "w1",
+          "text": "migración",
+          "start": 0.11,
+          "end": 0.63
+        },
+        {
+          "id": "w2",
+          "text": "se",
+          "start": 0.63,
+          "end": 0.74
+        },
+        {
+          "id": "w3",
+          "text": "aplicó",
+          "start": 0.74,
+          "end": 1.08
+        },
+        {
+          "id": "w4",
+          "text": "sobre",
+          "start": 1.08,
+          "end": 1.37
+        },
+        {
+          "id": "w5",
+          "text": "la",
+          "start": 1.37,
+          "end": 1.48
+        },
+        {
+          "id": "w6",
+          "text": "base",
+          "start": 1.48,
+          "end": 1.71
+        },
+        {
+          "id": "w7",
+          "text": "real.",
+          "start": 1.71,
+          "end": 2
+        }
+      ]
+    },
+    {
+      "id": "l12-datos",
+      "path": "assets/voice/l12-datos.wav",
+      "duration_s": 2.043,
+      "words": [
+        {
+          "id": "w0",
+          "text": "sin",
+          "start": 0.11,
+          "end": 0.19
+        },
+        {
+          "id": "w1",
+          "text": "afectar",
+          "start": 0.19,
+          "end": 0.62
+        },
+        {
+          "id": "w2",
+          "text": "los",
+          "start": 0.62,
+          "end": 0.81
+        },
+        {
+          "id": "w3",
+          "text": "datos",
+          "start": 0.81,
+          "end": 1.12
+        },
+        {
+          "id": "w4",
+          "text": "existentes.",
+          "start": 1.12,
+          "end": 1.8
+        }
+      ]
+    },
+    {
+      "id": "l13-ffprobe",
+      "path": "assets/voice/l13-ffprobe.wav",
+      "duration_s": 3.158,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Cada",
+          "start": 0.09,
+          "end": 0.25
+        },
+        {
+          "id": "w1",
+          "text": "video",
+          "start": 0.25,
+          "end": 0.56
+        },
+        {
+          "id": "w2",
+          "text": "verificado",
+          "start": 0.56,
+          "end": 1.12
+        },
+        {
+          "id": "w3",
+          "text": "por",
+          "start": 1.19,
+          "end": 1.38
+        },
+        {
+          "id": "w4",
+          "text": "fuera.",
+          "start": 1.38,
+          "end": 1.9
+        },
+        {
+          "id": "w5",
+          "text": "Nunca",
+          "start": 1.9,
+          "end": 2.18
+        },
+        {
+          "id": "w6",
+          "text": "solo",
+          "start": 2.2,
+          "end": 2.38
+        },
+        {
+          "id": "w7",
+          "text": "confianza.",
+          "start": 2.44,
+          "end": 3
+        }
+      ]
+    },
+    {
+      "id": "l14-claim",
+      "path": "assets/voice/l14-claim.wav",
+      "duration_s": 2.601,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Oficina",
+          "start": 0.04,
+          "end": 0.49
+        },
+        {
+          "id": "w1",
+          "text": "Real,",
+          "start": 0.49,
+          "end": 0.92
+        },
+        {
+          "id": "w2",
+          "text": "verificada",
+          "start": 1.09,
+          "end": 1.62
+        },
+        {
+          "id": "w3",
+          "text": "no",
+          "start": 1.62,
+          "end": 1.76
+        },
+        {
+          "id": "w4",
+          "text": "asumida.",
+          "start": 1.76,
+          "end": 2.32
+        }
+      ]
+    }
+  ],
+  "sfx": [
+    {
+      "id": "l2-docker",
+      "name": "click",
+      "file": "assets/sfx/click.mp3",
+      "source": "openverse",
+      "duration_s": 2.31,
+      "license": "cc0",
+      "credit": "\"Mouse click sounds\" by Masgame is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l4-render",
+      "name": "beep",
+      "file": "assets/sfx/beep.mp3",
+      "source": "openverse",
+      "duration_s": 0.12,
+      "license": "cc0",
+      "credit": "\"Outtake Beep-1k.wav\" by slappy13 is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l9-puerto",
+      "name": "notification",
+      "file": "assets/sfx/notification.mp3",
+      "source": "openverse",
+      "duration_s": 0.689,
+      "license": "cc0",
+      "credit": "\"Notification Sound\" by yfjesse is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "l13-ffprobe",
+      "name": "chime",
+      "file": "assets/sfx/chime.mp3",
+      "source": "openverse",
+      "duration_s": 0.323,
+      "license": "cc0",
+      "credit": "\"Chime Notification\" by Jofae is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    }
+  ],
+  "total_duration_s": 35.248
+}

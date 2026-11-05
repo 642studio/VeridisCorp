@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #020805; --fg: #39ff6a; --muted: #1f8a46; --border: #1f8a46;
+        --surface: #06140a; --brand: #39ff6a; --font-mono: "Space Mono", monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #020805; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Video 4 del plan de 5: formato más largo, por capítulos (3), para
+      probar si el ritmo de 2-4s/corte aguanta a mayor escala (47.4s, 15
+      escenas, vs. ~24-38s de los videos 1 y 2). Verde CRT (no es el
+      dispositivo o la paleta lo que se prueba aquí, es la duración).
+    -->
+    <div id="root" data-composition-id="oficina-real" data-start="0" data-duration="47.4"
+         data-width="1080" data-height="1920">
+
+      <div id="s-cap1" data-composition-id="cap1" data-composition-src="compositions/01-cap1.html"
+           data-start="0" data-duration="1.8" data-track-index="1"></div>
+      <div id="s-docker" data-composition-id="docker" data-composition-src="compositions/02-docker.html"
+           data-start="1.8" data-duration="3.7" data-track-index="1"></div>
+      <div id="s-arch" data-composition-id="arch" data-composition-src="compositions/03-arch.html"
+           data-start="5.5" data-duration="2.8" data-track-index="1"></div>
+      <div id="s-render" data-composition-id="render" data-composition-src="compositions/04-render.html"
+           data-start="8.3" data-duration="5.3" data-track-index="1"></div>
+      <div id="s-antes" data-composition-id="antes-mac" data-composition-src="compositions/05-antes.html"
+           data-start="13.6" data-duration="2.8" data-track-index="1"></div>
+      <div id="s-cap2" data-composition-id="cap2" data-composition-src="compositions/06-cap2.html"
+           data-start="16.4" data-duration="1.7" data-track-index="1"></div>
+      <div id="s-systemd" data-composition-id="systemd" data-composition-src="compositions/07-systemd.html"
+           data-start="18.1" data-duration="4.3" data-track-index="1"></div>
+      <div id="s-activo" data-composition-id="activo" data-composition-src="compositions/08-activo.html"
+           data-start="22.4" data-duration="2.7" data-track-index="1"></div>
+      <div id="s-puerto" data-composition-id="puerto" data-composition-src="compositions/09-puerto.html"
+           data-start="25.1" data-duration="4.2" data-track-index="1"></div>
+      <div id="s-cap3" data-composition-id="cap3" data-composition-src="compositions/10-cap3.html"
+           data-start="29.3" data-duration="1.8" data-track-index="1"></div>
+      <div id="s-migracion" data-composition-id="migracion" data-composition-src="compositions/11-migracion.html"
+           data-start="31.1" data-duration="2.9" data-track-index="1"></div>
+      <div id="s-datos" data-composition-id="datos" data-composition-src="compositions/12-datos.html"
+           data-start="34" data-duration="2.6" data-track-index="1"></div>
+      <div id="s-ffprobe" data-composition-id="ffprobe" data-composition-src="compositions/13-ffprobe.html"
+           data-start="36.6" data-duration="3.8" data-track-index="1"></div>
+      <div id="s-claim" data-composition-id="claim" data-composition-src="compositions/14-claim.html"
+           data-start="40.4" data-duration="3.3" data-track-index="1"></div>
+      <div id="s-endcard" data-composition-id="endcard" data-composition-src="compositions/15-endcard.html"
+           data-start="43.7" data-duration="3.7" data-track-index="1"></div>
+
+      <!-- Voz (ElevenLabs, ES) -->
+      <audio id="voice-l1" class="clip" src="assets/voice/l1-cap1.wav"
+             data-start="0.3" data-duration="1.207" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l2" class="clip" src="assets/voice/l2-docker.wav"
+             data-start="2" data-duration="3.111" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l3" class="clip" src="assets/voice/l3-arch.wav"
+             data-start="5.7" data-duration="2.183" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l4" class="clip" src="assets/voice/l4-render.wav"
+             data-start="8.5" data-duration="4.737" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l5" class="clip" src="assets/voice/l5-antes.wav"
+             data-start="13.8" data-duration="2.183" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l6" class="clip" src="assets/voice/l6-cap2.wav"
+             data-start="16.7" data-duration="1.115" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l7" class="clip" src="assets/voice/l7-systemd.wav"
+             data-start="18.3" data-duration="3.669" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l8" class="clip" src="assets/voice/l8-activo.wav"
+             data-start="22.6" data-duration="2.136" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l9" class="clip" src="assets/voice/l9-puerto.wav"
+             data-start="25.3" data-duration="3.622" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l10" class="clip" src="assets/voice/l10-cap3.wav"
+             data-start="29.6" data-duration="1.207" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l11" class="clip" src="assets/voice/l11-migracion.wav"
+             data-start="31.3" data-duration="2.276" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l12" class="clip" src="assets/voice/l12-datos.wav"
+             data-start="34.2" data-duration="2.043" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l13" class="clip" src="assets/voice/l13-ffprobe.wav"
+             data-start="36.8" data-duration="3.158" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l14" class="clip" src="assets/voice/l14-claim.wav"
+             data-start="40.6" data-duration="2.601" data-track-index="5" data-volume="1"></audio>
+      <audio id="voice-l15" class="clip" src="assets/voice/l15-cta.wav"
+             data-start="44.1" data-duration="2.136" data-track-index="5" data-volume="1"></audio>
+
+      <!-- SFX -->
+      <audio id="sfx-click" class="clip" src="assets/sfx/click.mp3"
+             data-start="2" data-duration="2.3" data-track-index="6" data-volume="0.3"></audio>
+      <audio id="sfx-beep" class="clip" src="assets/sfx/beep.mp3"
+             data-start="8.6" data-duration="0.12" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-notify" class="clip" src="assets/sfx/notification.mp3"
+             data-start="25.3" data-duration="0.689" data-track-index="6" data-volume="0.35"></audio>
+      <audio id="sfx-chime" class="clip" src="assets/sfx/chime.mp3"
+             data-start="36.8" data-duration="0.323" data-track-index="6" data-volume="0.35"></audio>
+
+      <!-- Música (reusa el track de SunoAPI generado antes, 65.6s > 47.4s) -->
+      <audio id="bgm-1" class="clip" src="assets/bgm/track.mp3"
+             data-start="0" data-duration="47.4" data-track-index="7" data-volume="0.45"
+             data-fade-out="1.5"></audio>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["oficina-real"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
