@@ -34,7 +34,7 @@ type TelegramUpdate = {
   message?: { chat: { id: number }; from?: { id: number; username?: string }; text?: string };
 };
 
-async function callTelegram(botToken: string, method: string, body: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+export async function callTelegram(botToken: string, method: string, body: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
   const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
@@ -47,7 +47,7 @@ async function callTelegram(botToken: string, method: string, body: Record<strin
 // state.order llega tipado como unknown desde OfficeRuntime.shape() (mismo patrón de cast local
 // que ya usa office-runtime.ts, en vez de acoplar este puente al tipo exacto de WorkOrder).
 type OrderShape = { status: string; tasks: { status: string; submission?: { summary: string } }[]; pauseReason?: string };
-function summarizeOrder(detail: { order: unknown; pendingQuestion: string | null }): string {
+export function summarizeOrder(detail: { order: unknown; pendingQuestion: string | null }): string {
   if (detail.pendingQuestion) return `❓ ${detail.pendingQuestion}`;
   const order = detail.order as OrderShape;
   if (order.status === 'completed') {

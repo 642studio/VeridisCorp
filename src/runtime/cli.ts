@@ -24,7 +24,8 @@ import { AccessScope, Principal, Operation } from '../governance/contracts.js';
 import { MemoryStore, companyMemoryScope } from './memory-store.js';
 import { createEmbedder, embeddingProfileFromEnv } from './embeddings.js';
 import { exportAllValidatedToVault, vaultPathFromEnv } from './memory-export.js';
-import { startTelegramBridge, telegramConfigFromEnv } from './telegram.js';
+import { startTelegramBridge, telegramConfigFromEnv, callTelegram, summarizeOrder, type TelegramConfig } from './telegram.js';
+import type { FireNotification } from './scheduler.js';
 
 // Un solo cliente OAuth2, un solo listener de autorización, un solo refresh token guardado
 // (gmail_accounts — el nombre quedó corto a propósito: ya hay una fila real autorizada y
@@ -201,6 +202,21 @@ async function loadMetaClient(pool: Pool): Promise<void> {
  configureMeta({ pageId: row.rows[0].page_id as string, pageAccessToken, igUserId: (row.rows[0].ig_user_id as string | null) ?? null });
 }
 
+// El puente de Telegram (telegram.ts) solo contesta mensajes entrantes; una rutina programada
+// termina sin que nadie esté escribiéndole al bot. Reutiliza exactamente el mismo `callTelegram`
+// y `summarizeOrder` que ya usa ese puente — nunca una segunda lógica de formateo — y avisa a
+// todos los chats autorizados, no solo al que preguntó por última vez (ninguno pidió esta rutina).
+function notifyTelegramOfFire(config: TelegramConfig): (n: FireNotification) => void {
+ return (n) => {
+  const text = n.detail ? summarizeOrder(n.detail) : '⚠️ La rutina programada falló antes de poder abrir expediente; revisa los logs.';
+  const full = n.disabled ? `${text}\n\n🛑 Esta rutina se desactivó tras fallos consecutivos — hay que revisarla antes de reactivarla.` : text;
+  for (const chatId of config.allowedChatIds) {
+   callTelegram(config.botToken, 'sendMessage', { chat_id: chatId, text: full }, 15000)
+    .catch((error) => process.stderr.write(`Telegram: fallo avisando el resultado de la rutina ${n.scheduleId}: ${error instanceof Error ? error.message : error}\n`));
+  }
+ };
+}
+
 async function main() {
  const [command, configFile, tokenFile] = process.argv.slice(2);
  if (!process.env.DATABASE_URL) throw new Error('Falta DATABASE_URL');
@@ -233,6 +249,9 @@ async function main() {
   // llamadas reales (tope de turnos siempre; presupuesto en dinero por expediente solo con
   // VERIDIS_OFFICE_MAX_COST_MICROS, que además exige precios en VERIDIS_PRICES_FILE).
   let office: OfficeRuntime | undefined;
+  // Declarado aquí (no dentro del bloque de abajo) para que el scheduler, más adelante, pueda
+  // avisar por el mismo canal sin levantar un segundo puente ni duplicar config de Telegram.
+  let telegramConfig: TelegramConfig | null = null;
   if (process.env.VERIDIS_OFFICE_ENABLED === 'true') {
    // Mismo criterio que Gmail: no bloquea el arranque si el proveedor de embeddings no responde;
    // memory_write/memory_query (herramientas) y /office/memory (endpoint humano) simplemente
@@ -253,7 +272,7 @@ async function main() {
    configureMcp(mcpStore, serviceScope);
    // Repos git que los puestos de software pueden leer (solo lectura): VERIDIS_REPOS="nombre=/ruta,...".
    configureRepos(parseRepos(process.env.VERIDIS_REPOS));
-   const telegramConfig = telegramConfigFromEnv(serviceScope);
+   telegramConfig = telegramConfigFromEnv(serviceScope);
    if (telegramConfig) startTelegramBridge(office, telegramConfig);
   }
   await loadGmailClient(pool);
@@ -265,6 +284,7 @@ async function main() {
   if (office && process.env.VERIDIS_SCHEDULER_ENABLED === 'true') {
    scheduler = new Scheduler(pool, office, {
     maxPerHour: z.coerce.number().int().positive().parse(process.env.VERIDIS_SCHEDULER_MAX_PER_HOUR ?? '10'),
+    notify: telegramConfig ? notifyTelegramOfFire(telegramConfig) : undefined,
    });
    await scheduler.start();
   }

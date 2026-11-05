@@ -6,6 +6,15 @@ import type { OfficeRuntime } from './office-runtime.js';
 
 export type FireResult = 'fired' | 'skipped-overlap' | 'skipped-rate-limit' | 'skipped-disabled' | 'failed';
 
+// Lo que le llega a un oyente (hoy: el puente de Telegram) cuando una rutina programada termina
+// de verdad — nunca por un solapamiento o un límite de tasa, que no dicen nada sobre el trabajo.
+// `detail` tiene la misma forma que ya consume `summarizeOrder` de telegram.ts; viene en `null`
+// solo cuando `office.startScheduled` lanzó antes de poder crear ese resultado.
+export type FireNotification = {
+ scheduleId: string; outcome: 'completed' | 'paused' | 'active' | 'error';
+ detail: { order: unknown; pendingQuestion: string | null } | null; disabled: boolean;
+};
+
 const DEFAULT_MAX_PER_HOUR = 10;
 const DEFAULT_FAILURE_THRESHOLD = 3;
 
@@ -15,7 +24,7 @@ const DEFAULT_FAILURE_THRESHOLD = 3;
 // lo que de verdad hay en la base, sin importar cuántas veces se haya disparado antes.
 export async function fireOnce(
  pool: Pool, office: OfficeRuntime, scheduleId: string,
- options: { maxPerHour?: number; failureThreshold?: number } = {},
+ options: { maxPerHour?: number; failureThreshold?: number; notify?: (n: FireNotification) => void } = {},
 ): Promise<FireResult> {
  const orderId = randomUUID();
  // Reclamo atómico: esto es lo único que de verdad evita que dos disparos se encimen si el
@@ -44,8 +53,10 @@ export async function fireOnce(
 
  const scope = AccessScope.parse(row.scope);
  let outcome: 'completed' | 'paused' | 'active' | 'error';
+ let detail: FireNotification['detail'] = null;
  try {
   const result = await office.startScheduled(scope, row.objective_template, scheduleId, orderId);
+  detail = result;
   const status = (result.order as { status: string }).status;
   outcome = status === 'completed' ? 'completed' : status === 'paused' ? 'paused' : 'active';
  } catch {
@@ -65,6 +76,7 @@ export async function fireOnce(
    WHERE id=$1`,
   [scheduleId, orderId, nextFailures, disable],
  );
+ options.notify?.({ scheduleId, outcome, detail, disabled: disable });
  return outcome === 'error' ? 'failed' : disable ? 'skipped-disabled' : 'fired';
 }
 
@@ -78,7 +90,7 @@ export class Scheduler {
  private jobs = new Map<string, Cron>();
  constructor(
   private readonly pool: Pool, private readonly office: OfficeRuntime,
-  private readonly options: { maxPerHour?: number; failureThreshold?: number } = {},
+  private readonly options: { maxPerHour?: number; failureThreshold?: number; notify?: (n: FireNotification) => void } = {},
  ) {}
 
  async start() {
