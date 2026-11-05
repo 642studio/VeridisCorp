@@ -17,6 +17,7 @@ import { Defaults } from './contracts.js';
 import { createOfficeIntelligence } from '../office/intelligence.js';
 import { configureGmail, configureMeta, configureMemory, configureMediaLibrary } from '../office/tools.js';
 import { configureRepos, parseRepos } from '../office/repo-tools.js';
+import { configureCoreDb } from '../office/core-tools.js';
 import { configureMcp } from '../office/mcp-tools.js';
 import { McpStore } from './mcp-store.js';
 import { officeRegistry } from '../office/registry.js';
@@ -272,6 +273,14 @@ async function main() {
    configureMcp(mcpStore, serviceScope);
    // Repos git que los puestos de software pueden leer (solo lectura): VERIDIS_REPOS="nombre=/ruta,...".
    configureRepos(parseRepos(process.env.VERIDIS_REPOS));
+   // CRM de 642CORE (solo lectura): sin CORE_DATABASE_URL, core.read falla en su primera llamada
+   // real — mismo criterio que Gmail/MCP, nunca bloquea el arranque. El rol de la cadena de
+   // conexión debe ser de solo lectura (ver docs/sql/core_readonly_role.sql), nunca el service role.
+   if (process.env.CORE_DATABASE_URL) {
+    configureCoreDb(new Pool({
+     connectionString: process.env.CORE_DATABASE_URL, max: 3, connectionTimeoutMillis: 5000, statement_timeout: 5000,
+    }));
+   }
    telegramConfig = telegramConfigFromEnv(serviceScope);
    if (telegramConfig) startTelegramBridge(office, telegramConfig);
   }

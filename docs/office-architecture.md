@@ -80,6 +80,19 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
   - git corre con `execFile`, sin shell, con referencias y rutas validadas, y sin textconv ni ext-diff.
   - Nunca escribe, ni hace fetch, checkout o push.
   - Solo lee archivos versionados: un `.env` o una llave ignorados no existen para el agente.
+- `core.read` (ceo, cmo, cm, pm, data-analyst): lectura del CRM de 642CORE — hoy Supabase en la
+  nube, en el futuro puede ser el Postgres local de la oficina sin que el agente note la
+  diferencia (`src/office/core-tools.ts`, `CORE_DATABASE_URL`). Herramientas: `crm_list_clients`,
+  `crm_get_client` (cliente + contactos + marcas de lealtad + paquetes + estado VMI) y
+  `crm_search_contacts`.
+  - Solo lectura: ningún INSERT/UPDATE/DELETE en el código, y además la cadena de conexión debe
+    usar un rol de Postgres con `GRANT SELECT` únicamente en `clients`, `client_contacts`,
+    `client_brands`, `client_memberships`, `client_packages` y `client_vmi_states` — nunca el
+    service role de Supabase (ver `docs/sql/core_readonly_role.sql`).
+  - Tablas y columnas fijas en el código (nunca una lista que llegue del modelo) como segunda
+    barrera si ese rol se amplía por error; SQL siempre parametrizado, nunca una cadena que
+    arme el modelo.
+  - Salida acotada a 50 filas por llamada y recortada con el mismo `clip()` que usa `repo.read`.
 - Knowledge de puesto: documentos de `agents/<id>/knowledge/` declarados en `config.json` (máx. 10 y 64 KB por
   puesto). Van completos en el prompt de cada llamada, como datos. Hoy 55 de 56 puestos tienen
   (103 documentos adaptados de bibliotecas con licencia que lo permite; ver `docs/third-party-notices.md`

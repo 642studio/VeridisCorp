@@ -7,7 +7,8 @@
     "department.plan"
   ],
   "allowedTools": [
-    "clickup.read"
+    "clickup.read",
+    "core.read"
   ],
   "organization": {
     "title": "ProjectManager",

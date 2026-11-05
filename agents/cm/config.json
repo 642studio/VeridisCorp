@@ -6,7 +6,9 @@
     "community.plan",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "core.read"
+  ],
   "organization": {
     "title": "CommunityManager",
     "departmentId": "marketing",

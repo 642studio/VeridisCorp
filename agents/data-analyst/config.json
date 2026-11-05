@@ -9,7 +9,8 @@
     "calculator",
     "pdf.generate",
     "drive.upload",
-    "sheets.create"
+    "sheets.create",
+    "core.read"
   ],
   "organization": {
     "title": "Analítica de negocio",

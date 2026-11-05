@@ -45,7 +45,7 @@ export function redactSecrets(text: string): string {
     // Contraseña dentro de una URL de conexión (postgres://usuario:clave@host): se conserva el resto.
     .replace(/([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)[^@\s]+@/gi, '$1[OCULTO]@');
 }
-function clip(text: string, max = MAX_OUTPUT): string {
+export function clip(text: string, max = MAX_OUTPUT): string {
   const safe = redactSecrets(text);
   return safe.length > max ? `${safe.slice(0, max)}\n… [recortado: ${safe.length - max} caracteres más]` : safe;
 }

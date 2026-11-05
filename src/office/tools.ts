@@ -15,6 +15,7 @@ import type { MemoryQueryResult } from '../runtime/memory-store.js';
 import { synthesizeElevenLabsForTool } from '../runtime/elevenlabs-proxy.js';
 import { generateMusic } from '../runtime/sunoapi-proxy.js';
 import { REPO_TOOLS } from './repo-tools.js';
+import { CORE_TOOLS } from './core-tools.js';
 import { MCP_TOOLS } from './mcp-tools.js';
 
 // Catálogo de herramientas reales que un agente puede usar durante execute(), siempre acotado
@@ -1178,6 +1179,7 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInter
   'social.publish_facebook': facebookPublishTool,
   'social.publish_instagram': instagramPublishTool,
   'repo.read': REPO_TOOLS,
+  'core.read': CORE_TOOLS,
   ...MCP_TOOLS,
 };
 

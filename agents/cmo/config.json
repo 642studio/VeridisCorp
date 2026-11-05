@@ -6,7 +6,9 @@
     "marketing.strategy",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "core.read"
+  ],
   "organization": {
     "title": "DireccionMarketing",
     "departmentId": "marketing",
