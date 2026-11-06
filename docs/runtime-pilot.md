@@ -1,5 +1,9 @@
 # Ruta vertical gobernada de contenido
 
+> Estado del servidor actualizado el 2026-11-05: ver [operación y Core](operacion-core-2026-11-05.md).
+> El login TOTP, Cloudflare Access, systemd y el rol local sin DDL ya están activos. Las secciones
+> de evaluación original se conservan como historia, no como checklist vigente del despliegue.
+
 Fecha: 2026-10-22. Fase: Arranque. Esta entrega conecta gobierno, LangGraph, API HTTP y PostgreSQL en un proceso acotado de generación y entrega de contenido. La regla de ingeniería es: un componente se considera operativo únicamente en las rutas donde tiene integración y pruebas de autorización, persistencia, recuperación y fallo. Un contrato disponible no implica protección del resto del sistema.
 
 ## Recorrido implementado

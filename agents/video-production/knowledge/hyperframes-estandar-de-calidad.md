@@ -1,3 +1,5 @@
+> Escrito para VeridisCorp a partir de incidencias observadas en sus proyectos de video.
+
 # Estándar de calidad para clips de VeridisCorp
 
 Nivel de detalle exigido antes de llamar "listo" a cualquier draft de HyperFrames. Cada regla de

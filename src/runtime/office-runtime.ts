@@ -141,7 +141,13 @@ export class OfficeRuntime {
  ) {
   this.saver = new PostgresSaver(pool);
  }
- async setup() { await this.saver.setup(); }
+ async setup(options: { migrate?: boolean } = {}) {
+  if (options.migrate !== false) { await this.saver.setup(); return; }
+  // Producción usa un rol sin DDL. Las tablas se preparan con runtime:db y el rol dueño.
+  await this.pool.query('SELECT 1 FROM public.checkpoints LIMIT 0');
+  await this.pool.query('SELECT 1 FROM public.checkpoint_blobs LIMIT 0');
+  await this.pool.query('SELECT 1 FROM public.checkpoint_writes LIMIT 0');
+ }
  private graph() {
   const { maxCostMicros: _perOrder, ...workflowOptions } = this.options;
   return createOfficeWorkflow(this.intelligence, officeRegistry, this.saver, workflowOptions);
@@ -607,7 +613,7 @@ export class OfficeRuntime {
   );
   await this.audit(this.pool, auth, null, 'assistant.answered', { messageId: id, threadId, mode, memoryIds: usedIds,
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null, costMicros: price.costMicros, latencyMs });
-  return { id, threadId, question: input.question, answer: reply.answer, mode, objective, memories: used,
+  return { id, threadId, question: input.question, answer: reply.answer, mode, objective, memories: used, scene: reply.scene,
    inputTokens: counted?.inputTokens ?? null, outputTokens: counted?.outputTokens ?? null,
    costMicros: price.costMicros, costStatus: price.costStatus, latencyMs, createdAt: row.rows[0]!.created_at };
  }

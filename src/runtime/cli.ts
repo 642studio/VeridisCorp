@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import { migrate, provisionSession } from './database.js';
@@ -267,7 +268,7 @@ async function main() {
     maxCostMicros: process.env.VERIDIS_OFFICE_MAX_COST_MICROS
      ? z.coerce.number().int().positive().safe().parse(process.env.VERIDIS_OFFICE_MAX_COST_MICROS) : null,
    }, memoryStore, vaultPathFromEnv(), mcpStore);
-   await office.setup();
+   await office.setup({ migrate: process.env.VERIDIS_CHECKPOINT_SETUP_ON_START !== 'false' });
    const serviceScope = companyMemoryScope();
    configureMemory(memoryStore, serviceScope);
    configureMcp(mcpStore, serviceScope);
@@ -313,7 +314,7 @@ async function main() {
   return;
  }
  try {
-  if (command === 'migrate') { await migrate(pool); return; }
+  if (command === 'migrate') { await migrate(pool); await new PostgresSaver(pool).setup(); return; }
   if (command === 'gmail-authorize') { await gmailAuthorize(pool); return; }
   if (command === 'meta-authorize') { await metaAuthorize(pool); return; }
   if (command === 'export-memory') {

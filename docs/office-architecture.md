@@ -1,5 +1,10 @@
 # Arquitectura de la oficina Veridis
 
+> Actualización operativa 2026-11-05: catálogo actual de 57 perfiles. `core.read` incluye
+> `crm_inspect_workspace`; `core.write` incluye edición acotada por la API local de Core.
+> Consulta [operación y límites actuales](operacion-core-2026-11-05.md) antes de usar los conteos
+> o pendientes históricos de este documento. La revisión nunca reejecuta escrituras de Core.
+
 Fecha original: 2026-10-22. Actualizado: 2026-10-24. Fase: Arranque. Este documento explica el
 protocolo y los mecanismos del motor — **quién decide, cómo pasa el turno de un agente a otro,
 qué puede hacer cada uno de verdad**. Para el contrato HTTP, la autenticación y el detalle de

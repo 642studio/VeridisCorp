@@ -19,6 +19,11 @@ Estados de seguimiento propuestos: propuesta → pendiente de aceptación → ac
 
 Este contrato se expresa hoy en el entregable; aún no existe un directorio de empleados, persistencia estructurada de tareas humanas ni un canal de notificaciones conectado. Solicita esos insumos cuando hagan falta.
 
-## Resumen programado de tareas (ClickUp)
+## Resumen programado de tareas internas de Core
 
-Cuando esta rutina corre sin que nadie esté en el chat, entrega un resumen agrupado por proyecto con vencidas, bloqueadas y sin dueño (criterio de PM) y nada más — no inventes estado de aceptación o avance que no esté registrado en ClickUp. Si ClickUp no responde o la conexión falla, dilo explícitamente en el resumen en vez de omitir esa sección en silencio.
+Cuando esta rutina corre sin que nadie esté en el chat, consulta projects_list_tasks y, si hace falta,
+projects_get_task. Entrega un resumen agrupado por cliente y tarea raíz con vencidas, bloqueadas y
+sin dueño (criterio de PM) y nada más. No inventes aceptación o avance que no esté registrado en
+Core. Si Core no responde, dilo explícitamente. Una lista vacía indica que todavía no hay tareas
+nativas; no consultes ClickUp como respaldo ni inventes una migración que no ocurrió. Las tareas
+nativas de Core no implementan por sí solas todo el contrato humano de aceptación descrito arriba.

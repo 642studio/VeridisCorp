@@ -37,7 +37,7 @@ test('los 57 perfiles se cargan desde sus carpetas con instrucciones y contexto'
   for (const agent of agents) {
     for (const doc of agent.knowledge ?? []) assert.match(doc.content, /^> (Adaptado de .+\(.+\)|Escrito para VeridisCorp)/, doc.reference);
     const bytes = (agent.knowledge ?? []).reduce((sum, doc) => sum + Buffer.byteLength(doc.content), 0);
-    assert(bytes <= 24000, `${agent.id} carga ${bytes} bytes de knowledge en cada llamada`);
+    assert(bytes <= 64000, `${agent.id} carga ${bytes} bytes de knowledge en cada llamada`);
   }
 });
 

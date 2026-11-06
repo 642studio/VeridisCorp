@@ -1,5 +1,9 @@
 # Documento maestro — VeridisCorp
 
+> Actualización 2026-11-05: este documento sintetiza un commit anterior. El catálogo actual
+> tiene 57 perfiles. El despliegue, reparaciones, permisos locales e integración con Core
+> verificados están en [operacion-core-2026-11-05.md](operacion-core-2026-11-05.md).
+
 Fecha de elaboración: 2026-11-03. Fuente: lectura completa del repositorio `VeridisCorp/` (código,
 `docs/`, `agents/`, `config/`, `test/`, `web/`) en el estado del commit `46ab759`. Este documento es
 una síntesis de referencia, no una fuente nueva de verdad — ante cualquier contradicción, manda el

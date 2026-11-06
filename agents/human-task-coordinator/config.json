@@ -6,7 +6,7 @@
     "projects.human-tasks"
   ],
   "allowedTools": [
-    "clickup.read",
+    "projects.read",
     "mcp.use"
   ],
   "organization": {

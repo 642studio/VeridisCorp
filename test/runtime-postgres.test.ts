@@ -17,6 +17,7 @@ import { executor, orchestrator, reviewer, worker, Defaults } from '../src/runti
 import type { AccessScope, Principal } from '../src/governance/contracts.js';
 import type { ModelGateway, DeliveryConnector } from '../src/runtime/providers.js';
 import { AssistantReply, type OfficeIntelligence } from '../src/office/runtime-contracts.js';
+import { officeRegistry } from '../src/office/registry.js';
 import { persistGeneratedPdf } from '../src/office/intelligence.js';
 import { MemoryStore } from '../src/runtime/memory-store.js';
 import { MEMORY_EMBEDDING_DIMENSIONS, type Embedder } from '../src/runtime/embeddings.js';
@@ -200,8 +201,8 @@ test('ruta vertical autenticada y persistente sobre PostgreSQL real', { skip: !c
    assert.equal(response.data.organization.executiveAgentId, 'ceo');
    const content = response.data.agents.find((a: any) => a.id === 'content');
    const review = response.data.agents.find((a: any) => a.id === 'review');
-   assert.ok(content && review, 'content y review deben estar en el catálogo de 56 perfiles');
-   assert.equal(response.data.agents.length, 56);
+   assert.ok(content && review, 'content y review deben estar en el catálogo de agentes');
+   assert.equal(response.data.agents.length, officeRegistry.list().length);
    assert.equal('instructions' in content, false);
    assert.equal('knowledge' in content, false);
    const revoked = await identity(pool);

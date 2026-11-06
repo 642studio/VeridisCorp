@@ -231,10 +231,11 @@ export const crmCreateContactTool = tool(
 export const CORE_WRITE_TOOLS: StructuredToolInterface[] = [crmAddActivityNoteTool, crmCreateContentRequestTool, crmCreateContactTool];
 
 export async function describeCoreWrite(): Promise<string | null> {
-  if (!writePool) return null;
+  if (!writePool && !process.env.CORE_API_URL) return null;
   return 'Escritura del CRM disponible (642CORE): crm_add_activity_note, crm_create_content_request y '
     + 'crm_create_contact. Las tres solo CREAN — nunca editan ni borran nada existente. Usa crm_list_clients '
-    + 'o crm_get_client primero para confirmar el cliente correcto antes de escribir.';
+    + 'o crm_get_client primero para confirmar el cliente correcto antes de escribir. '
+    + (process.env.CORE_API_URL ? 'La API local permite además crm_inspect_workspace, crm_update_contact y crm_update_request: consulta previa, versión exacta updated_at y auditoría por agente/expediente. No cambia estados, asignados ni elimina registros.' : '');
 }
 
 // Lo que el agente necesita saber antes de elegir: si el CRM está disponible y cuántos

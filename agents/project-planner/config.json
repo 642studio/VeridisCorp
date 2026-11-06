@@ -7,7 +7,7 @@
     "projects.integrate"
   ],
   "allowedTools": [
-    "clickup.read"
+    "projects.read"
   ],
   "organization": {
     "title": "Planificacion",
