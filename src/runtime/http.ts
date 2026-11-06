@@ -6,6 +6,8 @@ import type { Scheduler } from './scheduler.js';
 import { RuntimeError } from './contracts.js';
 import { loginWithTotp } from './totp.js';
 import { synthesizeElevenLabs, listElevenLabsVoices } from './elevenlabs-proxy.js';
+import { verifyFileAccessSignature } from './secrets.js';
+import { getOfficeFileForSignedAccess } from '../office/intelligence.js';
 
 const LoginRequest = z.object({ principalId: z.string().trim().min(1).max(100), code: z.string().trim().regex(/^\d{6}$/) }).strict();
 const TtsRequest = z.object({ text: z.string().trim().min(1).max(2000) }).strict();
@@ -24,7 +26,13 @@ async function body(req: IncomingMessage, maxBytes = 32768): Promise<unknown> {
 // scheduler puede ser undefined (VERIDIS_SCHEDULER_ENABLED=false): las rutas de abajo siguen
 // funcionando igual (crear/editar/borrar tareas programadas en la base), solo que ningún Cron
 // real las dispara hasta que el proceso arranque con el flag activo.
-export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRuntime, scheduler?: Scheduler, totpEncryptionKey?: Buffer) {
+export function createRuntimeServer(
+ runtime: ContentRuntime, office?: OfficeRuntime, scheduler?: Scheduler, totpEncryptionKey?: Buffer,
+ // Misma VERIDIS_TOKEN_ENCRYPTION_KEY que totpEncryptionKey (ver cli.ts) — un parámetro propio
+ // en vez de reusar el nombre solo para que esta ruta no quede acoplada a que login por TOTP
+ // siga existiendo o siga llamándose igual.
+ fileAccessKey?: Buffer,
+) {
  const server = createServer(async (req, res) => {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
@@ -37,6 +45,28 @@ export function createRuntimeServer(runtime: ContentRuntime, office?: OfficeRunt
     const { principalId, code } = LoginRequest.parse(await body(req));
     const sessionToken = await loginWithTotp(runtime.pool, totpEncryptionKey, principalId, code);
     res.writeHead(200); res.end(JSON.stringify({ token: sessionToken }));
+    return;
+   }
+   // Segunda ruta sin Bearer, por el mismo motivo que /auth/login no puede exigirlo: quien la
+   // llama no es un humano con sesión sino el propio proveedor externo (Meta) haciendo su fetch
+   // del video/imagen al publicar un Reel/post — nunca podría presentar un token de sesión. La
+   // autorización aquí es la firma HMAC en la URL (exp+sig), que solo el propio servidor pudo
+   // haber producido (social.publish_facebook/instagram, src/office/tools.ts) y que vence sola a
+   // los pocos minutos — ver signFileAccess en secrets.ts.
+   const signedFileMatch = req.method === 'GET' ? /^\/office\/files\/([0-9a-f-]{36})\/signed$/.exec(path) : null;
+   if (signedFileMatch) {
+    if (!fileAccessKey) throw new RuntimeError(503, 'Enlaces firmados de archivos no configurados');
+    const fileId = signedFileMatch[1]!;
+    const exp = Number(url.searchParams.get('exp'));
+    const sig = url.searchParams.get('sig') ?? '';
+    if (!Number.isInteger(exp) || !sig) throw new RuntimeError(400, 'Enlace firmado incompleto');
+    if (Date.now() > exp) throw new RuntimeError(403, 'El enlace firmado venció');
+    if (!verifyFileAccessSignature(fileId, exp, sig, fileAccessKey)) throw new RuntimeError(403, 'Firma inválida');
+    const file = await getOfficeFileForSignedAccess(runtime.pool, fileId);
+    if (!file) throw new RuntimeError(404, 'Archivo no disponible');
+    res.setHeader('content-type', file.contentType);
+    res.writeHead(200);
+    res.end(file.content);
     return;
    }
    const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1];

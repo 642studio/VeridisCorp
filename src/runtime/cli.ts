@@ -308,7 +308,10 @@ async function main() {
    });
    await scheduler.start();
   }
-  const server = createRuntimeServer(runtime, office, scheduler, encryptionKey ?? undefined);
+  // El mismo encryptionKey firma también los enlaces temporales de video/imagen hacia Meta
+  // (ver fileAccessKey en http.ts) — no es un secreto nuevo, solo otro uso de
+  // VERIDIS_TOKEN_ENCRYPTION_KEY, igual que ya pasa con gmail_accounts y meta_accounts.
+  const server = createRuntimeServer(runtime, office, scheduler, encryptionKey ?? undefined, encryptionKey ?? undefined);
   server.listen(z.coerce.number().int().min(1024).max(65535).parse(process.env.PORT ?? 3000), '127.0.0.1', () => process.stderr.write('API gobernada escuchando en loopback.\n'));
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(() => { scheduler?.stop(); void pool.end(); }));
   return;

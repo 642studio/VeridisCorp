@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 // Primer secreto del proyecto que hay que poder leer de vuelta, no solo comparar por hash
 // (a diferencia de sessions.token_hash). Hoy solo lo usa gmail_accounts.refresh_token_encrypted.
@@ -33,4 +33,25 @@ export function decryptSecret(blob: Buffer, key: Buffer): string {
  const decipher = createDecipheriv(ALGORITHM, key, iv);
  decipher.setAuthTag(authTag);
  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
+
+// Firma para enlaces temporales de office_files (video.render/pdf.generate) hacia un proveedor
+// externo que no puede mandar un Bearer de sesión (Meta hace su propio fetch del video/imagen al
+// publicar un Reel o un post de Instagram). Reusa la misma VERIDIS_TOKEN_ENCRYPTION_KEY que ya
+// cifra gmail_accounts/meta_accounts — no es un secreto nuevo, solo otro uso del mismo. El propio
+// servidor es el único que firma (al construir la URL en social.publish_facebook/instagram) y el
+// único que verifica (la ruta pública en http.ts); nadie más puede producir una firma válida sin
+// la clave, así que no hace falta una tabla de enlaces ni poder revocarlos uno por uno: expiran
+// solos a los pocos minutos (ver buildSignedFileUrl en office/tools.ts).
+export function signFileAccess(fileId: string, expiresAtMs: number, key: Buffer): string {
+ return createHmac('sha256', key).update(`${fileId}:${expiresAtMs}`).digest('hex');
+}
+
+// Comparación a tiempo constante: una firma mal formada (longitud distinta) no es una firma
+// inválida silenciosa, se trata igual que un intento real de adivinarla.
+export function verifyFileAccessSignature(fileId: string, expiresAtMs: number, signature: string, key: Buffer): boolean {
+ const expected = Buffer.from(signFileAccess(fileId, expiresAtMs, key), 'hex');
+ let provided: Buffer;
+ try { provided = Buffer.from(signature, 'hex'); } catch { return false; }
+ return expected.length === provided.length && timingSafeEqual(expected, provided);
 }

@@ -14,6 +14,7 @@ import type { AccessScope, CorporateMemoryRecord } from '../governance/contracts
 import type { MemoryQueryResult } from '../runtime/memory-store.js';
 import { synthesizeElevenLabsForTool } from '../runtime/elevenlabs-proxy.js';
 import { generateMusic } from '../runtime/sunoapi-proxy.js';
+import { loadEncryptionKey, signFileAccess } from '../runtime/secrets.js';
 import { REPO_TOOLS } from './repo-tools.js';
 import { CORE_TOOLS, CORE_WRITE_TOOLS } from './core-tools.js';
 import { CORE_API_READ_TOOLS, CORE_API_WRITE_TOOLS, PROJECT_READ_TOOLS, PROJECT_WRITE_TOOLS } from './core-api-tools.js';
@@ -1077,19 +1078,42 @@ async function graphRequest<T>(method: 'GET' | 'POST', path: string, params: Rec
   return data;
 }
 
-const facebookPublishSchema = z.object({
-  message: z.string().trim().max(5000).optional().describe('Texto de la publicación'),
-  imageUrl: z.url().optional().describe('URL pública (ya alojada, JPEG/PNG) de una imagen; si se incluye, se publica como foto en vez de como texto'),
-  link: z.url().optional().describe('Enlace a incluir en una publicación de texto; se ignora si hay imageUrl'),
-}).strict().refine((data) => Boolean(data.message?.trim() || data.imageUrl), { message: 'Hace falta "message" o "imageUrl"' });
+// Enlace temporal (15 min) hacia GET /office/files/:id/signed (ruta pública sin Bearer, ver
+// http.ts) — lo que Facebook/Instagram necesitan para que su propio servidor baje el video real
+// generado por video.render, ya persistido en office_files. VERIDIS_PUBLIC_BASE_URL es la URL
+// pública real del servidor (el operador la configura; sin ella no hay forma de que Meta llegue
+// a esta máquina) — a diferencia de VERIDIS_DELIVERY_URL, aquí el dato fluye al revés: Meta nos
+// hace un GET a nosotros, no al revés.
+function buildSignedFileUrl(fileId: string): string {
+  const base = process.env.VERIDIS_PUBLIC_BASE_URL?.trim();
+  if (!base) throw new Error('Falta VERIDIS_PUBLIC_BASE_URL: hace falta la URL pública real del servidor para que Meta pueda bajar el archivo');
+  const key = loadEncryptionKey(process.env);
+  const expiresAtMs = Date.now() + 15 * 60 * 1000;
+  const signature = signFileAccess(fileId, expiresAtMs, key);
+  return `${base.replace(/\/$/, '')}/office/files/${fileId}/signed?${new URLSearchParams({ exp: String(expiresAtMs), sig: signature }).toString()}`;
+}
 
-// Dos endpoints reales distintos de Graph API según haya imagen o no — a diferencia de Instagram,
-// la Página de Facebook no exige el modelo de contenedor para texto/foto simple, solo para Reels
-// (fuera de alcance de esta primera versión, igual límite que ya se puso en video.render/pdf.generate
-// con imágenes y dos columnas: no se construye hasta tener un caso real que lo necesite).
+const facebookPublishSchema = z.object({
+  message: z.string().trim().max(5000).optional().describe('Texto de la publicación (o descripción del video, si va con videoFileId)'),
+  imageUrl: z.url().optional().describe('URL pública (ya alojada, JPEG/PNG) de una imagen; si se incluye, se publica como foto en vez de como texto'),
+  videoFileId: z.uuid().optional().describe('El "fileId" exacto que devolvió render_video (ya persistido en office_files) para publicarlo como video de la Página. Se ignora imageUrl si también se envía esto.'),
+  link: z.url().optional().describe('Enlace a incluir en una publicación de texto; se ignora si hay imageUrl o videoFileId'),
+}).strict().refine((data) => Boolean(data.message?.trim() || data.imageUrl || data.videoFileId), { message: 'Hace falta "message", "imageUrl" o "videoFileId"' });
+
+// Tres caminos reales distintos de Graph API según el tipo de contenido — a diferencia de
+// Instagram, la Página de Facebook no exige el modelo de contenedor para texto/foto/video simple
+// (POST /{page-id}/videos con file_url alcanza para un video de feed normal), solo para Reels
+// específicamente (flujo de subida reanudable en tres fases, documentado de forma menos completa
+// por Meta — fuera de alcance hasta poder verificarlo en vivo contra una cuenta real).
 export const facebookPublishTool = tool(
-  async ({ message, imageUrl, link }: z.infer<typeof facebookPublishSchema>) => {
+  async ({ message, imageUrl, videoFileId, link }: z.infer<typeof facebookPublishSchema>) => {
     const account = requireMetaAccount();
+    if (videoFileId) {
+      const video = await graphRequest<{ id: string }>('POST', `${account.pageId}/videos`, {
+        file_url: buildSignedFileUrl(videoFileId), access_token: account.pageAccessToken, ...(message ? { description: message } : {}),
+      });
+      return JSON.stringify({ postId: video.id, permalink: `https://www.facebook.com/${account.pageId}/videos/${video.id}` });
+    }
     if (imageUrl) {
       const photo = await graphRequest<{ id: string; post_id?: string }>('POST', `${account.pageId}/photos`, {
         url: imageUrl, access_token: account.pageAccessToken, ...(message ? { caption: message } : {}),
@@ -1104,40 +1128,49 @@ export const facebookPublishTool = tool(
   },
   {
     name: 'publish_facebook_post',
-    description: 'Publica de verdad en la Página de Facebook conectada: texto (con enlace opcional) o una '
-      + 'foto única desde una URL pública ya alojada, con leyenda opcional. Sin video, Reels ni carrusel '
-      + 'todavía — para eso hace falta pedirlo explícitamente. Devuelve el id real de la publicación y su enlace.',
+    description: 'Publica de verdad en la Página de Facebook conectada: texto (con enlace opcional), una '
+      + 'foto única desde una URL pública ya alojada, o un video de feed real a partir del "fileId" que '
+      + 'devolvió render_video (lo publica como video normal de la Página, no específicamente como Reel — '
+      + 'eso sigue sin construirse). Devuelve el id real de la publicación y su enlace. Sin carrusel todavía.',
     schema: facebookPublishSchema,
   },
 );
 
 const instagramPublishSchema = z.object({
   caption: z.string().trim().max(2200).optional().describe('Leyenda de la publicación (límite real de Instagram: 2200 caracteres)'),
-  imageUrl: z.url().describe('URL pública (ya alojada, JPEG) de la imagen; Instagram la descarga desde ahí al publicar'),
-}).strict();
+  imageUrl: z.url().optional().describe('URL pública (ya alojada, JPEG) de la imagen; Instagram la descarga desde ahí al publicar'),
+  videoFileId: z.uuid().optional().describe('El "fileId" exacto que devolvió render_video (ya persistido en office_files) para publicarlo como Reel. Se ignora imageUrl si también se envía esto.'),
+}).strict().refine((data) => Boolean(data.imageUrl) !== Boolean(data.videoFileId), { message: 'Hace falta exactamente uno de "imageUrl" o "videoFileId"' });
 
 // Instagram sí exige el modelo de contenedor siempre (crear -> esperar a que termine de procesar
 // -> publicar), a diferencia de Facebook/feed. Sin esto, media_publish puede fallar o publicar
-// algo a medio procesar — documentado así en el propio Content Publishing API de Meta.
-async function pollInstagramContainer(containerId: string, accessToken: string): Promise<void> {
-  const deadline = Date.now() + 60000;
+// algo a medio procesar — documentado así en el propio Content Publishing API de Meta. Un video
+// tarda mucho más en procesar que una imagen (minutos, no segundos) — deadline aparte para no
+// fallar por timeout algo que solo necesitaba esperar un poco más.
+async function pollInstagramContainer(containerId: string, accessToken: string, deadlineMs: number): Promise<void> {
+  const deadline = Date.now() + deadlineMs;
   while (Date.now() < deadline) {
     const status = await graphRequest<{ status_code?: string }>('GET', containerId, { fields: 'status_code', access_token: accessToken });
     if (status.status_code === 'FINISHED') return;
-    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') throw new Error(`Instagram no pudo procesar la imagen (status ${status.status_code})`);
+    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') throw new Error(`Instagram no pudo procesar el archivo (status ${status.status_code})`);
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
-  throw new Error('Instagram no terminó de procesar la imagen a tiempo (más de 60s)');
+  throw new Error(`Instagram no terminó de procesar el archivo a tiempo (más de ${Math.round(deadlineMs / 1000)}s)`);
 }
 
+const IMAGE_POLL_DEADLINE_MS = 60000;
+const VIDEO_POLL_DEADLINE_MS = 10 * 60000;
+
 export const instagramPublishTool = tool(
-  async ({ caption, imageUrl }: z.infer<typeof instagramPublishSchema>) => {
+  async ({ caption, imageUrl, videoFileId }: z.infer<typeof instagramPublishSchema>) => {
     const account = requireMetaAccount();
     if (!account.igUserId) throw new Error('La Página de Facebook conectada no tiene una cuenta de Instagram Business vinculada');
     const container = await graphRequest<{ id: string }>('POST', `${account.igUserId}/media`, {
-      access_token: account.pageAccessToken, image_url: imageUrl, ...(caption ? { caption } : {}),
+      access_token: account.pageAccessToken,
+      ...(videoFileId ? { media_type: 'REELS', video_url: buildSignedFileUrl(videoFileId) } : { image_url: imageUrl! }),
+      ...(caption ? { caption } : {}),
     });
-    await pollInstagramContainer(container.id, account.pageAccessToken);
+    await pollInstagramContainer(container.id, account.pageAccessToken, videoFileId ? VIDEO_POLL_DEADLINE_MS : IMAGE_POLL_DEADLINE_MS);
     const published = await graphRequest<{ id: string }>('POST', `${account.igUserId}/media_publish`, {
       access_token: account.pageAccessToken, creation_id: container.id,
     });
@@ -1149,11 +1182,11 @@ export const instagramPublishTool = tool(
   },
   {
     name: 'publish_instagram_post',
-    description: 'Publica de verdad una imagen en la cuenta de Instagram Business vinculada a la Página de '
-      + 'Facebook conectada, desde una URL pública ya alojada (JPEG), con leyenda opcional. Crea el '
-      + 'contenedor, espera a que Instagram termine de procesarlo y recién entonces publica — puede tardar '
-      + 'unos segundos. Sin video, Reels, Stories ni carrusel todavía. Devuelve el id real de la publicación '
-      + 'y su enlace cuando Instagram lo tenga disponible.',
+    description: 'Publica de verdad en la cuenta de Instagram Business vinculada a la Página de Facebook '
+      + 'conectada: una imagen desde una URL pública ya alojada (JPEG), o un Reel a partir del "fileId" que '
+      + 'devolvió render_video. Crea el contenedor, espera a que Instagram termine de procesarlo (hasta 10 '
+      + 'minutos para video) y recién entonces publica. Sin Stories ni carrusel todavía. Devuelve el id real '
+      + 'de la publicación y su enlace cuando Instagram lo tenga disponible.',
     schema: instagramPublishSchema,
   },
 );

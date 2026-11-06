@@ -62,6 +62,22 @@ export async function persistGeneratedVideo(pool: Pool, orderId: string, args: R
   });
 }
 
+// Lectura sin ámbito (a diferencia de OfficeRuntime.getFile, que exige sesión humana y cruza
+// scope_key): la llama la ruta pública firmada de http.ts (GET /office/files/:id/signed), donde
+// la propia firma HMAC (signFileAccess, runtime/secrets.ts) ya es la autorización — nadie sin la
+// clave del servidor pudo haberla producido. Solo video/imagen: un PDF o documento de texto
+// nunca debe quedar servible por este camino, aunque alguien reusara la firma de otro archivo
+// (no podría: la firma está atada al fileId exacto).
+export async function getOfficeFileForSignedAccess(pool: Pool, fileId: string): Promise<{ filename: string; contentType: string; content: Buffer } | null> {
+  const result = await pool.query(
+    'SELECT filename, content_type, content FROM veridis_runtime_v1.office_files WHERE id = $1',
+    [fileId],
+  );
+  const row = result.rows[0] as { filename: string; content_type: string; content: Buffer } | undefined;
+  if (!row || !/^(video|image)\//.test(row.content_type)) return null;
+  return { filename: row.filename, contentType: row.content_type, content: row.content };
+}
+
 // Herramientas reales, acotadas por allowedTools (agents/<id>/config.json): sin ninguna permitida
 // no se toca el modelo. Cualquier falla (sin credencial, cuota, red, proveedor sin tool-calling,
 // Docker no disponible, etc.) se trata como "no se obtuvo resultado", nunca como un error que

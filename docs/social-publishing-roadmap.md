@@ -1,12 +1,12 @@
 # Publicación real en redes sociales: investigación y propuesta
 
-Fecha original: 2026-11-03. Actualizado: 2026-11-03. Fase: Arranque. Este documento responde una
+Fecha original: 2026-11-03. Actualizado: 2026-11-05. Fase: Arranque. Este documento responde una
 pregunta concreta — **qué hace falta para que VeridisCorp publique de verdad en Facebook,
 Instagram, Threads, X, YouTube y TikTok** — y propone cómo encajarlo en la arquitectura ya
 existente, en el mismo formato de decisión-pendiente que
 [assistant-v1-roadmap.md](assistant-v1-roadmap.md).
 
-**Facebook e Instagram ya están implementados** (`social.publish_facebook`,
+**Facebook e Instagram ya están implementados, incluido video** (`social.publish_facebook`,
 `social.publish_instagram` — ver la sección propia más abajo). Threads, X, YouTube y TikTok
 siguen siendo solo investigación y propuesta, sin código todavía.
 
@@ -57,7 +57,7 @@ proveedor (de días a varias semanas), antes de que cualquier publicación salga
 privado/prueba. X cambió de régimen de precios en 2026 y ahora se paga por llamada en vez de por
 plan mensual — hay que decidir presupuesto, no solo credenciales.
 
-## Facebook e Instagram — implementado (2026-11-03)
+## Facebook e Instagram — implementado (2026-11-03; video agregado 2026-11-05)
 
 Dos herramientas reales nuevas en `src/office/tools.ts`, registradas en `SIDE_EFFECTING_TOOLS`
 (`src/office/intelligence.ts`) y en `allowedTools` de `content` (`agents/content/config.json`) —
@@ -65,20 +65,36 @@ mismo agente ejecutor que ya tenía Drive/Calendar/Sheets/Meet/Slides, consisten
 de la propuesta original de este documento:
 
 - **`social.publish_facebook`** (tool `publish_facebook_post`): texto con enlace opcional
-  (`POST /{page_id}/feed`) o una foto única desde una URL pública ya alojada, con leyenda
-  opcional (`POST /{page_id}/photos`). Sin video, Reels ni carrusel — primer recorte explícito,
-  igual criterio que `pdf.generate`/`slides.create` con imágenes o dos columnas.
+  (`POST /{page_id}/feed`), una foto única desde una URL pública ya alojada con leyenda opcional
+  (`POST /{page_id}/photos`), o un video real de la Página a partir de un `videoFileId` — el
+  `fileId` que devolvió `render_video`, ya persistido en `office_files`
+  (`POST /{page_id}/videos` con `file_url` apuntando al enlace firmado temporal, ver abajo). Es
+  un video normal de feed, **no específicamente un Reel**: el endpoint de Reels
+  (`/{page-id}/video_reels`) usa un flujo de subida reanudable en tres fases documentado de forma
+  menos completa por Meta — se dejó fuera hasta poder verificarlo en vivo contra una cuenta real,
+  mismo criterio que ya se aplicaba antes a todo el bloque de video. Sin carrusel todavía.
 - **`social.publish_instagram`** (tool `publish_instagram_post`): una imagen desde una URL
-  pública, con el flujo real de contenedor que exige el Content Publishing API —
-  `POST /{ig_user_id}/media` → poll de `status_code` hasta `FINISHED` (máx. 60s) →
+  pública, o un Reel a partir de un `videoFileId` (`media_type: "REELS"`, `video_url` = el mismo
+  enlace firmado temporal), con el flujo real de contenedor que exige el Content Publishing API —
+  `POST /{ig_user_id}/media` → poll de `status_code` hasta `FINISHED` (máx. 60s para imagen, hasta
+  10 min para video — procesar un video tarda minutos, no segundos) →
   `POST /{ig_user_id}/media_publish` → intento de leer el `permalink` real (si falla, se
   devuelve igual el id de la publicación, nunca tumba la herramienta por ese detalle). Falla con
   un mensaje claro si la Página conectada no tiene una cuenta de Instagram Business vinculada.
-- Ambas requieren medios ya alojados en una URL pública — **no hay subida de bytes propia
-  todavía**, decisión deliberada para no construir un endpoint público nuevo de archivos: hoy
-  `GET /office/files/{id}` exige sesión autenticada, que Meta no puede usar para hacer su propio
-  fetch de la imagen. Cuando haga falta, la pieza que falta es ese endpoint público (o firmar URLs
-  temporales), no las herramientas de publicación en sí.
+  Sin Stories ni carrusel todavía.
+- **Enlaces firmados temporales para video** (`VERIDIS_PUBLIC_BASE_URL`, `signFileAccess`/
+  `verifyFileAccessSignature` en `src/runtime/secrets.ts`, ruta pública nueva
+  `GET /office/files/:id/signed` en `src/runtime/http.ts`): esto es justo "la pieza que faltaba"
+  que esta misma sección señalaba antes de 2026-11-05 — Meta necesita hacer su propio `GET` del
+  video para `file_url`/`video_url`, y no puede presentar el Bearer de sesión que exige
+  `GET /office/files/{id}` normal. La autorización de esa ruta nueva es la firma HMAC en la URL
+  (`exp` + `sig`, misma `VERIDIS_TOKEN_ENCRYPTION_KEY` que ya cifra `gmail_accounts`/
+  `meta_accounts`, no un secreto nuevo): solo el propio servidor pudo haberla producido (al
+  construir la URL dentro de `publish_facebook_post`/`publish_instagram_post`), vence sola a los
+  15 minutos, y la ruta solo sirve contenido cuyo `content_type` sea `video/*` o `image/*` — nunca
+  un PDF u otro documento de `office_files`, aunque alguien reusara la firma de otro archivo (no
+  podría: la firma está atada al `fileId` exacto). Imagen (`imageUrl`) sigue sin subida de bytes
+  propia: sigue exigiendo una URL pública ya alojada en otro lado, igual que antes.
 
 **Credenciales**: tabla nueva `veridis_runtime_v1.meta_accounts` (migración en
 `src/runtime/database.ts`) — una fila con el `page_id`, el token de Página cifrado
@@ -90,24 +106,38 @@ de larga duración (`fb_exchange_token`) → `GET /me/accounts` para obtener el 
 derivado de un token de usuario de larga duración, no expira bajo condiciones normales) — y guarda
 ese token de Página, nunca el de usuario. Variables nuevas en `.env.example`: `META_APP_ID`,
 `META_APP_SECRET`, `VERIDIS_META_OAUTH_CALLBACK_PORT` (default 8732), `META_PAGE_ID` (opcional,
-solo si la cuenta administra más de una Página). `configureMeta()` inyecta la cuenta cargada al
+solo si la cuenta administra más de una Página), y `VERIDIS_PUBLIC_BASE_URL` (2026-11-05, la URL
+pública real del servidor — sin ella, `videoFileId` en `publish_facebook_post`/
+`publish_instagram_post` falla con un mensaje claro; el resto de cada herramienta sigue
+funcionando igual). `configureMeta()` inyecta la cuenta cargada al
 arrancar el servidor (`loadMetaClient()` en `cli.ts`), mismo patrón que `configureGmail()`: sin
 autorizar todavía, las herramientas fallan con un mensaje claro en vez de tumbar `execute()`.
 
 Sin App Review de Meta todavía necesario para este alcance: la cuenta que autoriza administra su
 propia Página, no páginas de terceros — ver la fila de la tabla de comparación. Pruebas reales en
 `test/office-tools.test.ts` simulan la Graph API con `fetch` mockeado (sin red ni credenciales:
-rechazo claro sin cuenta configurada, ramas texto/foto, error real de Graph API propagado con su
-código, y el flujo completo de contenedor de Instagram incluyendo el caso `status_code: ERROR`).
+rechazo claro sin cuenta configurada, ramas texto/foto/video, error real de Graph API propagado
+con su código, el flujo completo de contenedor de Instagram incluyendo video/Reels y el caso
+`status_code: ERROR`); `test/secrets.test.ts` prueba la firma/verificación de enlaces temporales
+por separado (firma válida, firma de otro `fileId`, firma vencida).
+
+**No verificado en vivo todavía** (ver nota al pie de esta sección): tanto el video de Facebook
+(`POST /{page_id}/videos` con `file_url`) como el Reel de Instagram (`media_type: "REELS"` +
+`video_url`) están implementados contra la documentación oficial de Meta y probados con la Graph
+API simulada, pero ninguno corrió aún contra una Página/cuenta real — sigue pendiente la primera
+publicación real de prueba antes de confiar en esto para contenido de producción sin supervisión.
 
 ## Detalle por plataforma
 
 ### Facebook Pages (Meta Graph API, hoy v26.0)
 
-- Texto/enlace: `POST /{page_id}/feed`. Foto: `POST /{page_id}/photos` con `url` pública. Video y
-  Reels van por un flujo de tres fases distinto (`POST /{page-id}/video_reels`:
+- Texto/enlace: `POST /{page_id}/feed`. Foto: `POST /{page_id}/photos` con `url` pública. **Video
+  de feed normal** (implementado 2026-11-05): `POST /{page_id}/videos` con `file_url` apuntando
+  al enlace firmado temporal de `office_files` (ver la sección de arriba) — documentado de forma
+  estable y sencilla por Meta, a diferencia de Reels. **Reels específicamente sigue sin
+  construirse**: van por un flujo de tres fases distinto (`POST /{page-id}/video_reels`:
   `upload_phase=start` → subir bytes a `rupload.facebook.com` con poll de `status` → `finish`),
-  documentado de forma menos completa que el de Instagram — verificar en vivo antes de construir.
+  documentado de forma menos completa — verificar en vivo antes de construirlo.
 - Permisos: `pages_manage_metadata`, `pages_manage_posts`, `pages_manage_read_engagement`,
   `pages_show_list`, `publish_video` para video.
 - App Review **no** es obligatorio si la app solo administra páginas propias (Standard Access);
@@ -121,9 +151,12 @@ código, y el flujo completo de contenedor de Instagram incluyendo el caso `stat
 - **Todo** pasa por el modelo de contenedor, sin excepción: `POST /{ig-user-id}/media` crea el
   contenedor (imagen/video/reel/story/hijo de carrusel) → si es video, hacer poll de
   `GET /{container-id}?fields=status_code` hasta `FINISHED` (expira a las 24h si no se publica) →
-  `POST /{ig-user-id}/media_publish` con `creation_id`. Carrusel: crear cada hijo con
+  `POST /{ig-user-id}/media_publish` con `creation_id`. **Reel implementado** (2026-11-05):
+  `media_type: "REELS"` + `video_url` apuntando al enlace firmado temporal de `office_files`,
+  mismo mecanismo que el video de Facebook. Carrusel sigue sin construirse: crear cada hijo con
   `is_carousel_item=true`, luego un contenedor padre `media_type=CAROUSEL` con `children` (hasta
   20 según la documentación oficial, aunque hay fuentes de terceros que dicen 10 — probar).
+  Stories tampoco está construido.
 - Requiere cuenta Business o Creator de Instagram **vinculada a una Página de Facebook** — punto
   de falla frecuente en integraciones — y haber completado "Page Publishing Authorization" (PPA),
   un gate adicional separado de App Review que puede bloquear la publicación en silencio aunque

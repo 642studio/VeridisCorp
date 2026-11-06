@@ -108,8 +108,95 @@ test('publish_instagram_post falla con un mensaje claro si Instagram reporta ERR
   });
   await assert.rejects(
     instagramPublishTool.invoke({ imageUrl: 'https://example.com/a.jpg' } as never),
-    /Instagram no pudo procesar la imagen \(status ERROR\)/,
+    /Instagram no pudo procesar el archivo \(status ERROR\)/,
   );
+  configureMeta(null);
+});
+
+test('publish_instagram_post exige exactamente uno de imageUrl/videoFileId', async () => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: 'ig_1' });
+  await assert.rejects(instagramPublishTool.invoke({} as never));
+  await assert.rejects(instagramPublishTool.invoke({
+    imageUrl: 'https://example.com/a.jpg', videoFileId: '11111111-1111-4111-8111-111111111111',
+  } as never));
+  configureMeta(null);
+});
+
+const VIDEO_FILE_ID = '11111111-1111-4111-8111-111111111111';
+const TEST_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+
+// videoFileId no viaja como bytes: ambas herramientas lo convierten en una URL firmada y temporal
+// hacia GET /office/files/:id/signed (ver buildSignedFileUrl en tools.ts) — eso exige
+// VERIDIS_PUBLIC_BASE_URL y VERIDIS_TOKEN_ENCRYPTION_KEY reales en el entorno del proceso, no un
+// pool ni una sesión: por eso basta con fijarlos/borrarlos en process.env para probarlo sin red.
+function withSignedUrlEnv<T>(run: () => Promise<T>): Promise<T> {
+  const prevBase = process.env.VERIDIS_PUBLIC_BASE_URL;
+  const prevKey = process.env.VERIDIS_TOKEN_ENCRYPTION_KEY;
+  process.env.VERIDIS_PUBLIC_BASE_URL = 'https://oficina.example';
+  process.env.VERIDIS_TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+  return run().finally(() => {
+    if (prevBase === undefined) delete process.env.VERIDIS_PUBLIC_BASE_URL; else process.env.VERIDIS_PUBLIC_BASE_URL = prevBase;
+    if (prevKey === undefined) delete process.env.VERIDIS_TOKEN_ENCRYPTION_KEY; else process.env.VERIDIS_TOKEN_ENCRYPTION_KEY = prevKey;
+  });
+}
+
+test('publish_facebook_post con videoFileId publica un video real de feed (file_url firmado)', async (t) => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: null });
+  const calls: { url: string; body: string }[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init?: RequestInit) => {
+    calls.push({ url: String(url), body: String(init?.body ?? '') });
+    if (String(url).includes('/page_1/videos')) return new Response(JSON.stringify({ id: 'video_1' }));
+    throw new Error(`fetch inesperado en el test: ${url}`);
+  });
+
+  const result = await withSignedUrlEnv(async () => JSON.parse(
+    await facebookPublishTool.invoke({ videoFileId: VIDEO_FILE_ID, message: 'un video real' } as never) as string,
+  ));
+  assert.equal(result.postId, 'video_1');
+  assert.equal(result.permalink, 'https://www.facebook.com/page_1/videos/video_1');
+  assert.match(calls[0]!.url, /\/page_1\/videos$/);
+  const body = new URLSearchParams(calls[0]!.body);
+  assert.match(body.get('file_url') ?? '', new RegExp(`^https://oficina\\.example/office/files/${VIDEO_FILE_ID}/signed\\?exp=\\d+&sig=[0-9a-f]{64}$`));
+  assert.equal(body.get('description'), 'un video real');
+
+  configureMeta(null);
+});
+
+test('publish_facebook_post con videoFileId exige VERIDIS_PUBLIC_BASE_URL configurado', async () => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: null });
+  const prevBase = process.env.VERIDIS_PUBLIC_BASE_URL;
+  delete process.env.VERIDIS_PUBLIC_BASE_URL;
+  await assert.rejects(
+    facebookPublishTool.invoke({ videoFileId: VIDEO_FILE_ID } as never),
+    /Falta VERIDIS_PUBLIC_BASE_URL/,
+  );
+  if (prevBase !== undefined) process.env.VERIDIS_PUBLIC_BASE_URL = prevBase;
+  configureMeta(null);
+});
+
+test('publish_instagram_post con videoFileId publica un Reel real (media_type REELS, video_url firmado)', async (t) => {
+  configureMeta({ pageId: 'page_1', pageAccessToken: 'token_1', igUserId: 'ig_1' });
+  const calls: { url: string; body: string }[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init?: RequestInit) => {
+    const u = String(url);
+    calls.push({ url: u, body: String(init?.body ?? '') });
+    if (u.includes('/ig_1/media') && !u.includes('media_publish')) return new Response(JSON.stringify({ id: 'container_1' }));
+    if (u.includes('/container_1')) return new Response(JSON.stringify({ status_code: 'FINISHED' }));
+    if (u.includes('/ig_1/media_publish')) return new Response(JSON.stringify({ id: 'media_1' }));
+    if (u.includes('/media_1')) return new Response(JSON.stringify({ permalink: 'https://instagram.com/reel/abc' }));
+    throw new Error(`fetch inesperado en el test: ${u}`);
+  });
+
+  const result = await withSignedUrlEnv(async () => JSON.parse(
+    await instagramPublishTool.invoke({ videoFileId: VIDEO_FILE_ID, caption: 'un reel real' } as never) as string,
+  ));
+  assert.equal(result.mediaId, 'media_1');
+  assert.equal(result.permalink, 'https://instagram.com/reel/abc');
+  const containerBody = new URLSearchParams(calls[0]!.body);
+  assert.equal(containerBody.get('media_type'), 'REELS');
+  assert.match(containerBody.get('video_url') ?? '', new RegExp(`^https://oficina\\.example/office/files/${VIDEO_FILE_ID}/signed\\?exp=\\d+&sig=[0-9a-f]{64}$`));
+  assert.equal(containerBody.get('caption'), 'un reel real');
+
   configureMeta(null);
 });
 
