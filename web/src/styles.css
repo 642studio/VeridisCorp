@@ -286,8 +286,22 @@ pre { font-family: inherit; }
 .chat-sidebar__item--active { background: var(--panel-raised); border-color: var(--accent); }
 .chat-sidebar__brief { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.chat-thread { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.chat-main { position: relative; flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* position:relative (no solo flex) para que gane a .avatar-backdrop por ORDEN DEL DOM, no por
+   z-index — ver el comentario de .avatar-backdrop: z-index negativo no pinta nada en este motor. */
+.chat-thread { position: relative; flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ---- el "personaje" de fondo en la conversación (ver AvatarBackdrop.tsx) — hijo de .chat-main
+   (position:relative), antes que .chat-thread en el DOM, NO dentro de .chat-thread: así se queda
+   fijo detrás de todo el panel de chat en vez de desplazarse (y desaparecer) cuando el hilo hace
+   scroll. Sin z-index: un z-index negativo aquí simplemente no se pinta (probado); en vez de eso,
+   dos descendientes posicionados con z-index:auto pintan en orden del DOM — este va primero, así
+   que .chat-thread (después, también position:relative) pinta encima. Las burbujas tienen fondo
+   opaco y lo tapan igual; el hueco entre ellas lo deja ver. La barra de voz y el input llevan su
+   propio fondo opaco (ver abajo) para que el fondo no se note detrás de esos controles, solo
+   detrás de la conversación. ---- */
+.avatar-backdrop { position: absolute; inset: 0; pointer-events: none; opacity: 0.22; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.avatar-backdrop__canvas { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .chat-empty { text-align: center; margin-top: 60px; }
 .chat-bubble { max-width: 72%; padding: 10px 14px; border: 1px solid var(--border); }
 .chat-bubble--user { align-self: flex-end; background: var(--panel-raised); border-color: var(--accent-dim); }
@@ -304,7 +318,9 @@ pre { font-family: inherit; }
 .chat-voice-bar { display: flex; align-items: center; gap: 14px; padding: 0 20px 8px; }
 .chat-voice-bar__toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
 
-.chat-input { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+/* position:relative: sin esto pinta ANTES que .avatar-backdrop (los no-posicionados pintan antes
+   que los posicionados, aunque vengan después en el DOM) y el fondo le gana por encima. */
+.chat-input { position: relative; background: var(--bg); display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .chat-input textarea { flex: 1; background: #000; color: var(--text); border: 1px solid var(--border-bright); padding: 8px; resize: none; }
 .chat-input__mic { flex-shrink: 0; font-size: 16px; line-height: 1; }
 .chat-input__mic--active { border-color: var(--accent); background: var(--panel-raised); }
@@ -355,13 +371,10 @@ pre { font-family: inherit; }
 
 /* ---- dock de voz embebido en un hilo de ASISTENTE (ver VoiceDock.tsx/useVoiceDock.ts) — versión
    compacta de .voice-stage__*, que se expande a controles extra sin salir de la conversación. ---- */
-.voice-dock { border-top: 1px solid var(--border); padding: 8px 20px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+/* position:relative: mismo motivo que .chat-input, ver su comentario. */
+.voice-dock { position: relative; background: var(--bg); border-top: 1px solid var(--border); padding: 8px 20px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
 .voice-dock__row { display: flex; align-items: center; gap: 10px; }
 .voice-dock__mic { flex-shrink: 0; font-size: 16px; line-height: 1; padding: 6px 10px; }
-/* Mismo truco de escala que .shell__mini-avatar (ver su comentario): AsciiAvatar no puede
-   renderizar nítido por debajo de ~252x180px, así que se renderiza a ese tamaño y se encoge. */
-.voice-dock__avatar { width: 56px; height: 40px; flex-shrink: 0; overflow: hidden; position: relative; border: 1px solid var(--border-bright); }
-.voice-dock__canvas { width: 252px; height: 180px; position: absolute; top: 0; left: 0; transform: scale(0.2222); transform-origin: top left; display: flex; align-items: center; justify-content: center; }
 .voice-dock__caption { flex: 1; min-width: 0; }
 .voice-dock__caption-text { margin: 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .voice-dock--expanded .voice-dock__caption-text { white-space: normal; }

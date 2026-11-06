@@ -9,6 +9,7 @@ import { SessionExpired } from '../components/SessionExpired';
 import { InvolvedAgents } from '../components/InvolvedAgents';
 import { RichText } from '../components/RichText';
 import { VoiceDock } from '../components/VoiceDock';
+import { AvatarBackdrop } from '../components/AvatarBackdrop';
 import { useElapsedSeconds } from '../useElapsedSeconds';
 import { useSpinnerFrame } from '../useSpinnerFrame';
 import { useTypewriter } from '../useTypewriter';
@@ -244,8 +245,9 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
 
   // Voz en vivo, solo para conversaciones de ASISTENTE (no para responder un expediente abierto,
   // ver decisión del plan) — el hook se llama siempre (reglas de hooks), el dock solo se monta
-  // cuando !activeId.
-  const voiceDock = useVoiceDock(send, askPending);
+  // cuando !activeId. pendingForView (no askPending) para que el avatar de fondo (AvatarBackdrop)
+  // también cobre vida mientras un expediente está pensando, no solo en chats rápidos.
+  const voiceDock = useVoiceDock(send, pendingForView);
 
   if (unauthorized) return <SessionExpired />;
   const placeholder = activeId && !isClosed ? 'Tu respuesta…' : threadId ? 'Sigue la conversación…' : 'Pregunta o pide algo…';
@@ -253,6 +255,7 @@ export function OfficeChat({ onOpenTechnical }: { onOpenTechnical: (id: string) 
   return (
     <div className="chat-layout">
       <div className="chat-main">
+        <AvatarBackdrop state={voiceDock.avatarState} scene={voiceDock.activeScene} />
         <div className="chat-thread" ref={threadRef}>
           {!activeId && !threadId && pendingQuestions.new === undefined && (
             <div className="chat-empty">

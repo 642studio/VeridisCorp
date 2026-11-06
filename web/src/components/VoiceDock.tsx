@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { AsciiAvatar } from './AsciiAvatar';
 import { RichText } from './RichText';
 import { useActiveSession } from '../context/ActiveSessionContext';
 import type { VoiceDock as VoiceDockState } from '../hooks/useVoiceDock';
@@ -9,7 +8,8 @@ import type { SpeakProvider } from '../speak';
 // real vive en useVoiceDock (llamado ahí, no aquí) para que la cola de voz siga sonando aunque
 // este componente se desmonte momentáneamente (p. ej. al abrir un expediente). Clic en el
 // mini-avatar del sidebar (MiniAvatar.tsx) sube dockExpandRequestId, que este dock escucha para
-// desplegarse solo.
+// desplegarse solo. El "personaje" en sí ya no vive aquí (una caja de 56x40 no tenía presencia
+// real) — vive de fondo en la conversación, ver AvatarBackdrop en OfficeChat.tsx.
 export function VoiceDock({ dock }: { dock: VoiceDockState }) {
   const { dockExpandRequestId } = useActiveSession();
   const [expanded, setExpanded] = useState(false);
@@ -23,7 +23,7 @@ export function VoiceDock({ dock }: { dock: VoiceDockState }) {
     setExpanded(true);
   }, [dockExpandRequestId]);
 
-  const { stt, speak, provider, setProvider, autoListen, setAutoListen, avatarState, activeScene, caption, lastError, toggleListening } = dock;
+  const { stt, speak, provider, setProvider, autoListen, setAutoListen, caption, lastError, toggleListening } = dock;
   if (!stt.supported) return null;
 
   return (
@@ -38,9 +38,6 @@ export function VoiceDock({ dock }: { dock: VoiceDockState }) {
         >
           {speak.speaking ? '🔊' : stt.listening ? '🔴' : '🎤'}
         </button>
-        <div className="voice-dock__avatar">
-          <AsciiAvatar state={avatarState} scene={activeScene} className="voice-dock__canvas" />
-        </div>
         <div className="voice-dock__caption">
           {caption && <RichText className="voice-dock__caption-text" text={caption} />}
         </div>
