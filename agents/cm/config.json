@@ -8,9 +8,7 @@
   ],
   "allowedTools": [
     "core.read",
-    "core.write",
-    "tasks.read",
-    "tasks.write"
+    "core.write"
   ],
   "organization": {
     "title": "CommunityManager",

@@ -7,11 +7,10 @@
     "department.plan"
   ],
   "allowedTools": [
-    "clickup.read",
+    "projects.read",
     "core.read",
     "core.write",
-    "tasks.read",
-    "tasks.write",
+    "projects.write",
     "finance.read"
   ],
   "organization": {

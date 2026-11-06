@@ -1,3 +1,5 @@
+> Escrito para VeridisCorp a partir de investigación visual y pruebas propias; referencias descritas en el contenido.
+
 # Elementos 3D (estilo "clay"/claymorphism) en HyperFrames
 
 Investigación a partir de reels reales (cuenta `clienty.co`, estilo CRM) que muestran objetos 3D

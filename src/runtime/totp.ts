@@ -59,7 +59,9 @@ export async function loginWithTotp(pool: Pool, encryptionKey: Buffer, principal
    const failedAttempts = Number(row.failed_attempts ?? 0) + 1;
    const lockedUntil = failedAttempts >= MAX_FAILED_ATTEMPTS ? new Date(Date.now() + LOCKOUT_SECONDS * 1000).toISOString() : null;
    await tx.query('UPDATE veridis_runtime_v1.totp_credentials SET failed_attempts=$2, locked_until=$3 WHERE principal_id=$1', [principalId, failedAttempts, lockedUntil]);
-   throw new RuntimeError(401, 'Credenciales inválidas');
+   // Confirmar el contador antes de devolver el rechazo. Lanzar dentro de transaction()
+   // revierte también failed_attempts/locked_until y elimina el bloqueo por completo.
+   return null;
   }
   await tx.query('UPDATE veridis_runtime_v1.totp_credentials SET last_time_step=$2, failed_attempts=0, locked_until=NULL WHERE principal_id=$1', [principalId, result.timeStep]);
   return {
@@ -67,6 +69,7 @@ export async function loginWithTotp(pool: Pool, encryptionKey: Buffer, principal
    permissions: row.permissions as TotpPermission[], sessionTtlSeconds: Number(row.session_ttl_seconds),
   };
  });
+ if (!profile) throw new RuntimeError(401, 'Credenciales inválidas');
  const expiresAt = new Date(Date.now() + profile.sessionTtlSeconds * 1000).toISOString();
  return provisionSession(pool, { principal: profile.principal, scope: profile.scope, expiresAt, permissions: profile.permissions });
 }

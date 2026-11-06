@@ -10,7 +10,7 @@ import { db, resolveClientId, isCoreDbConfigured } from './core-tools.js';
 // (finance_bank_statement_imports), activos fijos ni planeación (finance_plan_*): eso es
 // contabilidad interna/auditoría, no "contexto" para trabajar con un cliente o sus tareas. Se
 // agrega aparte, explícitamente, si algún día se necesita. Usa el mismo pool que core.read
-// (core-tools.ts) — misma conexión, más GRANTs (ver docs/sql/core_grants_tasks_finance.sql).
+// (core-tools.ts) — misma conexión, más GRANTs (ver docs/sql/core_grants_finance.sql).
 // Solo lectura: ningún tool de este archivo ejecuta INSERT/UPDATE/DELETE.
 
 const MAX_ROWS = 50;

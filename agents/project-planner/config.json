@@ -7,9 +7,7 @@
     "projects.integrate"
   ],
   "allowedTools": [
-    "clickup.read",
-    "tasks.read",
-    "tasks.write",
+    "projects.read",
     "finance.read"
   ],
   "organization": {

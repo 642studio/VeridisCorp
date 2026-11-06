@@ -11,7 +11,7 @@
     "memory.write",
     "memory.query",
     "core.read",
-    "tasks.read",
+    "projects.read",
     "finance.read"
   ],
   "organization": {

@@ -1,5 +1,10 @@
 # Arquitectura de la oficina Veridis
 
+> Actualización operativa 2026-11-05: catálogo actual de 57 perfiles. `core.read` incluye
+> `crm_inspect_workspace`; `core.write` incluye edición acotada por la API local de Core.
+> Consulta [operación y límites actuales](operacion-core-2026-11-05.md) antes de usar los conteos
+> o pendientes históricos de este documento. La revisión nunca reejecuta escrituras de Core.
+
 Fecha original: 2026-10-22. Actualizado: 2026-10-24. Fase: Arranque. Este documento explica el
 protocolo y los mecanismos del motor — **quién decide, cómo pasa el turno de un agente a otro,
 qué puede hacer cada uno de verdad**. Para el contrato HTTP, la autenticación y el detalle de
@@ -93,11 +98,9 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
     barrera si ese rol se amplía por error; SQL siempre parametrizado, nunca una cadena que
     arme el modelo.
   - Salida acotada a 50 filas por llamada y recortada con el mismo `clip()` que usa `repo.read`.
-- `tasks.read` (ceo, cmo, cm, pm, project-planner, project-tracker, human-task-coordinator,
-  data-analyst): lectura de tareas de 642CORE — reemplazo nativo de ClickUp
-  (`public.tasks`/`task_assignees`/`task_activity`, `src/office/task-tools.ts`). Mismo pool que
-  `core.read` (`CORE_DATABASE_URL`), más GRANTs. Herramientas: `tasks_list` (de un cliente,
-  filtrable por estado) y `tasks_get` (detalle: asignados y actividad reciente).
+- `projects.read`/`projects.write`: gestión nativa de tareas (reemplazo de ClickUp) contra la
+  API local de Core — ver `docs/proyectos-nativos-2026-11-05.md` y `src/office/core-api-tools.ts`
+  para el detalle (idempotencia con `operationKey`, concurrencia optimista con `updated_at`).
 - `finance.read` (ceo, cfo, pm, project-planner, data-analyst y el departamento de finanzas:
   finance-accounting, finance-billing, finance-budget, finance-treasury, finance-review):
   lectura de finanzas de 642CORE, pero solo como **contexto** — cuentas, facturas y
@@ -107,7 +110,7 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
   - A propósito NUNCA pólizas contables, ajustes fiscales, auditoría de transacciones ni
     importaciones bancarias crudas — eso es contabilidad interna, no contexto de cliente/tarea.
   - Mismo patrón de seguridad que `core.read`: tablas fijas en el código, SQL parametrizado,
-    rol de Postgres limitado por `GRANT SELECT` (`docs/sql/core_grants_tasks_finance.sql`).
+    rol de Postgres limitado por `GRANT SELECT` (`docs/sql/core_grants_finance.sql`).
 - Knowledge de puesto: documentos de `agents/<id>/knowledge/` declarados en `config.json` (máx. 10 y 64 KB por
   puesto). Van completos en el prompt de cada llamada, como datos. Hoy 55 de 56 puestos tienen
   (103 documentos adaptados de bibliotecas con licencia que lo permite; ver `docs/third-party-notices.md`
@@ -142,7 +145,7 @@ Detalle completo de cada una (schema exacto, scopes de OAuth, flujo de autorizac
 | Herramienta | Qué hace de verdad | Agentes con acceso hoy |
 | --- | --- | --- |
 | `core.write` | Crea (nunca edita ni borra) una nota de actividad, una solicitud de contenido o un contacto en el CRM de 642CORE (`crm_add_activity_note`, `crm_create_content_request`, `crm_create_contact`); rol de Postgres separado de `core.read` con `GRANT INSERT` solo en esas tres tablas (`docs/sql/core_write_role.sql`) | `cm`, `pm` |
-| `tasks.write` | Crea (nunca cambia estado ni borra) una tarea o una asignación en 642CORE (`tasks_create`, `tasks_assign_user`, `src/office/task-tools.ts`); mismo rol `core_write` que `core.write`, con `GRANT INSERT` adicional en `tasks`/`task_assignees` y los permisos que exigen sus triggers de auditoría (`docs/sql/core_grants_tasks_finance.sql`) | `cm`, `pm`, `project-planner`, `human-task-coordinator` |
+| `projects.write` | Crea/actualiza tareas nativas de Core vía su API local (`projects_create_task`, `projects_update_task`, `src/office/core-api-tools.ts`); idempotente (`operationKey`) y con concurrencia optimista (`expectedUpdatedAt`) | `pm` |
 | `pdf.generate` | Genera un PDF real (WeasyPrint, Docker propio), lo guarda en Postgres | `content`, `market-research`, `research`, `investment-research`, `data-analyst` |
 | `email.draft` | Crea un borrador real de Gmail — **nunca envía solo** | `content` |
 | `drive.upload` | Sube un archivo real a Drive (solo ve lo que crea, scope `drive.file`) | `content`, `market-research`, `research`, `investment-research`, `data-analyst` |

@@ -7,8 +7,7 @@
     "department.plan"
   ],
   "allowedTools": [
-    "core.read",
-    "tasks.read"
+    "core.read"
   ],
   "organization": {
     "title": "DireccionMarketing",

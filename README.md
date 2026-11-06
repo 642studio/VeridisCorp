@@ -6,9 +6,21 @@ Fecha: 2026-10-24. Fase: **Arranque**. La carpeta de trabajo es `VeridisCorp/`, 
 
 ## Estado actual
 
+La gestión de proyectos pasa al [módulo interno de Core](docs/proyectos-nativos-2026-11-05.md):
+consulta para los puestos de proyectos y creación/edición acotada para PM. ClickUp deja de
+ser una herramienta de los perfiles activos; no se importaron ni borraron sus tareas históricas.
+
+**Verificado en el servidor el 2026-11-05:** catálogo de **57 perfiles**, runtime activo por
+systemd en `127.0.0.1:7777`, panel protegido por Cloudflare Access y login TOTP, y Core instalado
+como servicio independiente. La integración permite consultas y creación de notas/contactos/
+solicitudes; `cm` y `pm` pueden además corregir campos explícitos por la API local de Core,
+con control de versión y auditoría. El servicio usa el rol local `veridis_runtime`, sin DDL.
+El [registro operativo y de reparaciones](docs/operacion-core-2026-11-05.md) es la referencia
+vigente para este despliegue; los párrafos históricos de las guías no prueban su estado actual.
+
 La [ruta vertical gobernada de contenido](docs/runtime-pilot.md) conecta una API autenticada, autorización efectiva, tareas propias persistentes, generación y revisión con agentes existentes, artefactos versionados, aprobación humana, ejecución central y auditoría en PostgreSQL. Se verificó un reinicio real después de enviar a un receptor HTTP controlado, recuperando el resultado por consulta sin volver a enviarlo.
 
-Las pruebas usan proveedores de contenido deterministas y un receptor local. No se han validado llamadas pagadas, publicaciones en plataformas comerciales ni un despliegue de producción. Los costos desconocidos permanecen como null; los límites monetarios se aplican a reservas configuradas, todavía sin conciliación con facturación.
+Las pruebas automatizadas del piloto usan proveedores de contenido deterministas y un receptor local. Su resultado no valida publicaciones comerciales ni facturación. Los proveedores reales y el despliegue se describen por separado en las guías y en el registro operativo. Los costos desconocidos permanecen como null; los límites monetarios todavía no tienen conciliación con facturación.
 
 La ruta usa un plan determinista de contenido y revisión, no un orquestador general autónomo. Los [contratos de gobierno](docs/governance-foundation.md) incluyen además relaciones multiempresa, memoria, decisiones, tareas humanas, eventos y credenciales; su disponibilidad no significa que todas esas funciones estén conectadas al piloto.
 

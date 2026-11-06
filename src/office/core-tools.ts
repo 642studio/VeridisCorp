@@ -20,8 +20,8 @@ let pool: Pool | null = null;
 export function configureCoreDb(client: Pool | null): void { pool = client; }
 export function isCoreDbConfigured(): boolean { return pool !== null; }
 
-// Exportado para que task-tools.ts/finance-tools.ts reusen el mismo pool de lectura (misma
-// conexión, más tablas vía GRANT — ver docs/sql/core_grants_tasks_finance.sql) en vez de abrir
+// Exportado para que finance-tools.ts reuse el mismo pool de lectura (misma
+// conexión, más tablas vía GRANT — ver docs/sql/core_grants_finance.sql) en vez de abrir
 // una conexión propia por dominio.
 export function db(): Pool {
   if (!pool) throw new Error('CRM no configurado (falta CORE_DATABASE_URL)');
@@ -41,7 +41,7 @@ export function writeDb(): Pool {
   return writePool;
 }
 
-// Exportado: task-tools.ts valida contra clients antes de crear/asignar tareas, igual que
+// Exportado: finance-tools.ts lo usa para resolver el cliente antes de leer, igual que
 // core-tools.ts valida antes de escribir una nota o solicitud.
 export async function resolveClientId(client: string): Promise<{ id: string; legal_name: string } | null> {
   const { rows } = await db().query(
@@ -238,10 +238,11 @@ export const crmCreateContactTool = tool(
 export const CORE_WRITE_TOOLS: StructuredToolInterface[] = [crmAddActivityNoteTool, crmCreateContentRequestTool, crmCreateContactTool];
 
 export async function describeCoreWrite(): Promise<string | null> {
-  if (!isCoreWriteDbConfigured()) return null;
+  if (!isCoreWriteDbConfigured() && !process.env.CORE_API_URL) return null;
   return 'Escritura del CRM disponible (642CORE): crm_add_activity_note, crm_create_content_request y '
     + 'crm_create_contact. Las tres solo CREAN — nunca editan ni borran nada existente. Usa crm_list_clients '
-    + 'o crm_get_client primero para confirmar el cliente correcto antes de escribir.';
+    + 'o crm_get_client primero para confirmar el cliente correcto antes de escribir. '
+    + (process.env.CORE_API_URL ? 'La API local permite además crm_inspect_workspace, crm_update_contact y crm_update_request: consulta previa, versión exacta updated_at y auditoría por agente/expediente. No cambia estados, asignados ni elimina registros.' : '');
 }
 
 // Lo que el agente necesita saber antes de elegir: si el CRM está disponible y cuántos

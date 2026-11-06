@@ -6,7 +6,9 @@
     "operations.strategy",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "projects.read"
+  ],
   "organization": {
     "title": "COO",
     "departmentId": "operations",
