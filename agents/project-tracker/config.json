@@ -7,7 +7,8 @@
     "projects.risks"
   ],
   "allowedTools": [
-    "clickup.read"
+    "clickup.read",
+    "tasks.read"
   ],
   "organization": {
     "title": "Seguimiento",

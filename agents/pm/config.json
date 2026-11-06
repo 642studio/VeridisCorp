@@ -9,7 +9,10 @@
   "allowedTools": [
     "clickup.read",
     "core.read",
-    "core.write"
+    "core.write",
+    "tasks.read",
+    "tasks.write",
+    "finance.read"
   ],
   "organization": {
     "title": "ProjectManager",

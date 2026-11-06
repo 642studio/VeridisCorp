@@ -6,7 +6,8 @@
     "finance.reconcile"
   ],
   "allowedTools": [
-    "calculator"
+    "calculator",
+    "finance.read"
   ],
   "organization": {
     "title": "Control contable",

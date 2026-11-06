@@ -6,7 +6,8 @@
     "finance.cashflow"
   ],
   "allowedTools": [
-    "calculator"
+    "calculator",
+    "finance.read"
   ],
   "organization": {
     "title": "Tesoreria",

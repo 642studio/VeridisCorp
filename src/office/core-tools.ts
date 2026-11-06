@@ -18,8 +18,12 @@ let pool: Pool | null = null;
 // Lo fija runtime/cli.ts tras cargar el .env. Sin CORE_DATABASE_URL, cada tool falla en su
 // primera llamada real — igual que clickup.read sin CLICKUP_API_KEY — nunca tumba execute().
 export function configureCoreDb(client: Pool | null): void { pool = client; }
+export function isCoreDbConfigured(): boolean { return pool !== null; }
 
-function db(): Pool {
+// Exportado para que task-tools.ts/finance-tools.ts reusen el mismo pool de lectura (misma
+// conexión, más tablas vía GRANT — ver docs/sql/core_grants_tasks_finance.sql) en vez de abrir
+// una conexión propia por dominio.
+export function db(): Pool {
   if (!pool) throw new Error('CRM no configurado (falta CORE_DATABASE_URL)');
   return pool;
 }
@@ -30,13 +34,16 @@ function db(): Pool {
 // vive en un Pool distinto al de lectura: si algún día se revoca o rota, no afecta a core.read.
 let writePool: Pool | null = null;
 export function configureCoreWriteDb(client: Pool | null): void { writePool = client; }
+export function isCoreWriteDbConfigured(): boolean { return writePool !== null; }
 
-function writeDb(): Pool {
+export function writeDb(): Pool {
   if (!writePool) throw new Error('Escritura del CRM no configurada (falta CORE_WRITE_DATABASE_URL)');
   return writePool;
 }
 
-async function resolveClientId(client: string): Promise<{ id: string; legal_name: string } | null> {
+// Exportado: task-tools.ts valida contra clients antes de crear/asignar tareas, igual que
+// core-tools.ts valida antes de escribir una nota o solicitud.
+export async function resolveClientId(client: string): Promise<{ id: string; legal_name: string } | null> {
   const { rows } = await db().query(
     `select id, legal_name from public.clients where id::text = $1 or slug = $1 limit 1`,
     [client.trim()],
@@ -231,7 +238,7 @@ export const crmCreateContactTool = tool(
 export const CORE_WRITE_TOOLS: StructuredToolInterface[] = [crmAddActivityNoteTool, crmCreateContentRequestTool, crmCreateContactTool];
 
 export async function describeCoreWrite(): Promise<string | null> {
-  if (!writePool) return null;
+  if (!isCoreWriteDbConfigured()) return null;
   return 'Escritura del CRM disponible (642CORE): crm_add_activity_note, crm_create_content_request y '
     + 'crm_create_contact. Las tres solo CREAN — nunca editan ni borran nada existente. Usa crm_list_clients '
     + 'o crm_get_client primero para confirmar el cliente correcto antes de escribir.';
@@ -240,9 +247,9 @@ export async function describeCoreWrite(): Promise<string | null> {
 // Lo que el agente necesita saber antes de elegir: si el CRM está disponible y cuántos
 // clientes reales tiene hoy, igual que describeRepos() hace con los repositorios.
 export async function describeCore(): Promise<string | null> {
-  if (!pool) return null;
+  if (!isCoreDbConfigured()) return null;
   try {
-    const { rows } = await pool.query('select count(*)::int as n from public.clients');
+    const { rows } = await db().query('select count(*)::int as n from public.clients');
     return `CRM disponible (642CORE, solo lectura): ${rows[0]?.n ?? 0} clientes registrados. `
       + 'Usa crm_list_clients para buscar, crm_get_client para el detalle de uno y crm_search_contacts para ubicar a una persona.';
   } catch (error) {

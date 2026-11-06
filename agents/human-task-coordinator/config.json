@@ -7,7 +7,9 @@
   ],
   "allowedTools": [
     "clickup.read",
-    "mcp.use"
+    "mcp.use",
+    "tasks.read",
+    "tasks.write"
   ],
   "organization": {
     "title": "Coordinación de tareas humanas",

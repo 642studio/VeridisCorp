@@ -10,7 +10,9 @@
     "pdf.generate",
     "drive.upload",
     "sheets.create",
-    "core.read"
+    "core.read",
+    "tasks.read",
+    "finance.read"
   ],
   "organization": {
     "title": "Analítica de negocio",

@@ -6,7 +6,8 @@
     "finance.billing"
   ],
   "allowedTools": [
-    "calculator"
+    "calculator",
+    "finance.read"
   ],
   "organization": {
     "title": "Facturacion",

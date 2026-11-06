@@ -5,7 +5,9 @@
   "capabilities": [
     "work.review"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "finance.read"
+  ],
   "organization": {
     "title": "RevisionFinanciera",
     "departmentId": "finance",

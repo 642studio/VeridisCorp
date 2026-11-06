@@ -10,7 +10,9 @@
   "allowedTools": [
     "memory.write",
     "memory.query",
-    "core.read"
+    "core.read",
+    "tasks.read",
+    "finance.read"
   ],
   "organization": {
     "title": "CEO",

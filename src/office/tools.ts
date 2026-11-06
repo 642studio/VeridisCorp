@@ -16,6 +16,8 @@ import { synthesizeElevenLabsForTool } from '../runtime/elevenlabs-proxy.js';
 import { generateMusic } from '../runtime/sunoapi-proxy.js';
 import { REPO_TOOLS } from './repo-tools.js';
 import { CORE_TOOLS, CORE_WRITE_TOOLS } from './core-tools.js';
+import { CORE_TASK_READ_TOOLS, CORE_TASK_WRITE_TOOLS } from './task-tools.js';
+import { FINANCE_TOOLS } from './finance-tools.js';
 import { MCP_TOOLS } from './mcp-tools.js';
 
 // Catálogo de herramientas reales que un agente puede usar durante execute(), siempre acotado
@@ -1181,6 +1183,9 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInter
   'repo.read': REPO_TOOLS,
   'core.read': CORE_TOOLS,
   'core.write': CORE_WRITE_TOOLS,
+  'tasks.read': CORE_TASK_READ_TOOLS,
+  'tasks.write': CORE_TASK_WRITE_TOOLS,
+  'finance.read': FINANCE_TOOLS,
   ...MCP_TOOLS,
 };
 

@@ -93,6 +93,21 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
     barrera si ese rol se amplía por error; SQL siempre parametrizado, nunca una cadena que
     arme el modelo.
   - Salida acotada a 50 filas por llamada y recortada con el mismo `clip()` que usa `repo.read`.
+- `tasks.read` (ceo, cmo, cm, pm, project-planner, project-tracker, human-task-coordinator,
+  data-analyst): lectura de tareas de 642CORE — reemplazo nativo de ClickUp
+  (`public.tasks`/`task_assignees`/`task_activity`, `src/office/task-tools.ts`). Mismo pool que
+  `core.read` (`CORE_DATABASE_URL`), más GRANTs. Herramientas: `tasks_list` (de un cliente,
+  filtrable por estado) y `tasks_get` (detalle: asignados y actividad reciente).
+- `finance.read` (ceo, cfo, pm, project-planner, data-analyst y el departamento de finanzas:
+  finance-accounting, finance-billing, finance-budget, finance-treasury, finance-review):
+  lectura de finanzas de 642CORE, pero solo como **contexto** — cuentas, facturas y
+  transacciones (`public.finance_accounts/finance_invoices/finance_transactions`,
+  `src/office/finance-tools.ts`). Mismo pool que `core.read`. Herramientas:
+  `finance_get_client_summary` y `finance_list_invoices`.
+  - A propósito NUNCA pólizas contables, ajustes fiscales, auditoría de transacciones ni
+    importaciones bancarias crudas — eso es contabilidad interna, no contexto de cliente/tarea.
+  - Mismo patrón de seguridad que `core.read`: tablas fijas en el código, SQL parametrizado,
+    rol de Postgres limitado por `GRANT SELECT` (`docs/sql/core_grants_tasks_finance.sql`).
 - Knowledge de puesto: documentos de `agents/<id>/knowledge/` declarados en `config.json` (máx. 10 y 64 KB por
   puesto). Van completos en el prompt de cada llamada, como datos. Hoy 55 de 56 puestos tienen
   (103 documentos adaptados de bibliotecas con licencia que lo permite; ver `docs/third-party-notices.md`
@@ -127,6 +142,7 @@ Detalle completo de cada una (schema exacto, scopes de OAuth, flujo de autorizac
 | Herramienta | Qué hace de verdad | Agentes con acceso hoy |
 | --- | --- | --- |
 | `core.write` | Crea (nunca edita ni borra) una nota de actividad, una solicitud de contenido o un contacto en el CRM de 642CORE (`crm_add_activity_note`, `crm_create_content_request`, `crm_create_contact`); rol de Postgres separado de `core.read` con `GRANT INSERT` solo en esas tres tablas (`docs/sql/core_write_role.sql`) | `cm`, `pm` |
+| `tasks.write` | Crea (nunca cambia estado ni borra) una tarea o una asignación en 642CORE (`tasks_create`, `tasks_assign_user`, `src/office/task-tools.ts`); mismo rol `core_write` que `core.write`, con `GRANT INSERT` adicional en `tasks`/`task_assignees` y los permisos que exigen sus triggers de auditoría (`docs/sql/core_grants_tasks_finance.sql`) | `cm`, `pm`, `project-planner`, `human-task-coordinator` |
 | `pdf.generate` | Genera un PDF real (WeasyPrint, Docker propio), lo guarda en Postgres | `content`, `market-research`, `research`, `investment-research`, `data-analyst` |
 | `email.draft` | Crea un borrador real de Gmail — **nunca envía solo** | `content` |
 | `drive.upload` | Sube un archivo real a Drive (solo ve lo que crea, scope `drive.file`) | `content`, `market-research`, `research`, `investment-research`, `data-analyst` |

@@ -6,7 +6,10 @@
     "finance.plan",
     "department.plan"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "finance.read",
+    "tasks.read"
+  ],
   "organization": {
     "title": "CFO",
     "departmentId": "finance",
