@@ -1,0 +1,110 @@
+# Postiz autoalojado para VeridisCorp (programación de publicaciones en redes).
+# Versión ligera del docker-compose oficial (gitroomhq/postiz-app, AGPL-3.0, se usa sin modificar):
+# - sin Elasticsearch (Temporal guarda su visibilidad en Postgres), sin temporal-ui, admin-tools ni spotlight;
+# - imágenes con versión fija; topes de memoria por contenedor para no quitarle RAM al resto del servidor;
+# - solo escucha en 127.0.0.1:4007 (se publica después, si hace falta, detrás del túnel con TLS).
+# Secretos y URLs en .env (ver .env.example). VeridisCorp la llama por HTTP (API pública /public/v1),
+# nunca importa su código.
+name: postiz
+
+services:
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:v2.25.3
+    container_name: postiz
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postiz:${POSTIZ_DB_PASSWORD}@postiz-postgres:5432/postiz
+      REDIS_URL: redis://postiz-redis:6379
+      BACKEND_INTERNAL_URL: http://localhost:3000
+      TEMPORAL_ADDRESS: temporal:7233
+      IS_GENERAL: 'true'
+      STORAGE_PROVIDER: local
+      UPLOAD_DIRECTORY: /uploads
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: /uploads
+    volumes:
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
+    ports:
+      - '127.0.0.1:4007:5000'
+    mem_limit: 1536m
+    networks: [postiz, temporal]
+    depends_on:
+      postiz-postgres: { condition: service_healthy }
+      postiz-redis: { condition: service_healthy }
+      temporal: { condition: service_started }
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: postiz-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postiz
+      POSTGRES_PASSWORD: ${POSTIZ_DB_PASSWORD}
+      POSTGRES_DB: postiz
+    volumes:
+      - postiz-postgres:/var/lib/postgresql/data
+    mem_limit: 256m
+    networks: [postiz]
+    healthcheck:
+      test: pg_isready -U postiz -d postiz
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postiz-redis:
+    image: redis:7.2-alpine
+    container_name: postiz-redis
+    restart: unless-stopped
+    command: ['redis-server', '--maxmemory', '96mb', '--maxmemory-policy', 'noeviction']
+    volumes:
+      - postiz-redis:/data
+    mem_limit: 128m
+    networks: [postiz]
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  temporal-postgresql:
+    image: postgres:16-alpine
+    container_name: postiz-temporal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${TEMPORAL_DB_PASSWORD}
+    volumes:
+      - temporal-postgres:/var/lib/postgresql/data
+    mem_limit: 256m
+    networks: [temporal]
+
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    container_name: postiz-temporal
+    restart: unless-stopped
+    depends_on: [temporal-postgresql]
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=${TEMPORAL_DB_PASSWORD}
+      - POSTGRES_SEEDS=temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=false
+      - TEMPORAL_NAMESPACE=default
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+    mem_limit: 512m
+    networks: [temporal]
+
+volumes:
+  postiz-config:
+  postiz-uploads:
+  postiz-postgres:
+  postiz-redis:
+  temporal-postgres:
+
+networks:
+  postiz:
+  temporal:

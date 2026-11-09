@@ -1,0 +1,4 @@
+# Configuración dinámica mínima de Temporal para Postiz (visibilidad en Postgres, sin Elasticsearch).
+limit.maxIDLength:
+  - value: 255
+    constraints: {}

@@ -32,6 +32,11 @@
       "id": "kb-slo-y-observabilidad",
       "title": "SLO, alertas y observabilidad",
       "path": "slo-y-observabilidad.md"
+    },
+    {
+      "id": "kb-herramientas-auditoria-kali",
+      "title": "Herramientas de auditoría en kali-audit y cómo usarlas",
+      "path": "herramientas-auditoria-kali.md"
     }
   ]
 }
