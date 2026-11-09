@@ -409,6 +409,14 @@ Prueba en vivo con la misma campaña (Glow Laser Spa, 4 semanas, $8,000 MXN):
 
 Pendiente: decidir el modelo de campaigns, creative-strategy y social-analyst (hoy `local-general`).
 
+## Hecho: knowledge de repos candidatos (2026-11-08)
+
+- 16 documentos más en 14 puestos (total: 125 documentos en 56 de 57 puestos; sigue faltando
+  investment-research). Fuentes: impeccable, unslop, ux-ui-agent-skills, anthropics/skills,
+  superpowers, ECC, awesome-llm-apps, logo-design-skill, bang-motion y, solo como ideas,
+  reelmimic, OpenMontage y google-maps-scraping-apis. Detalle y veredictos en
+  `docs/repos-candidatos-2026-11-08.md`; avisos en `docs/third-party-notices.md`.
+
 ## Hecho: knowledge para los demás puestos (2026-11-01)
 
 - 88 documentos más, para 47 puestos fuera de marketing (55 de 56 tienen knowledge; falta

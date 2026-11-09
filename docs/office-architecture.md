@@ -112,8 +112,8 @@ El núcleo no autentica identidades. El transporte real (`runtime/`) obtiene `Ac
   - Mismo patrón de seguridad que `core.read`: tablas fijas en el código, SQL parametrizado,
     rol de Postgres limitado por `GRANT SELECT` (`docs/sql/core_grants_finance.sql`).
 - Knowledge de puesto: documentos de `agents/<id>/knowledge/` declarados en `config.json` (máx. 10 y 64 KB por
-  puesto). Van completos en el prompt de cada llamada, como datos. Hoy 55 de 56 puestos tienen
-  (103 documentos adaptados de bibliotecas con licencia que lo permite; ver `docs/third-party-notices.md`
+  puesto). Van completos en el prompt de cada llamada, como datos. Hoy 56 de 57 puestos tienen
+  (125 documentos adaptados de bibliotecas con licencia que lo permite; ver `docs/third-party-notices.md`
   y `docs/skills-libraries.md`). Cada documento abre con su línea de origen.
 - Conexiones MCP (`src/office/mcp-client.ts`, `src/office/mcp-tools.ts`, `src/runtime/mcp-store.ts`). Tres ids:
   - `mcp.connect` (automation, devops): `mcp_connect` conecta un servidor MCP remoto o lo deja solicitado sin URL.

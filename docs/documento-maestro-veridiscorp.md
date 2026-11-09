@@ -196,8 +196,8 @@ anterior — exige migración explícita o expediente nuevo.
 
 ### 3.4 Conocimiento de puesto (`knowledge/`) — qué sabe cada agente
 
-Estado (2026-11-01): **103 documentos en 55 de 56 puestos** (falta `investment-research`),
-adaptados de **ocho bibliotecas externas con licencia que lo permite** (MIT en su mayoría; CC BY 4.0
+Estado (2026-11-08): **125 documentos en 56 de 57 puestos** (falta `investment-research`). Los primeros 103
+(2026-11-01) se adaptaron de **ocho bibliotecas externas con licencia que lo permite** (MIT en su mayoría; CC BY 4.0
 con atribución en una; nunca GPL/AGPL/"Unknown"/vendor), nunca copiados literalmente — resumidos y
 adaptados al español y al contexto mexicano (SAT/CFDI, LFT, IMSS, LFPDPPP, PROFECO, COFEPRIS,
 moneda MXN). Atribución en la primera línea de cada documento y en `docs/third-party-notices.md`;
@@ -208,6 +208,10 @@ Bibliotecas fuente: `marketingskills` (Corey Haines, MIT — 16 documentos de ma
 `headcount` (fuente principal fuera de marketing — una "empresa de agentes" de 16 departamentos),
 `n8n-skills`, `claude-skills`, `goose-skills`, `agentic-awesome-skills`,
 `DevOps-Security-Agent-Skills`, `agent-skills`, `pm-skills`.
+Ronda del 2026-11-08 (16 documentos, ver `docs/repos-candidatos-2026-11-08.md`): `impeccable`,
+`unslop` (CC BY 4.0), `ux-ui-agent-skills`, `anthropics/skills`, `superpowers`, `ECC`, `awesome-llm-apps`
+(Apache-2.0), `logo-design-skill`, `bang-motion`; de `reelmimic`, `google-maps-scraping-apis` y `OpenMontage`
+(AGPL) solo ideas con texto propio.
 
 Lo legal/fiscal mexicano va solo en términos generales marcados "verificar con el contador/abogado":
 ninguna biblioteca lo cubre con la profundidad necesaria. Facturación CFDI es documento propio,

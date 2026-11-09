@@ -1,6 +1,6 @@
 # Publicación real en redes sociales: investigación y propuesta
 
-Fecha original: 2026-11-03. Actualizado: 2026-11-05. Fase: Arranque. Este documento responde una
+Fecha original: 2026-11-03. Actualizado: 2026-11-08. Fase: Arranque. Este documento responde una
 pregunta concreta — **qué hace falta para que VeridisCorp publique de verdad en Facebook,
 Instagram, Threads, X, YouTube y TikTok** — y propone cómo encajarlo en la arquitectura ya
 existente, en el mismo formato de decisión-pendiente que
@@ -8,7 +8,8 @@ existente, en el mismo formato de decisión-pendiente que
 
 **Facebook e Instagram ya están implementados, incluido video** (`social.publish_facebook`,
 `social.publish_instagram` — ver la sección propia más abajo). Threads, X, YouTube y TikTok
-siguen siendo solo investigación y propuesta, sin código todavía.
+ya no necesitan cliente propio cada una: desde el 2026-11-08 la vía es **Postiz autoalojado**
+(ver la sección propia más abajo y `deploy/postiz/README.md`), que hoy solo crea borradores.
 
 ## Punto de partida: qué existe hoy
 
@@ -126,6 +127,25 @@ por separado (firma válida, firma de otro `fileId`, firma vencida).
 `video_url`) están implementados contra la documentación oficial de Meta y probados con la Graph
 API simulada, pero ninguno corrió aún contra una Página/cuenta real — sigue pendiente la primera
 publicación real de prueba antes de confiar en esto para contenido de producción sin supervisión.
+
+## Postiz para las demás redes — en arranque (2026-11-08)
+
+En vez de escribir y mantener un cliente propio por red (Threads, X, YouTube, TikTok, LinkedIn,
+Pinterest, carrusel de Instagram), VeridisCorp usa **Postiz autoalojado** (AGPL-3.0, sin
+modificar, llamado solo por HTTP) en `veridis-oficina`. La investigación por plataforma de abajo
+sigue vigente para entender requisitos, permisos y auditorías: Postiz no las evita, cada red
+sigue pidiendo su app de desarrollador aprobada.
+
+- **Herramienta:** `social.schedule_post` (puesto `content`). Lista los canales y crea **borradores**.
+  Ningún agente publica ni programa por esta vía; Adrián revisa y programa en Postiz.
+- **Estado:**
+  - Postiz corre en el servidor (solo `127.0.0.1:4007`).
+  - Falta la cuenta de administración, la llave de API, una URL pública con HTTPS para los
+    callbacks OAuth y las apps de cada red.
+  - Ningún borrador real se ha creado todavía; las pruebas simulan la API.
+- **Límites:** no cubre los Reels de Facebook. Facebook e Instagram siguen con sus herramientas
+  propias de la sección anterior.
+- Operación, memoria, el arreglo de Temporal y pasos pendientes: `deploy/postiz/README.md`.
 
 ## Detalle por plataforma
 

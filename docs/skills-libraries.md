@@ -1,6 +1,7 @@
 # Bibliotecas de skills revisadas (2026-11-01)
 
-Estado: extraído. 103 documentos en 55 puestos (ver `docs/competitive-strategy.md`). Falta investment-research.
+Estado (2026-11-08): extraído. 125 documentos en 56 de 57 puestos (ver `docs/competitive-strategy.md`). Falta investment-research.
+La ronda del 2026-11-08 sumó 16 documentos de 11 fuentes nuevas (tabla de licencias y `docs/repos-candidatos-2026-11-08.md`).
 
 Qué sirve de cada biblioteca para el knowledge de los puestos (`agents/<id>/knowledge/`). Regla: se
 resume y adapta al español y a México (SAT/CFDI, LFT, IMSS, LFPDPPP, MXN); nunca se copia una skill
@@ -22,6 +23,18 @@ documento y en `docs/third-party-notices.md`.
 | deanpeters/Product-Manager-Skills | CC BY-NC-SA | Solo ideas |
 | VoltAgent/awesome-agent-skills, zhuyansen/awesome-claude-code-skills-collections | MIT / CC0 (solo listas) | Índices de enlaces; cada repo enlazado tiene su licencia |
 | heygen-com/hyperframes | Apache-2.0 | Adaptado: contrato de render y oficio de medios para `video-production` (2026-11-03). No es una skill de puesto administrativo: es el motor HTML→video que usa esta plaza; ver `docs/third-party-notices.md` |
+| pbakaus/impeccable | Apache-2.0 (con NOTICE) | Adaptado (2026-11-08): diseño de interfaz para `frontend`, crítica y auditoría de UI para `software-qa`. Su detector `npx impeccable detect` solo dentro del sandbox; nunca su instalador ni el modo `live` |
+| heydamir/unslop | CC BY 4.0 | Adaptado con crédito a Damir Sokolovsky: señales de UI hecha por IA (`frontend`) |
+| plugin87/ux-ui-agent-skills | MIT | Adaptado: accesibilidad WCAG 2.2, ARIA y estados (`frontend`). Se descartó su regla de nunca usar `<select>` nativo |
+| anthropics/skills | Apache-2.0 | Adaptado selectivo: frontend-design, skill-creator, mcp-builder, xlsx, pptx, discernment-nudge |
+| obra/superpowers | MIT | Adaptado: writing-skills (`knowledge-curator`), receiving-code-review (`development`) |
+| affaan-m/ECC | MIT | Adaptado: santa-method (doble revisión, `marketing-review`). Ideas para el motor: operator-approval-loop |
+| Shubhamsaboo/awesome-llm-apps | Apache-2.0 | Adaptado: first-reader (`content`), thinking-out-loud (`human-task-coordinator`). Ideas: corrective_rag, advisor-orchestrator-worker |
+| kaankiziltug/logo-design-skill | MIT | Adaptado: proceso de logotipo e identidad (`creative-strategy`); no su colección de logotipos |
+| bangtutorial/bang-motion | MIT | Adaptado (traducido del indonesio): motion que no parece presentación (`video-production`) |
+| sarpstar/cinecode | MIT | Solo ideas para el QC automático de `video.render` (`src/office/video-qc.ts`); no se instaló la skill |
+| edenfunf/reelmimic, cporter202/google-maps-scraping-apis | MIT | Solo ideas, texto propio (`video-production`, `market-research`) |
+| OpenMontageInc/OpenMontage | AGPL-3.0 | Solo ideas, redactadas desde cero; nunca copiar su texto ni código |
 
 ## Qué sacar, por puesto (huecos: hoy solo marketing tiene knowledge)
 
@@ -64,3 +77,27 @@ Fuente principal: headcount (`plugins/<depto>/skills/<skill>/SKILL.md`); otras e
 Descartado en todas: herramientas de vendors que no usamos (AWS, Azure, GCP, Stripe, Jira, Snowflake…),
 flujos solo para Claude Code como IDE, cumplimiento ajeno (FDA, ISO 13485, HIPAA, FedRAMP, SOC 2),
 seguridad ofensiva, contenido generado en serie y lo que duplica marketingskills.
+
+## Ronda 2026-11-08: repos candidatos
+
+Veredictos completos de los 36 repos en `docs/repos-candidatos-2026-11-08.md`. Documentos que salieron:
+
+| Puesto | Documento | Fuentes |
+|---|---|---|
+| frontend | diseno-de-interfaz.md, accesibilidad-y-estados.md | impeccable, unslop, anthropics frontend-design; ux-ui-agent-skills |
+| software-qa | critica-y-auditoria-de-ui.md | impeccable critique, audit |
+| knowledge-curator | probar-documentos-de-knowledge.md | superpowers writing-skills; anthropics skill-creator |
+| development | recibir-revision-de-codigo.md | superpowers receiving-code-review |
+| backend | disenar-herramientas-mcp.md | anthropics mcp-builder |
+| finance-budget | hojas-de-calculo-financieras.md | anthropics xlsx |
+| cmo | presentaciones.md | anthropics pptx |
+| review | preguntas-de-verificacion.md | anthropics discernment-nudge |
+| content | lectura-previa.md | awesome-llm-apps first-reader |
+| human-task-coordinator | notas-de-voz-y-mensajes.md | awesome-llm-apps thinking-out-loud |
+| marketing-review | doble-revision-de-lo-publico.md | ECC santa-method |
+| creative-strategy | logotipos-e-identidad.md | logo-design-skill |
+| video-production | motion-sin-presentacion.md, analisis-de-referencia-y-plataformas.md | bang-motion; ideas de reelmimic y OpenMontage |
+| market-research | prospeccion-local-responsable.md | ideas de google-maps-scraping-apis; DENUE del INEGI y REPEP |
+
+Quedaron sin asignar puestos que el triage proponía y aún no tienen documento: cfo, data-analyst,
+pm, research-review, cm, campaigns y automation.

@@ -5,6 +5,38 @@ PROBAR, SOLO IDEAS o DESCARTAR. Licencias: MIT/Apache/BSD se pueden adaptar con 
 AGPL solo se usa como servicio sin modificar (llamado por HTTP), nunca copiando su código o texto; GPL igual
 como servicio interno.
 
+## Estado de lo decidido (actualizado 2026-11-08)
+
+Adrián eligió hacer ahora: knowledge nuevo, Postiz, QC automático de video y mejoras del motor; y
+después: subtítulos locales, puesto de ventas/prospección, puesto legal/cumplimiento y laboratorio
+de visión.
+
+| Paquete | Estado | Dónde |
+|---|---|---|
+| Knowledge nuevo | **Hecho**: 16 documentos en 14 puestos (commit `833ce37`) | `docs/skills-libraries.md` (ronda 2026-11-08), `docs/third-party-notices.md` |
+| QC automático de video | **Hecho**, probado con FFmpeg local; falta probar dentro de la imagen Docker | `src/office/video-qc.ts`, `docs/office-architecture.md` |
+| Postiz | **En arranque**: corre en el servidor; herramienta de borradores lista; faltan cuenta, llave, URL pública y apps por red | `deploy/postiz/README.md`, `docs/social-publishing-roadmap.md` |
+| Mejoras del motor (sección 2) | **Pendiente**, sin empezar | esta página |
+| Subtítulos locales (VoiceStudio) | Después | sección 3 |
+| Puesto de ventas / prospección | Después | huecos |
+| Puesto legal / cumplimiento LFPDPPP | Después | huecos |
+| Laboratorio de visión (clearcam) | Después | sección 3 |
+
+Puestos del mapa de knowledge que aún no tienen su documento: cfo, data-analyst, pm,
+research-review, cm, campaigns, automation. Tampoco se usaron `master_audio.py` de cinecode
+(se resolvió con `normalizeAudio` propio) ni el detector de impeccable.
+
+### Huecos de código encontrados al escribir el knowledge (pendientes)
+
+- `sheets.create` usa `valueInputOption: RAW`: las fórmulas quedan como texto. Con
+  `USER_ENTERED` se calcularían.
+- `finance-budget` no tiene `sheets.create` y `cmo` no tiene `slides.create`.
+- El puente de Telegram solo lee texto, no notas de voz.
+- El motor no tiene doble revisión independiente; el documento de `marketing-review` la
+  describe como proceso manual hasta que exista.
+- `market-research` no tiene `core.write`, 642CORE no tiene tabla de prospectos y no hay
+  herramienta de DENUE.
+
 ## Resumen por veredicto
 
 | Veredicto | Repos |
