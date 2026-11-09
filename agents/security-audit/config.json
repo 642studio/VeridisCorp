@@ -26,6 +26,11 @@
       "id": "kb-gestion-de-vulnerabilidades",
       "title": "Gestión de vulnerabilidades",
       "path": "gestion-de-vulnerabilidades.md"
+    },
+    {
+      "id": "kb-kali-auditoria",
+      "title": "Herramientas de kali-audit para auditoría de vulnerabilidades",
+      "path": "kali-herramientas-auditoria.md"
     }
   ]
 }

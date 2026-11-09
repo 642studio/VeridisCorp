@@ -29,6 +29,11 @@
       "id": "kb-tls-y-proxy-inverso",
       "title": "TLS y proxy inverso",
       "path": "tls-y-proxy-inverso.md"
+    },
+    {
+      "id": "kb-kali-red",
+      "title": "Herramientas de kali-audit para auditoría de red",
+      "path": "kali-herramientas-red.md"
     }
   ]
 }

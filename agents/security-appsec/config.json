@@ -26,6 +26,11 @@
       "id": "kb-seguridad-de-agentes-llm",
       "title": "Seguridad de agentes LLM, herramientas y MCP",
       "path": "seguridad-de-agentes-llm.md"
+    },
+    {
+      "id": "kb-kali-appsec",
+      "title": "Herramientas de kali-audit para seguridad de aplicaciones",
+      "path": "kali-herramientas-appsec.md"
     }
   ]
 }

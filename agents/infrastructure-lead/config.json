@@ -23,6 +23,11 @@
       "id": "kb-gobierno-de-infraestructura",
       "title": "Gobierno de la infraestructura en una empresa pequeña",
       "path": "gobierno-de-infraestructura.md"
+    },
+    {
+      "id": "kb-kali-infra",
+      "title": "kali-audit y servicios MCP: decisión de infraestructura",
+      "path": "kali-herramientas-infra.md"
     }
   ]
 }

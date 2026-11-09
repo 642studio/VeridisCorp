@@ -26,6 +26,11 @@
       "id": "kb-secretos-y-cuentas-de-servicio",
       "title": "Secretos y cuentas de servicio",
       "path": "secretos-y-cuentas-de-servicio.md"
+    },
+    {
+      "id": "kb-kali-gobierno",
+      "title": "Gobierno del uso de herramientas de kali-audit",
+      "path": "kali-herramientas-gobierno.md"
     }
   ]
 }

@@ -19,6 +19,11 @@
       "id": "kb-revision-de-seguridad",
       "title": "Revisión de seguridad: qué revisar y cuándo rechazar",
       "path": "revision-de-seguridad.md"
+    },
+    {
+      "id": "kb-kali-revision",
+      "title": "Revisión de auditorías hechas con kali-audit",
+      "path": "kali-herramientas-revision.md"
     }
   ]
 }
