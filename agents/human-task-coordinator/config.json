@@ -20,6 +20,11 @@
       "id": "kb-validar-tareas-humanas",
       "title": "Validar tareas humanas con evidencia",
       "path": "validar-tareas-humanas.md"
+    },
+    {
+      "id": "kb-notas-de-voz-y-mensajes",
+      "title": "Mensajes y notas de voz de Adrián: resumen antes de actuar",
+      "path": "notas-de-voz-y-mensajes.md"
     }
   ]
 }

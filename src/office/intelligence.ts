@@ -19,7 +19,7 @@ import { describeConnections } from './mcp-tools.js';
 const SIDE_EFFECTING_TOOLS = new Set([
   'pdf.generate', 'video.render', 'voice.generate', 'music.generate', 'email.draft', 'drive.upload',
   'calendar.create_event', 'sheets.create', 'meet.create_space', 'slides.create', 'memory.write', 'mcp.connect',
-  'social.publish_facebook', 'social.publish_instagram', 'core.write', 'projects.write',
+  'social.publish_facebook', 'social.publish_instagram', 'social.schedule_post', 'core.write', 'projects.write',
 ]);
 
 // pdf.generate (tool 'generate_pdf') produce un entregable con efecto secundario real (un
@@ -46,7 +46,7 @@ export async function persistGeneratedPdf(pool: Pool, orderId: string, args: Rec
 // el otro entregable con efecto secundario real de office_files. 'pages' se reutiliza como 0 porque
 // esa columna no existe para video; durationSeconds y quality sí viajan en la metadata segura.
 export async function persistGeneratedVideo(pool: Pool, orderId: string, args: Record<string, unknown>, rawOutput: string): Promise<string> {
-  const parsed = JSON.parse(rawOutput) as { filename: string; contentType: string; durationSeconds: number | null; quality: string; base64: string };
+  const parsed = JSON.parse(rawOutput) as { filename: string; contentType: string; durationSeconds: number | null; quality: string; base64: string; qc?: unknown };
   const content = Buffer.from(parsed.base64, 'base64');
   const inputHash = createHash('sha256').update(JSON.stringify({ orderId, args })).digest('hex');
   const result = await pool.query(
@@ -59,6 +59,7 @@ export async function persistGeneratedVideo(pool: Pool, orderId: string, args: R
   return JSON.stringify({
     fileId: result.rows[0].id as string, filename: parsed.filename,
     durationSeconds: parsed.durationSeconds, quality: parsed.quality,
+    ...(parsed.qc === undefined ? {} : { qc: parsed.qc }),
   });
 }
 

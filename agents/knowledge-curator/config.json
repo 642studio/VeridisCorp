@@ -27,6 +27,11 @@
       "id": "kb-registro-de-decisiones",
       "title": "Registro de decisiones",
       "path": "registro-de-decisiones.md"
+    },
+    {
+      "id": "kb-probar-documentos-de-knowledge",
+      "title": "Probar que un documento de knowledge cambia el comportamiento",
+      "path": "probar-documentos-de-knowledge.md"
     }
   ]
 }

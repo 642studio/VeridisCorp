@@ -578,3 +578,285 @@ Licencia original:
   alterar los avisos de copyright del archivo (no se tocó el header `/*! GSAP 3.15.0 ... @license
   Copyright 2026, GreenSock...`) y usarlo para construir una herramienta de animación visual sin código
   que compita con Webflow — ninguna de esas restricciones aplica a este uso.
+
+## cinecode — Sarp Yıldız / sarpstar (MIT)
+
+- Origen: https://github.com/sarpstar/cinecode (commit `67f9807`, revisado el 2026-11-08).
+- Qué se tomó: solo ideas de `scripts/qc.py` y `scripts/master_audio.py`, reescritas en TypeScript y
+  sh propios — ningún archivo se copió ni se ejecutó. En concreto: medir el arranque de un video como
+  la diferencia de luma entre cuadros consecutivos en gris a 160 px (`tblend` + `signalstats`), el
+  uso de `freezedetect`/`blackdetect`/`silencedetect`/`ebur128` como chequeos numéricos, y la
+  normalización de loudness lineal en dos pasadas con `loudnorm` (medir, luego aplicar una ganancia
+  fija con `linear=true`; TP −2 cuando el destino es AAC). La detección de cortes por mapa de bordes,
+  los umbrales y el formato del reporte son propios de VeridisCorp.
+- Dónde está: `src/office/video-qc.ts` (usado por `video.render` en `src/office/tools.ts`).
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 Sarp Yıldız (@sarpstar)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## impeccable — Paul Bakaus (Apache License 2.0)
+
+- Origen: https://github.com/pbakaus/impeccable (commit `4b6b80f`, revisado el 2026-11-08).
+- Qué se tomó: las referencias de oficio `craft-floor`, `layout`, `typeset`, `colorize`, `harden`, `clarify`, `critique` y `audit`. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Copyright 2025 Paul Bakaus. Su NOTICE acredita además `platform-design-skills` de ehmo (MIT) por sus referencias de iOS y Android; esas referencias no se usaron aquí.
+- Dónde está: `agents/frontend/knowledge/diseno-de-interfaz.md`, `agents/software-qa/knowledge/critica-y-auditoria-de-ui.md`.
+- Licencia: Apache License 2.0; el texto completo está arriba, en la sección de hyperframes, y en http://www.apache.org/licenses/LICENSE-2.0
+## unslop — Damir Sokolovsky (CC BY 4.0)
+
+- Origen: https://github.com/heydamir/unslop (commit `97daa3e`, revisado el 2026-11-08).
+- Qué se tomó: el catálogo de señales de interfaz hecha por IA y la idea de tokens de diseño propios. El texto se resumió, tradujo y adaptó (cambios hechos por VeridisCorp); no se tomaron sus valores de color ni su video.
+- Dónde está: `agents/frontend/knowledge/diseno-de-interfaz.md`.
+- Licencia: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/ — crédito a Damir Sokolovsky. Sin garantías, según la licencia.
+
+## ux-ui-agent-skills — Thientan Soparat / plugin87 (MIT)
+
+- Origen: https://github.com/plugin87/ux-ui-agent-skills (commit `def84a7`, revisado el 2026-11-08).
+- Qué se tomó: las skills `accessibility/wcag-checklist`, `aria-patterns`, `cognitive`, `components/feedback`, `forms-advanced` y `design-qa`. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/frontend/knowledge/accesibilidad-y-estados.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 Thientan Soparat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+## anthropics/skills — Anthropic (Apache License 2.0)
+
+- Origen: https://github.com/anthropics/skills (commit `2c5958e`, revisado el 2026-11-08).
+- Qué se tomó: las skills `frontend-design`, `skill-creator`, `mcp-builder`, `xlsx`, `pptx` y `discernment-nudge` (cada una trae su propio `LICENSE.txt` Apache 2.0). Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/frontend/knowledge/diseno-de-interfaz.md`, `agents/knowledge-curator/knowledge/probar-documentos-de-knowledge.md`, `agents/backend/knowledge/disenar-herramientas-mcp.md`, `agents/finance-budget/knowledge/hojas-de-calculo-financieras.md`, `agents/cmo/knowledge/presentaciones.md`, `agents/review/knowledge/preguntas-de-verificacion.md`.
+- Licencia: Apache License 2.0; el texto completo está arriba, en la sección de hyperframes, y en http://www.apache.org/licenses/LICENSE-2.0
+## superpowers — Jesse Vincent / obra (MIT)
+
+- Origen: https://github.com/obra/superpowers (commit `22f0b46`, revisado el 2026-11-08).
+- Qué se tomó: las skills `writing-skills` y `receiving-code-review`. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/knowledge-curator/knowledge/probar-documentos-de-knowledge.md`, `agents/development/knowledge/recibir-revision-de-codigo.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2025 Jesse Vincent
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+## ECC — Affaan Mustafa (MIT)
+
+- Origen: https://github.com/affaan-m/ECC (commit `d2ef268`, revisado el 2026-11-08).
+- Qué se tomó: la skill `santa-method` (doble revisión independiente). La skill declara como origen a Ronald Skelton (RapportScore.ai). Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/marketing-review/knowledge/doble-revision-de-lo-publico.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 Affaan Mustafa
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+## awesome-llm-apps — Shubham Saboo (Apache License 2.0)
+
+- Origen: https://github.com/Shubhamsaboo/awesome-llm-apps (commit `c46144e`, revisado el 2026-11-08).
+- Qué se tomó: las skills `first-reader` y `thinking-out-loud`. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/content/knowledge/lectura-previa.md`, `agents/human-task-coordinator/knowledge/notas-de-voz-y-mensajes.md`.
+- Licencia: Apache License 2.0; el texto completo está arriba, en la sección de hyperframes, y en http://www.apache.org/licenses/LICENSE-2.0
+## logo-design-skill — kaankiziltug (MIT)
+
+- Origen: https://github.com/kaankiziltug/logo-design-skill (commit `bbf31e5`, revisado el 2026-11-08).
+- Qué se tomó: sus referencias de proceso (`discovery-brief`, `principles`, tipos de marca, pruebas y crítica). No se tomó su colección de logotipos. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/creative-strategy/knowledge/logotipos-e-identidad.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 kaankiziltug
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+## bang-motion — Bang Tutorial (MIT)
+
+- Origen: https://github.com/bangtutorial/bang-motion (commit `c1aa65e`, revisado el 2026-11-08).
+- Qué se tomó: `anti-ppt`, `techniques` y `opener-konsep`, traducidos del indonesio. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/video-production/knowledge/motion-sin-presentacion.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 Bang Tutorial
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+## reelmimic — ReelMimic contributors (MIT)
+
+- Origen: https://github.com/edenfunf/reelmimic (commit `4e64585`, revisado el 2026-11-08).
+- Qué se tomó: solo ideas del análisis de un video de referencia (planos, duración media, ritmo). El texto es propio. Las ideas de OpenMontage (AGPL-3.0) del mismo documento se redactaron desde cero, sin copiar su texto ni código. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/video-production/knowledge/analisis-de-referencia-y-plataformas.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 ReelMimic contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+## google-maps-scraping-apis — Chris Porter (MIT)
+
+- Origen: https://github.com/cporter202/google-maps-scraping-apis (commit `80f3bc0`, revisado el 2026-11-08).
+- Qué se tomó: solo los criterios para filtrar negocios locales; no su fuente de datos ni sus scripts. El texto es propio. Resumido, traducido y adaptado; no se copió ningún archivo completo.
+- Dónde está: `agents/market-research/knowledge/prospeccion-local-responsable.md`.
+
+Licencia original:
+
+```text
+MIT License
+
+Copyright (c) 2026 Chris Porter
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

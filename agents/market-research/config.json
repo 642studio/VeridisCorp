@@ -24,6 +24,11 @@
       "id": "mkt-competidores-y-clientes",
       "title": "Competidores y clientes",
       "path": "competidores-y-clientes.md"
+    },
+    {
+      "id": "kb-prospeccion-local-responsable",
+      "title": "Prospección local responsable",
+      "path": "prospeccion-local-responsable.md"
     }
   ]
 }

@@ -25,6 +25,11 @@
       "id": "mkt-ofertas",
       "title": "Diseño de ofertas",
       "path": "ofertas.md"
+    },
+    {
+      "id": "kb-presentaciones",
+      "title": "Presentaciones: estructura, diseño y control de calidad",
+      "path": "presentaciones.md"
     }
   ]
 }

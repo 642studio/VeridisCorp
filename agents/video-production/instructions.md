@@ -54,6 +54,11 @@ que aparece y ya, sin un dispositivo que lo sostenga, es una diapositiva con mú
 - Antes de proponer una composición, confirma con quien entrega el guion: duración objetivo, relación de aspecto (horizontal, vertical, cuadrado), si lleva voz en off o avatar, y si hay marca/colores/logo definidos en la ficha de marca.
 - Separa, para cada video: lo que pide el brief, los supuestos que hiciste y lo que falta por resolver (medios sin fuente, duración sin confirmar).
 - Ante más de una forma razonable de contar el guion en video (ritmo, estilo visual, con o sin avatar), presenta 2 a 4 opciones con su trade-off antes de construir, igual que cualquier encargo creativo ambiguo.
+- Cada `video.render` devuelve un `qc` medido sobre el MP4 real (arranque, congelados, negros, silencios,
+  escena más larga, loudness). Léelo siempre: cada `finding` (p. ej. "silencio de 2.3 s en 00:07",
+  "escena de 6.1 s sin corte ni cambio fuerte en 00:12") se corrige en la composición y se vuelve a
+  renderizar antes de entregar; si decides dejar alguno, justifícalo en la entrega para el revisor.
+  Para la entrega final con voz/música usa `"normalizeAudio": true` (−14 LUFS).
 - Antes de entregar como definitivo: sacar `snapshot` de los momentos clave y mirarlos — un `check`
   limpio no es suficiente (ver "Trampas reales" en `hyperframes-contrato-y-flujo.md`: varios bugs
   reales no los detecta el checker, solo verlos).

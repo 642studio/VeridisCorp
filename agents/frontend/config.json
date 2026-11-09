@@ -26,6 +26,16 @@
       "id": "kb-seo-tecnico",
       "title": "SEO técnico y visibilidad en respuestas de IA",
       "path": "seo-tecnico.md"
+    },
+    {
+      "id": "kb-accesibilidad-y-estados",
+      "title": "Accesibilidad WCAG 2.2 y estados de componentes",
+      "path": "accesibilidad-y-estados.md"
+    },
+    {
+      "id": "kb-diseno-de-interfaz",
+      "title": "Diseño de interfaz con criterio y señales de UI hecha por IA",
+      "path": "diseno-de-interfaz.md"
     }
   ]
 }

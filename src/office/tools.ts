@@ -14,12 +14,14 @@ import type { AccessScope, CorporateMemoryRecord } from '../governance/contracts
 import type { MemoryQueryResult } from '../runtime/memory-store.js';
 import { synthesizeElevenLabsForTool } from '../runtime/elevenlabs-proxy.js';
 import { generateMusic } from '../runtime/sunoapi-proxy.js';
-import { loadEncryptionKey, signFileAccess } from '../runtime/secrets.js';
+import { buildSignedFileUrl } from './signed-file-url.js';
+import { SOCIAL_SCHEDULE_TOOLS } from './social-tools.js';
 import { REPO_TOOLS } from './repo-tools.js';
 import { CORE_TOOLS, CORE_WRITE_TOOLS } from './core-tools.js';
 import { CORE_API_READ_TOOLS, CORE_API_WRITE_TOOLS, PROJECT_READ_TOOLS, PROJECT_WRITE_TOOLS } from './core-api-tools.js';
 import { FINANCE_TOOLS } from './finance-tools.js';
 import { MCP_TOOLS } from './mcp-tools.js';
+import { analyzeRenderedVideo, normalizeRenderedAudio, type ShellRunner } from './video-qc.js';
 
 // Catálogo de herramientas reales que un agente puede usar durante execute(), siempre acotado
 // por su allowedTools (agents/<id>/config.json). El id aquí es el mismo que allowedTools declara;
@@ -430,14 +432,20 @@ const MAX_VIDEO_PROJECT_BYTES = 40 * 1024 * 1024;
 // Docker) en la prueba real — 5 minutos deja margen real sin dejar un tool-call colgado para
 // siempre si algo se traba.
 const VIDEO_RENDER_TIMEOUT_MS = 5 * 60 * 1000;
+// QC (una decodificación del MP4 ya hecho) y normalización (solo recodifica el audio, -c:v copy):
+// ~5 s para un video de 57 s fuera de Docker; 2 minutos deja margen al CPU acotado del contenedor.
+const VIDEO_QC_TIMEOUT_MS = 2 * 60 * 1000;
 
+// entrypoint 'sh': mismo contenedor y mismo aislamiento, pero corre un script de FFmpeg
+// (src/office/video-qc.ts) en vez de la CLI de hyperframes.
 function runVideoRendererCli(
-  projectDir: string, args: string[], timeoutMs: number,
+  projectDir: string, args: string[], timeoutMs: number, entrypoint?: 'sh',
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn('docker', [
       'run', '--rm', '--network', 'none', '--memory', '2g', '--cpus', '2', '--shm-size', '1g',
-      '-v', `${projectDir}:/workspace`, '--workdir', '/workspace', VIDEO_RENDERER_IMAGE, ...args,
+      '-v', `${projectDir}:/workspace`, '--workdir', '/workspace',
+      ...(entrypoint ? ['--entrypoint', entrypoint] : []), VIDEO_RENDERER_IMAGE, ...args,
     ], { timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = ''; let stderr = '';
     child.stdout.on('data', (chunk) => { stdout += chunk; });
@@ -474,6 +482,9 @@ const videoRenderSchema = z.object({
       + 'propia copia en assets/vendor/gsap.min.js — referencia esa ruta local, nunca un CDN.'),
   quality: z.enum(['draft', 'delivery']).default('draft')
     .describe('draft mientras iteras, delivery para el entregable final'),
+  normalizeAudio: z.boolean().default(false)
+    .describe('true: lleva el audio a -14 LUFS (loudnorm lineal en dos pasadas; la imagen no se recodifica). '
+      + 'Úsalo cuando el "qc" anterior marcó loudness fuera de rango, o siempre en "delivery" con voz/música.'),
 }).strict();
 
 // mediaRef = "<kind>:<requestHash>", el mismo valor que devuelve generate_voice/generate_music
@@ -514,7 +525,7 @@ async function writeVideoProjectFiles(projectDir: string, files: z.infer<typeof 
 // gatherToolResults() en intelligence.ts intercepta esta herramienta en particular para persistir
 // el archivo real y sustituir el resultado por metadata segura antes de que llegue al modelo.
 export const videoRenderTool = tool(
-  async ({ files, quality }: z.infer<typeof videoRenderSchema>) => {
+  async ({ files, quality, normalizeAudio }: z.infer<typeof videoRenderSchema>) => {
     const projectDir = await mkdtemp(path.join(tmpdir(), 'veridis-video-'));
     try {
       await writeVideoProjectFiles(projectDir, files);
@@ -537,13 +548,45 @@ export const videoRenderTool = tool(
       if (render.exitCode !== 0) {
         throw new Error(`El render falló: ${render.stderr.slice(0, 1000) || render.stdout.slice(0, 1000) || 'sin más detalle'}`);
       }
-      const videoBytes = await readFile(path.join(projectDir, outputName))
+      const firstBytes = await readFile(path.join(projectDir, outputName))
         .catch(() => { throw new Error('El render terminó pero no se encontró el archivo de salida'); });
-      if (!videoBytes.length) throw new Error('El render produjo un archivo vacío');
+      if (!firstBytes.length) throw new Error('El render produjo un archivo vacío');
+
+      // Post-render: normalización opcional y QC (src/office/video-qc.ts). Ninguno de los dos hace
+      // fallar el render — si FFmpeg falla aquí, el MP4 original se entrega igual y el problema
+      // queda escrito en "qc" para que el agente y el revisor decidan.
+      const runShell: ShellRunner = (script, args) =>
+        runVideoRendererCli(projectDir, ['-c', script, 'veridis-qc', ...args], VIDEO_QC_TIMEOUT_MS, 'sh');
+      let deliveredName = outputName;
+      const qcNotes: string[] = [];
+      let audioNormalized: Awaited<ReturnType<typeof normalizeRenderedAudio>> = null;
+      if (normalizeAudio) {
+        try {
+          audioNormalized = await normalizeRenderedAudio(runShell, outputName, 'render.norm.mp4');
+          if (audioNormalized) deliveredName = 'render.norm.mp4';
+          else qcNotes.push('normalizeAudio: no hay audio que normalizar (sin pista o muda)');
+        } catch (error) {
+          qcNotes.push(`normalizeAudio falló, se entrega el audio sin normalizar: ${error instanceof Error ? error.message.slice(0, 200) : 'error desconocido'}`);
+        }
+      }
+      let videoBytes = firstBytes;
+      if (deliveredName !== outputName) {
+        const normalizedBytes = await readFile(path.join(projectDir, deliveredName)).catch(() => null);
+        if (normalizedBytes?.length) videoBytes = normalizedBytes;
+        else { deliveredName = outputName; audioNormalized = null; qcNotes.push('normalizeAudio no dejó archivo: se entrega el audio sin normalizar'); }
+      }
+      let qc: Record<string, unknown>;
+      try {
+        const report = await analyzeRenderedVideo(runShell, deliveredName);
+        qc = { ...report, findings: [...qcNotes, ...report.findings], ...(audioNormalized ? { audioNormalized } : {}) };
+      } catch (error) {
+        qc = { error: `QC no disponible: ${error instanceof Error ? error.message.slice(0, 300) : 'error desconocido'}`, findings: qcNotes };
+      }
 
       return JSON.stringify({
         filename: 'video.mp4', contentType: 'video/mp4',
         durationSeconds: checkReport.layout?.duration ?? null, quality,
+        qc,
         base64: videoBytes.toString('base64'),
       });
     } finally {
@@ -557,7 +600,11 @@ export const videoRenderTool = tool(
       + 'Corre `check` antes de renderizar y falla con el detalle exacto si no pasa (contraste, texto '
       + 'bajo el mínimo legible, reglas del contrato) — corrige la composición y vuelve a llamar. '
       + '"quality": "draft" mientras iteras, "delivery" solo para el entregable final. Para un audio ya '
-      + 'generado con generate_voice/generate_music, usa "mediaRef" (no "contentBase64") en su archivo.',
+      + 'generado con generate_voice/generate_music, usa "mediaRef" (no "contentBase64") en su archivo. '
+      + 'El resultado trae "qc": mediciones del MP4 real (arranque con movimiento, congelados, negros, '
+      + 'silencios, cortes/escena más larga, loudness) y "findings" legibles con el minuto exacto. No '
+      + 'bloquea la entrega, pero cada hallazgo se corrige y se vuelve a renderizar, o se justifica en la '
+      + 'entrega; los umbrales son de referencia.',
     schema: videoRenderSchema,
   },
 );
@@ -1078,21 +1125,8 @@ async function graphRequest<T>(method: 'GET' | 'POST', path: string, params: Rec
   return data;
 }
 
-// Enlace temporal (15 min) hacia GET /office/files/:id/signed (ruta pública sin Bearer, ver
-// http.ts) — lo que Facebook/Instagram necesitan para que su propio servidor baje el video real
-// generado por video.render, ya persistido en office_files. VERIDIS_PUBLIC_BASE_URL es la URL
-// pública real del servidor (el operador la configura; sin ella no hay forma de que Meta llegue
-// a esta máquina) — a diferencia de VERIDIS_DELIVERY_URL, aquí el dato fluye al revés: Meta nos
-// hace un GET a nosotros, no al revés.
-function buildSignedFileUrl(fileId: string): string {
-  const base = process.env.VERIDIS_PUBLIC_BASE_URL?.trim();
-  if (!base) throw new Error('Falta VERIDIS_PUBLIC_BASE_URL: hace falta la URL pública real del servidor para que Meta pueda bajar el archivo');
-  const key = loadEncryptionKey(process.env);
-  const expiresAtMs = Date.now() + 15 * 60 * 1000;
-  const signature = signFileAccess(fileId, expiresAtMs, key);
-  return `${base.replace(/\/$/, '')}/office/files/${fileId}/signed?${new URLSearchParams({ exp: String(expiresAtMs), sig: signature }).toString()}`;
-}
-
+// buildSignedFileUrl (signed-file-url.ts): enlace temporal que Meta usa para bajar el video real
+// de office_files; requiere VERIDIS_PUBLIC_BASE_URL.
 const facebookPublishSchema = z.object({
   message: z.string().trim().max(5000).optional().describe('Texto de la publicación (o descripción del video, si va con videoFileId)'),
   imageUrl: z.url().optional().describe('URL pública (ya alojada, JPEG/PNG) de una imagen; si se incluye, se publica como foto en vez de como texto'),
@@ -1213,6 +1247,7 @@ const OFFICE_TOOLS: Record<string, StructuredToolInterface | StructuredToolInter
   'slides.create': slidesCreateTool,
   'social.publish_facebook': facebookPublishTool,
   'social.publish_instagram': instagramPublishTool,
+  'social.schedule_post': SOCIAL_SCHEDULE_TOOLS,
   'repo.read': REPO_TOOLS,
   'core.read': [...CORE_TOOLS, ...CORE_API_READ_TOOLS],
   'core.write': [...CORE_WRITE_TOOLS, ...CORE_API_WRITE_TOOLS],

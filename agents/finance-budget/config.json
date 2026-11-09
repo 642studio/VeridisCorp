@@ -26,6 +26,11 @@
       "id": "kb-presupuesto-y-forecast",
       "title": "Presupuesto anual y forecast rodante",
       "path": "presupuesto-y-forecast.md"
+    },
+    {
+      "id": "kb-hojas-de-calculo-financieras",
+      "title": "Hojas de cálculo financieras",
+      "path": "hojas-de-calculo-financieras.md"
     }
   ]
 }

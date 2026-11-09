@@ -24,6 +24,11 @@
       "id": "kb-evidencia-de-terminado",
       "title": "Evidencia antes de dar algo por terminado",
       "path": "evidencia-de-terminado.md"
+    },
+    {
+      "id": "kb-critica-y-auditoria-de-ui",
+      "title": "Crítica y auditoría de interfaces con puntaje y severidad",
+      "path": "critica-y-auditoria-de-ui.md"
     }
   ]
 }

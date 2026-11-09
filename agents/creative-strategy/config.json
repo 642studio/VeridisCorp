@@ -27,6 +27,11 @@
       "id": "mkt-copywriting",
       "title": "Copywriting de venta",
       "path": "copywriting.md"
+    },
+    {
+      "id": "kb-logotipos-e-identidad",
+      "title": "Logotipos e identidad visual",
+      "path": "logotipos-e-identidad.md"
     }
   ]
 }

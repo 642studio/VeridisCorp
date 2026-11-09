@@ -17,6 +17,11 @@
       "id": "kb-revision-con-evidencia",
       "title": "Revisión con evidencia y severidades",
       "path": "revision-con-evidencia.md"
+    },
+    {
+      "id": "kb-preguntas-de-verificacion",
+      "title": "Preguntas de verificación al entregar a Adrián",
+      "path": "preguntas-de-verificacion.md"
     }
   ]
 }

@@ -28,6 +28,11 @@
       "id": "kb-especificacion-y-tareas",
       "title": "Especificación antes del código y tareas verificables",
       "path": "especificacion-y-tareas.md"
+    },
+    {
+      "id": "kb-recibir-revision-de-codigo",
+      "title": "Recibir una revisión de código",
+      "path": "recibir-revision-de-codigo.md"
     }
   ]
 }

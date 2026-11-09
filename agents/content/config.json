@@ -14,7 +14,8 @@
     "meet.create_space",
     "slides.create",
     "social.publish_facebook",
-    "social.publish_instagram"
+    "social.publish_instagram",
+    "social.schedule_post"
   ],
   "organization": {
     "title": "Contenido",
@@ -32,6 +33,11 @@
       "id": "mkt-email-y-whatsapp",
       "title": "Correo y WhatsApp para marcas",
       "path": "email-y-whatsapp.md"
+    },
+    {
+      "id": "kb-lectura-previa",
+      "title": "Lectura previa: dos lectores antes de publicar",
+      "path": "lectura-previa.md"
     }
   ]
 }

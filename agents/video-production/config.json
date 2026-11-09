@@ -37,6 +37,16 @@
       "id": "mkt-hyperframes-elementos-3d",
       "title": "Elementos 3D (estilo clay) en HyperFrames",
       "path": "hyperframes-elementos-3d.md"
+    },
+    {
+      "id": "kb-analisis-de-referencia-y-plataformas",
+      "title": "Análisis de referencia y especificaciones por plataforma",
+      "path": "analisis-de-referencia-y-plataformas.md"
+    },
+    {
+      "id": "kb-motion-sin-presentacion",
+      "title": "Motion que no parece presentación",
+      "path": "motion-sin-presentacion.md"
     }
   ]
 }

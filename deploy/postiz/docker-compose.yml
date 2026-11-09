@@ -92,6 +92,9 @@ services:
       - POSTGRES_SEEDS=temporal-postgresql
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
       - ENABLE_ES=false
+      # Sin Elasticsearch solo caben 3 atributos de texto; los de ejemplo de auto-setup los ocupan
+      # y Postiz no puede registrar organizationId y postId.
+      - SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES=true
       - TEMPORAL_NAMESPACE=default
     volumes:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
