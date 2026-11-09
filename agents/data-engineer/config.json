@@ -5,7 +5,9 @@
   "capabilities": [
     "data.design"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "mcp.use"
+  ],
   "organization": {
     "title": "Datos",
     "departmentId": "data",

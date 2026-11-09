@@ -8,4 +8,9 @@ mkdir -p /workspace/assets/vendor
 if [ ! -f /workspace/assets/vendor/gsap.min.js ]; then
   cp /opt/vendor/gsap.min.js /workspace/assets/vendor/gsap.min.js
 fi
+# Three.js: mismo motivo que GSAP arriba, pero es un árbol de carpetas (build/ + examples/jsm/...),
+# no un solo archivo — se copia entero si falta, nunca se pisa si el proyecto ya trajo el suyo.
+if [ ! -d /workspace/assets/vendor/three ]; then
+  cp -r /opt/vendor/three /workspace/assets/vendor/three
+fi
 exec hyperframes "$@"

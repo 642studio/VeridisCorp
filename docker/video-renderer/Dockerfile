@@ -36,6 +36,17 @@ RUN mkdir -p "$HOME" \
 # GSAP 3.15.0 (build "standard-license" sin modificar, https://gsap.com/standard-license), vendorizado
 # para que el contrato pueda cargarlo sin red en tiempo de render — ver docker-entrypoint.sh.
 COPY vendor/gsap.min.js /opt/vendor/gsap.min.js
+
+# Three.js 0.184.0 (MIT, sin modificar) para escenas 3D (`agents/video-production/knowledge/
+# hyperframes-elementos-3d.md`): mismo problema que GSAP, el contrato de Three.js carga sus módulos
+# desde un CDN y aquí no hay red en tiempo de render. Vendorizado el build principal
+# (build/three.module.js) más los dos addons ya usados en el catálogo (GLTFLoader, RoomEnvironment)
+# y sus propias dependencias internas (BufferGeometryUtils, SkeletonUtils), con la misma
+# estructura de carpetas que el paquete de npm — los imports relativos entre addons (p. ej.
+# GLTFLoader -> ../utils/BufferGeometryUtils.js) solo resuelven si esa forma se conserva. Un
+# addon nuevo que haga falta se agrega igual: mismo árbol `examples/jsm/...` que npm.
+COPY vendor/three /opt/vendor/three
+
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

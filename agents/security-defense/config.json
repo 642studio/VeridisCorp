@@ -7,7 +7,8 @@
     "security.incident"
   ],
   "allowedTools": [
-    "cve.lookup"
+    "cve.lookup",
+    "mcp.use"
   ],
   "organization": {
     "title": "Defensa y respuesta a incidentes",

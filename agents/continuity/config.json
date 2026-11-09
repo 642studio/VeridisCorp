@@ -5,7 +5,9 @@
   "capabilities": [
     "infrastructure.recovery"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "mcp.use"
+  ],
   "organization": {
     "title": "Continuidad y recuperación",
     "departmentId": "infrastructure",

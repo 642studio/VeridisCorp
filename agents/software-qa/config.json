@@ -5,7 +5,9 @@
   "capabilities": [
     "work.review"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "mcp.use"
+  ],
   "organization": {
     "title": "QA",
     "departmentId": "software",

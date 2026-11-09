@@ -5,7 +5,9 @@
   "capabilities": [
     "network.audit"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "mcp.use"
+  ],
   "organization": {
     "title": "Infraestructura",
     "departmentId": "infrastructure",
