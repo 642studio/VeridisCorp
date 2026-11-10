@@ -326,7 +326,52 @@ inventar ninguna cifra. Pasó `WorkerReply.parse()` sin ajuste. 20.2 s, 4,943 to
 
 Con esto, `openrouter-free` queda validado con una tarea real (no solo un smoke test genérico):
 produce el contrato JSON exacto que exige el motor y respeta la instrucción de no inventar datos
-bajo presión de un objetivo concreto. Pendiente decidir con Adrián si se asigna de forma permanente
-a algún agente/capacidad rota (`routine`/`analysis`/`review`) o se deja como respaldo manual
-mientras se resuelven las llaves reales.
+bajo presión de un objetivo concreto.
+
+### Dos pruebas reales más (coordinate y review) y asignación permanente
+
+Fecha: 2026-11-10. Dos pruebas adicionales, mismo método (overrides temporales no commiteados,
+motor real sin mock):
+
+1. **`cto.coordinate`** (reemplazando `analysis`, muerto por `DEEPSEEK_API_KEY`): objetivo real
+   ("¿migrar PostgreSQL local a una instancia dedicada antes de fin de mes?"), sin presupuesto ni
+   especificaciones en el contexto. Resultado: `{"type": "ask_user", ...}` pidiendo uso de RAM,
+   specs actuales, presupuesto y quién aprueba — la decisión prudente, no una inventada. 21.4 s,
+   8,951/2,985 tokens. Esto importa porque `coordinate()` usa el mismo esquema de unión
+   discriminada (`command`/`dispatch`/`review`/`ask_user`/`delegate`) para **cualquier** agente que
+   coordine, no solo `cto` — una sola prueba cubre la forma que usan los nueve jefes de área.
+2. **`review.review`** (capacidad `people.capacity`, independiente de `claude-review` que ya
+   funciona): se le dio una entrega que AFIRMABA haber encontrado margen, respaldada solo por una
+   evidencia irrelevante ("el equipo se ve motivado"). Resultado: `accepted: false`, con la
+   explicación exacta de por qué esa evidencia no respalda el criterio. El revisor gratis no
+   aprobó una afirmación sin sustento real.
+
+**Decisión:** se repuntaron los perfiles `routine`, `analysis` y `review` de
+`config/models.active.json` de DeepSeek/OpenAI (muertos) a `openrouter-free`
+(`OPENROUTER_API_KEY`/`OPENROUTER_MODEL`, `jsonMode`), conservando sus propios `maxOutputTokens`/
+`timeoutMs` por tier. Se quitó `thinkingMode`/`reasoningEffort` de esos tres: eran ajustes
+específicos de DeepSeek/OpenAI sin equivalente documentado en OpenRouter, no un valor que tuviera
+sentido adivinar para un proveedor distinto. Como ninguno de los tres sirve de revisor
+*independiente* de otro autor en este mismo proveedor (el único revisor real de otro autor que
+usaba `review` es el agente `review`, que ya corre en `claude-review`, Anthropic, sin tocar), no hay
+conflicto con la independencia autor/revisor que exige la arquitectura.
+
+**Deliberadamente sin tocar, por falta de prueba específica:**
+- **`deepseek-code`** (implementación de software — `software.implement`/`.backend`/`.frontend`):
+  ninguna de las pruebas de hoy ejecutó una tarea de código; generar JSON de negocio y generar
+  código son habilidades distintas. Sigue en DeepSeek, roto, hasta probarlo aparte.
+- **`complex`** (revisión de inversión y presupuesto, `finance.investment-research`/
+  `finance.budget`): decisiones de dinero, mayor riesgo que lo probado hoy. Sigue en OpenAI, roto,
+  hasta una prueba financiera específica.
+
+`GROQ_MODEL` quedó en `.env` con el valor explícito `pending-groq-signup` (no un modelo real) solo
+para que el router construya sin tumbar el arranque del servidor — `groq-free` sigue sin cuenta y
+sin usar en ningún agente; seleccionarlo fallaría de inmediato contra la API real de Groq, nunca en
+silencio.
+
+Efecto práctico: con esto, los nueve jefes de área (`cto`, `cfo`, `cmo`, `research-lead`,
+`quality-lead`, `ciso`, `software-lead`, `infrastructure-lead`, `data-lead` vía `analysis`; `coo`,
+`pm`, `hr` vía `review`; `cm` vía `routine`) y los especialistas de contenido/investigación/
+marketing que dependían de DeepSeek/OpenAI vuelven a tener un modelo real que responde, sin costo,
+mientras se resuelven las llaves de pago.
 

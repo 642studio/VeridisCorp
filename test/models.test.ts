@@ -205,12 +205,14 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
     GEMINI_MODEL: 'gemini-3.8-flash',
     CLAUDE_API_KEY: 'test-only-placeholder', CLAUDE_MODEL: 'claude-opus-5-5',
     CLAUDE_API_KEY_2: 'test-only-placeholder', CLAUDE_MODEL_2: 'claude-haiku-5-5',
-    GROQ_MODEL: 'test-only-placeholder', OPENROUTER_MODEL: 'test-only-placeholder',
+    GROQ_MODEL: 'test-only-placeholder', OPENROUTER_MODEL: 'test-openrouter-model',
   });
   // content tiene siete herramientas reales, incluida calendar.create_event (notifica a
   // invitados reales sin revisión humana) — se subió de 'routine' a 'analysis', mismo tier de
   // razonamiento que ya usan los responsables de departamento, no el más barato/rápido.
-  assert.equal(router.select({ agentId: 'content', stage: 'execute', capability: 'content.draft' }).model, 'deepseek-v4-pro');
+  // 'analysis' pasó de DeepSeek a openrouter-free el 2026-11-10 (DEEPSEEK_API_KEY inválida,
+  // ver docs/model-routing.md) — el modelo real ahora viene de OPENROUTER_MODEL.
+  assert.equal(router.select({ agentId: 'content', stage: 'execute', capability: 'content.draft' }).model, 'test-openrouter-model');
   // research ganó drive.upload (efecto real) y queda en el mismo tier que market-research, que
   // ya usaba 'analysis' por su capacidad.
   assert.equal(router.select({ agentId: 'research', stage: 'execute', capability: 'news.research' }).profileId, 'analysis');
@@ -244,7 +246,7 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   // cmo iba a pilotar Gemini como proveedor distinto, pero su cuota gratis se agotó sin poder
   // verificarlo en vivo (ver docs/model-routing.md); queda en 'analysis' hasta tener facturación.
   assert.equal(router.select({ agentId: 'cmo', stage: 'coordinate', capability: 'marketing.strategy' }).profileId, 'analysis');
-  assert.equal(router.select({ agentId: 'investment-research', stage: 'execute', capability: 'finance.investment-research' }).model, 'deepseek-v4-pro');
+  assert.equal(router.select({ agentId: 'investment-research', stage: 'execute', capability: 'finance.investment-research' }).model, 'test-openrouter-model');
   assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.document' }).profileId, 'routine');
   // Implementación de código: DeepSeek, no el modelo local — ese queda reservado para seguridad.
   assert.equal(router.select({ agentId: 'development', stage: 'execute', capability: 'software.implement' }).profileId, 'deepseek-code');
@@ -257,12 +259,25 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   assert.equal(router.select({ agentId: 'security-review', stage: 'review', capability: 'security.audit' }).profileId, 'uncensored');
   assert.equal(router.profile('uncensored').baseURL, 'http://127.0.0.1:11434/v1');
   assert.equal(router.profile('uncensored').apiKeyEnv, 'OLLAMA_API_KEY');
+  // 2026-11-10: routine/analysis/review pasaron de DeepSeek/OpenAI (llaves inválidas) a
+  // openrouter-free, validado en vivo con tres roles reales (especialista sin herramientas,
+  // coordinate de un jefe de área y review independiente) — ver docs/model-routing.md. thinkingMode
+  // y reasoningEffort se quitaron: eran ajustes específicos de DeepSeek/OpenAI, no de OpenRouter.
   const profile = router.profile('routine');
-  const model = createProfileModel(profile, { DEEPSEEK_API_KEY: 'test-only-placeholder' });
-  assert.equal((model as any).modelKwargs.thinking.type, 'disabled');
+  createProfileModel(profile, { OPENROUTER_API_KEY: 'test-only-placeholder' });
   assert.equal(profile.structuredOutputMethod, 'jsonMode');
-  // groq-free/openrouter-free: nivel gratis de cada proveedor, sin asignar todavía a ningún
-  // agente (igual que gemini-flash) hasta validarlos en vivo — ver docs/model-routing.md.
+  assert.equal(profile.baseURL, 'https://openrouter.ai/api/v1');
+  assert.equal(profile.apiKeyEnv, 'OPENROUTER_API_KEY');
+  assert.equal(router.profile('analysis').apiKeyEnv, 'OPENROUTER_API_KEY');
+  assert.equal(router.profile('review').apiKeyEnv, 'OPENROUTER_API_KEY');
+  assert.equal(router.profile('review').structuredOutputMethod, 'jsonMode');
+  // deepseek-code (implementación de software) y complex (revisión financiera de alto riesgo) se
+  // dejaron sin tocar a propósito: ninguna tarea de código ni de finanzas se probó todavía con el
+  // modelo gratis — quedan rotas hasta esa validación específica, no se asumió que generalizara.
+  assert.equal(router.profile('deepseek-code').apiKeyEnv, 'DEEPSEEK_API_KEY');
+  assert.equal(router.profile('complex').apiKeyEnv, 'OPENAI_API_KEY');
+  // groq-free/openrouter-free: perfiles de respaldo con nombre propio, sin asignar a ningún agente
+  // (igual que gemini-flash) — ver docs/model-routing.md.
   assert.equal(router.profile('groq-free').baseURL, 'https://api.groq.com/openai/v1');
   assert.equal(router.profile('groq-free').apiKeyEnv, 'GROQ_API_KEY');
   assert.equal(router.profile('openrouter-free').baseURL, 'https://openrouter.ai/api/v1');

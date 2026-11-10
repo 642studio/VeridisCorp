@@ -4,14 +4,13 @@
   "profiles": {
     "routine": {
       "provider": "openai",
-      "baseURL": "https://api.deepseek.com",
-      "modelEnv": "DEEPSEEK_MODEL",
-      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "baseURL": "https://openrouter.ai/api/v1",
+      "modelEnv": "OPENROUTER_MODEL",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
       "maxOutputTokens": 16000,
       "timeoutMs": 90000,
       "maxRetries": 0,
-      "structuredOutputMethod": "jsonMode",
-      "thinkingMode": "disabled"
+      "structuredOutputMethod": "jsonMode"
     },
     "deepseek-code": {
       "provider": "openai",
@@ -26,24 +25,23 @@
     },
     "analysis": {
       "provider": "openai",
-      "baseURL": "https://api.deepseek.com",
-      "modelEnv": "DEEPSEEK_REASONING_MODEL",
-      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "baseURL": "https://openrouter.ai/api/v1",
+      "modelEnv": "OPENROUTER_MODEL",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
       "maxOutputTokens": 6000,
       "timeoutMs": 120000,
       "maxRetries": 0,
-      "structuredOutputMethod": "jsonMode",
-      "thinkingMode": "enabled"
+      "structuredOutputMethod": "jsonMode"
     },
     "review": {
       "provider": "openai",
-      "modelEnv": "OPENAI_MODEL",
-      "apiKeyEnv": "OPENAI_API_KEY",
+      "baseURL": "https://openrouter.ai/api/v1",
+      "modelEnv": "OPENROUTER_MODEL",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
       "maxOutputTokens": 4000,
       "timeoutMs": 30000,
       "maxRetries": 0,
-      "structuredOutputMethod": "functionCalling",
-      "reasoningEffort": "none"
+      "structuredOutputMethod": "jsonMode"
     },
     "complex": {
       "provider": "openai",
