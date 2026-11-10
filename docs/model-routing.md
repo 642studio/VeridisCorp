@@ -304,9 +304,29 @@ no un script aparte que simule el adaptador):
 2. **`nvidia/nemotron-3.5-super-vl:free`** → 200 real, 7.5 s, salida JSON válida contra un esquema
    Zod de prueba (`resumen`, `pasos[]`), 152 tokens de entrada / 1040 de salida, costo real: 0.
 
-`OPENROUTER_MODEL` queda en `nvidia/nemotron-3.5-super-vl:free`. Sigue sin asignarse a ningún
-agente ni etapa — falta decidir, con una tarea real de alguna capacidad concreta (no solo este
-smoke test genérico), si cubre el formato y el nivel de los especialistas de `local-general`/
-`routine` antes de apuntar algo ahí. Groq sigue sin cuenta (`signup_blocked` persiste); ese perfil
-queda definido pero no probable hasta que el signup se destrabe.
+`OPENROUTER_MODEL` queda en `nvidia/nemotron-3.5-super-vl:free`. Groq sigue sin cuenta
+(`signup_blocked` persiste); ese perfil queda definido pero no probable hasta que el signup se
+destrabe.
+
+### Tarea real de `workforce` (`people.capacity`) con `openrouter-free`
+
+Fecha: 2026-11-10. Prueba con una regla temporal (`execute`+`workforce`+`people.capacity` →
+`openrouter-free`, no commiteada en `config/models.active.json`) y el motor real
+(`createOfficeIntelligence().execute()`, instrucciones y knowledge reales de `agents/workforce/`,
+sin mock de ningún tipo): objetivo "software-lead reporta que devops y data-engineer están
+saturados esta semana; PM pregunta si hay margen para una tarea nueva de 6h antes del viernes",
+sin ningún dato real de disponibilidad en el contexto — a propósito, para ver si el modelo
+inventa cifras o pide apoyo, que es justo lo que prohíben las instrucciones del agente ("no
+inventa empleados, disponibilidad ni evaluaciones").
+
+Resultado: `{"type": "support", "capability": "people.capacity", "question": "..."}` — pidió
+explícitamente horas disponibles, horas ya asignadas y ausencias previstas de ambos roles, sin
+inventar ninguna cifra. Pasó `WorkerReply.parse()` sin ajuste. 20.2 s, 4,943 tokens de entrada /
+1,161 de salida, costo real: 0.
+
+Con esto, `openrouter-free` queda validado con una tarea real (no solo un smoke test genérico):
+produce el contrato JSON exacto que exige el motor y respeta la instrucción de no inventar datos
+bajo presión de un objetivo concreto. Pendiente decidir con Adrián si se asigna de forma permanente
+a algún agente/capacidad rota (`routine`/`analysis`/`review`) o se deja como respaldo manual
+mientras se resuelven las llaves reales.
 
