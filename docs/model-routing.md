@@ -221,6 +221,23 @@ respuesta y conteo de tokens de Anthropic en vivo — igual que se hizo con los 
 las secciones anteriores. La asignación es un punto de partida, no un benchmark; se ajusta con los
 mismos criterios de costo/riesgo que las secciones previas en cuanto haya datos reales de uso.
 
+## 2026-11-08: Hardware real de `veridis-oficina` confirmado por SSH — corrige los modelos locales descritos arriba
+
+Fecha: 2026-11-08. Motivo: evaluar si convenía sumar un modelo de NVIDIA (familia Nemotron) a `local-general`. Al conectar por SSH a `veridis-oficina`, el hardware y los modelos realmente configurados no coinciden con lo que describen las secciones anteriores de este documento.
+
+**Hardware real:**
+- CPU: AMD FX-6300, 6 núcleos (arquitectura Piledriver, ~2012). Ollama carga el backend `libggml-cpu-piledriver.so`.
+- GPU: sí hay una — AMD Radeon RX 570 (driver `amdgpu`, cómputo vía Vulkan/Mesa `RADV POLARIS10`). `nvidia-smi` no la detecta porque es AMD, no NVIDIA; no es una falla de configuración. Confirmado en `journalctl -u ollama` que Ollama la usa y vuelca el 100% de las capas de ambos modelos instalados a la GPU (`offloaded 13/13` en el de 4B, `37/37` en el de 8B). No tiene ROCm instalado, y tampoco aplicaría bien: las versiones recientes de ROCm dejaron de soportar Polaris. `lspci` identifica el modelo por subsistema como "Pulse 4GB", pero la consulta directa de Ollama a la tarjeta en runtime reporta 8192 MiB de VRAM — tomo el dato de Ollama como más confiable por venir de una consulta directa al dispositivo, pero la cifra exacta de VRAM queda sin resolver del todo.
+- RAM: 7.7 GiB totales, con margen muy ajustado al momento de revisar (192 MiB libres, ~3.3 GiB "available" contando cache reutilizable); swap de 4 GiB con 1.5 GiB en uso.
+
+**Modelos realmente configurados hoy** (confirmado en `/home/seis/VeridisCorp/.env` y `ollama list` en el propio servidor; no coincide con lo descrito en las secciones de arriba de este mismo documento):
+- `OLLAMA_MODEL=huihui_ai/qwen3-abliterated:8b` para el perfil `uncensored` — no `qwen3-coder-abliterated:30b`, como dice la sección "Perfil local de código con Ollama" más arriba.
+- `OLLAMA_GENERAL_MODEL=huihui_ai/qwen3-abliterated:4b` para `local-general` — no el 8B que se asumía en `competitive-strategy.md`.
+
+No se determinó cuándo ni por qué cambió esta asignación entre el 2026-10-24 (última fecha confirmada de la sección anterior) y hoy. Es posible que el modelo de 30B se haya probado en otro entorno, o que se haya reducido después por los límites reales de esta VPS: un 30B en Q4_K_M (~20GB) no cabe físicamente en 7.7GiB de RAM de sistema. Queda como discrepancia documentada, no resuelta — las secciones anteriores describen lo que se creía o se probó en su momento, no lo que hay instalado hoy.
+
+**Conclusión sobre Nemotron (NVIDIA) para este servidor:** no conviene. El techo real es ~8GB de VRAM y ~7.7GB de RAM de sistema, ya casi sin margen — no la ausencia de GPU que se asumió al empezar a revisar esto. Eso descarta cualquier Nemotron mediano o grande (Lightning 30B-A3B, Bolt 74B-A9B, Super, Ultra) por el mismo motivo que descarta a Muse Spark Open de Meta: un MoE necesita todos sus expertos cargados en memoria aunque solo use una fracción por token, así que el tamaño total —no el de parámetros activos— es lo que importa para que quepa. El único candidato que entraría por tamaño es Nemotron 3 Nano 4B, mismo rango que el `qwen3-abliterated:4b` ya instalado, pero sin benchmarks confiables de coding/razonamiento encontrados y con el precedente ya documentado arriba (sección "2026-11-01") de que modelos de este tamaño no alcanzan para varios especialistas de `local-general`. La vía que ya funciona para lo que el local no sostiene sigue siendo delegar a la nube (`routine`/`analysis`).
+
 ## 2026-11-10: `OPENAI_API_KEY`, `DEEPSEEK_API_KEY` y `GEMINI_API_KEY` inválidas — perfiles gratis de Groq y OpenRouter como respaldo
 
 Fecha: 2026-11-10. Motivo: se probó cada credencial de `.env` con una llamada mínima de solo lectura
@@ -266,4 +283,30 @@ Pendiente: llave(s) reales, `GROQ_MODEL`/`OPENROUTER_MODEL` con un identificador
 catálogo vigente de cada proveedor, prueba de conectividad (listar modelos) y una llamada real con
 salida estructurada antes de apuntar ninguna capacidad rota de `routine`/`analysis`/`review` hacia
 estos perfiles.
+
+### Validación real de `openrouter-free` (sin Groq — signup sigue bloqueado)
+
+Fecha: 2026-11-10. Con `OPENROUTER_API_KEY` ya creada (cuenta gratis, sin tarjeta): `GET
+/api/v1/models` devolvió 429 modelos, 13 con sufijo `:free`. De los que declaran soporte de
+`response_format` (compatible con `jsonMode`), se filtró por tamaño/linaje razonable para tareas de
+agente: `dots-studio/dots-3-note-preview`, `google/gemma-4-26b-a4b-it`, `google/gemma-4-31b-it`,
+`liquid/lfm-2.5-2.6b`, `liquid/lfm-3-1.7b`, `nvidia/nemotron-3.5-super-vl`, `recursive/flint-v1.0`,
+`xingchen-agi/xing4.0-29b-a4b`.
+
+Se probó con el código real del motor (`ModelRouter` + `createStructuredInvoker` de
+`model-providers.ts`, mismo perfil `openrouter-free` tal cual queda en `config/models.active.json`,
+no un script aparte que simule el adaptador):
+
+1. **`google/gemma-4-31b-it:free`** → `429 Provider returned error` ("temporarily rate-limited
+   upstream", proveedor subyacente Google AI Studio, pool compartido gratis saturado en el
+   momento). No es un problema de la llave ni del código — el mensaje de OpenRouter sugiere
+   reintentar más tarde o fijar una llave propia del proveedor (BYOK) para no compartir el límite.
+2. **`nvidia/nemotron-3.5-super-vl:free`** → 200 real, 7.5 s, salida JSON válida contra un esquema
+   Zod de prueba (`resumen`, `pasos[]`), 152 tokens de entrada / 1040 de salida, costo real: 0.
+
+`OPENROUTER_MODEL` queda en `nvidia/nemotron-3.5-super-vl:free`. Sigue sin asignarse a ningún
+agente ni etapa — falta decidir, con una tarea real de alguna capacidad concreta (no solo este
+smoke test genérico), si cubre el formato y el nivel de los especialistas de `local-general`/
+`routine` antes de apuntar algo ahí. Groq sigue sin cuenta (`signup_blocked` persiste); ese perfil
+queda definido pero no probable hasta que el signup se destrabe.
 
