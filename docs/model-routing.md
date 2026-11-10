@@ -375,3 +375,39 @@ Efecto práctico: con esto, los nueve jefes de área (`cto`, `cfo`, `cmo`, `rese
 marketing que dependían de DeepSeek/OpenAI vuelven a tener un modelo real que responde, sin costo,
 mientras se resuelven las llaves de pago.
 
+### `deepseek-code` (`software.implement`) probado y descartado por ahora — no se asigna
+
+Fecha: 2026-11-10. Misma metodología (override temporal no commiteado, motor real sin mock) con
+`development`/`software.implement`: implementar `clampPercentage(value: number): number`
+(recortar a [0,100], redondear a 2 decimales, NaN/no-numérico → 0), con criterio explícito de que
+el código debe verificarse realmente en `code.sandbox`, no solo describirse.
+
+Docker no estaba corriendo en esta Mac — se levantó para la prueba (`node:22-slim` ya estaba
+descargado de un uso anterior); `runSandboxed()` confirmado funcionando en aislamiento
+(`console.log(1+1)` → `"2"`) antes de culpar al modelo.
+
+Tres intentos, con el límite de salida ya subido a 8,000 (con 4,000 se cortó a medias, mismo patrón
+que ya documentó este archivo con otros modelos el 2026-11-01):
+
+1. JSON inválido: `{"tool_call": ...}` en vez de `{"reply": {...}}` — `ZodError`.
+2. JSON inválido distinto: `evidence` puesto directo bajo `reply` en vez de
+   `reply.submission.evidence` — `ZodError`.
+3. JSON válido, pero `type: "support"` pidiendo que el motor ejecute el sandbox — con el código
+   completo y bien escrito (incluidos los casos de NaN/Infinity/null) en el texto de la pregunta,
+   pero sin haberlo verificado él mismo. La herramienta `code.sandbox` nunca llegó a invocarse
+   realmente en ninguno de los tres intentos (sin mensaje de "herramientas no disponibles" en el
+   log, así que no fue un error — el modelo simplemente no completó la llamada de herramienta
+   dentro de la ronda de `gatherAllowedTools`).
+
+Dos lecturas honestas de este resultado, ninguna descalificante por sí sola: el modelo *sabe*
+escribir el código correcto (se ve en el intento 3) y *respeta* la regla de no afirmar una
+verificación que no hizo (igual que en las pruebas de `workforce` y `review`) — pero la mecánica de
+tool-calling de este modelo/proveedor vía `bindTools` no está completando la ronda de herramientas
+de forma confiable para esta tarea, con 0 de 3 verificaciones reales logradas. Eso es justo lo que
+`c3` pedía comprobar.
+
+**Decisión: `deepseek-code` NO se reasigna.** Sigue en DeepSeek (roto, `DEEPSEEK_API_KEY` inválida)
+hasta que haya una llave real o un modelo gratis que demuestre completar `code.sandbox` de forma
+confiable — no alcanza con que escriba código razonable si nunca puede probarlo él mismo, ya que el
+contrato del motor exige evidencia verificada, no solo descrita.
+
