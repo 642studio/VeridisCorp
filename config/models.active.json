@@ -108,6 +108,26 @@
       "timeoutMs": 30000,
       "maxRetries": 0,
       "structuredOutputMethod": "jsonSchema"
+    },
+    "groq-free": {
+      "provider": "openai",
+      "baseURL": "https://api.groq.com/openai/v1",
+      "modelEnv": "GROQ_MODEL",
+      "apiKeyEnv": "GROQ_API_KEY",
+      "maxOutputTokens": 4000,
+      "timeoutMs": 60000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonMode"
+    },
+    "openrouter-free": {
+      "provider": "openai",
+      "baseURL": "https://openrouter.ai/api/v1",
+      "modelEnv": "OPENROUTER_MODEL",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "maxOutputTokens": 4000,
+      "timeoutMs": 60000,
+      "maxRetries": 0,
+      "structuredOutputMethod": "jsonMode"
     }
   },
   "stages": {

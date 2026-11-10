@@ -119,6 +119,8 @@ export function platformOf(provider: string, baseURL?: string): string {
   if (!baseURL) return provider;
   const host = new URL(baseURL).hostname;
   if (host === 'api.deepseek.com') return 'deepseek';
+  if (host === 'api.groq.com') return 'groq';
+  if (host === 'openrouter.ai') return 'openrouter';
   if (['127.0.0.1', 'localhost', '[::1]'].includes(host)) return 'local';
   return provider;
 }

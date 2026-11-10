@@ -221,3 +221,49 @@ respuesta y conteo de tokens de Anthropic en vivo — igual que se hizo con los 
 las secciones anteriores. La asignación es un punto de partida, no un benchmark; se ajusta con los
 mismos criterios de costo/riesgo que las secciones previas en cuanto haya datos reales de uso.
 
+## 2026-11-10: `OPENAI_API_KEY`, `DEEPSEEK_API_KEY` y `GEMINI_API_KEY` inválidas — perfiles gratis de Groq y OpenRouter como respaldo
+
+Fecha: 2026-11-10. Motivo: se probó cada credencial de `.env` con una llamada mínima de solo lectura
+(listar modelos, sin generación) y tres de las seis fallaron con 401:
+
+- `OPENAI_API_KEY` → "Incorrect API key provided" (perfiles `review`, `complex`).
+- `DEEPSEEK_API_KEY` → "Authentication Fails... invalid" (perfiles `routine`, `deepseek-code`, `analysis`).
+- `GEMINI_API_KEY` → "API key not valid" (perfiles `gemini-flash`, `search-google`).
+
+Sí respondieron: `claude-reasoning`/`claude-review` (200, 15 modelos cada una), Brave Search
+(`web.search`, 200 con resultados reales), ClickUp (200, ya no usado por perfiles activos) y
+Ollama local en este Mac (modelo de 30B ya cacheado de una prueba anterior). El efecto práctico es
+mayor que solo esos tres perfiles: casi todos los jefes de departamento coordinan con `analysis`
+o `review` (ver tabla de `agents` arriba), así que una credencial muerta corta la delegación del
+CEO hacia cualquier área antes de llegar al especialista — no hay cambio automático de proveedor
+(ver "Adaptadores" arriba), el nodo queda pendiente.
+
+Mientras se resuelve la facturación real (la cuenta de OpenAI es Business — hay un beneficio de
+créditos de API para Business/Pro elegibles, hasta 500 USD/mes, que hay que vincular aparte de
+arreglar la llave), se agregaron dos perfiles nuevos a `config/models.active.json`, mismo molde que
+DeepSeek/Ollama (adaptador `openai`, `baseURL` propia, `jsonMode`, cero reintentos):
+
+- **`groq-free`**: `https://api.groq.com/openai/v1`, `GROQ_API_KEY`/`GROQ_MODEL`. Sin tarjeta;
+  limita por modelo (del orden de decenas de miles de solicitudes/día según el catálogo vigente de
+  Groq, no verificado todavía en vivo desde esta cuenta).
+- **`openrouter-free`**: `https://openrouter.ai/api/v1`, `OPENROUTER_API_KEY`/`OPENROUTER_MODEL`.
+  Sin tarjeta; 50 solicitudes/día hasta acumular 10 USD de compra histórica (sube a 1,000/día
+  después). Los modelos con sufijo `:free` rotan sin aviso — confirmar el identificador vigente en
+  el catálogo de OpenRouter antes de fijar `OPENROUTER_MODEL`, no asumir el de ninguna guía.
+
+`platformOf()` (`src/office/models.ts`) distingue ahora `api.groq.com`→`groq` y
+`openrouter.ai`→`openrouter` para que el desglose de consumo por plataforma no los confunda con
+OpenAI real — mismo motivo que ya distinguía `api.deepseek.com` de `openai` puro.
+
+Ninguno de los dos perfiles está asignado todavía a ningún agente ni etapa — quedan definidos y
+sin usar, igual que `gemini-flash` arriba, hasta tener la llave y confirmar en vivo (`npm run
+office:models`, luego una llamada real con esquema estructurado) qué modelo gratis responde bien
+al formato que exige cada capacidad. Intentar crear cuenta en Groq dio `signup_blocked` sin causa
+clara (reportado por otros usuarios en su foro de comunidad, sin resolución confirmada); se sigue
+con OpenRouter mientras tanto.
+
+Pendiente: llave(s) reales, `GROQ_MODEL`/`OPENROUTER_MODEL` con un identificador confirmado en el
+catálogo vigente de cada proveedor, prueba de conectividad (listar modelos) y una llamada real con
+salida estructurada antes de apuntar ninguna capacidad rota de `routine`/`analysis`/`review` hacia
+estos perfiles.
+

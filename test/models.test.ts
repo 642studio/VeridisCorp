@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Command, MemorySaver } from '@langchain/langgraph';
-import { ModelRouter, loadModelRouter, type ModelPolicyInput } from '../src/office/models.js';
+import { ModelRouter, loadModelRouter, platformOf, type ModelPolicyInput } from '../src/office/models.js';
 import { createProfileModel, extractUsage, recoverStructured, escapeRawControlChars, type StructuredInvoker, type StructuredRequest } from '../src/office/model-providers.js';
 import { createOfficeIntelligence } from '../src/office/intelligence.js';
 import { createOfficeWorkflow } from '../src/office/workflow.js';
@@ -205,6 +205,7 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
     GEMINI_MODEL: 'gemini-3.8-flash',
     CLAUDE_API_KEY: 'test-only-placeholder', CLAUDE_MODEL: 'claude-opus-5-5',
     CLAUDE_API_KEY_2: 'test-only-placeholder', CLAUDE_MODEL_2: 'claude-haiku-5-5',
+    GROQ_MODEL: 'test-only-placeholder', OPENROUTER_MODEL: 'test-only-placeholder',
   });
   // content tiene siete herramientas reales, incluida calendar.create_event (notifica a
   // invitados reales sin revisión humana) — se subió de 'routine' a 'analysis', mismo tier de
@@ -260,6 +261,14 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   const model = createProfileModel(profile, { DEEPSEEK_API_KEY: 'test-only-placeholder' });
   assert.equal((model as any).modelKwargs.thinking.type, 'disabled');
   assert.equal(profile.structuredOutputMethod, 'jsonMode');
+  // groq-free/openrouter-free: nivel gratis de cada proveedor, sin asignar todavía a ningún
+  // agente (igual que gemini-flash) hasta validarlos en vivo — ver docs/model-routing.md.
+  assert.equal(router.profile('groq-free').baseURL, 'https://api.groq.com/openai/v1');
+  assert.equal(router.profile('groq-free').apiKeyEnv, 'GROQ_API_KEY');
+  assert.equal(router.profile('openrouter-free').baseURL, 'https://openrouter.ai/api/v1');
+  assert.equal(router.profile('openrouter-free').apiKeyEnv, 'OPENROUTER_API_KEY');
+  assert.equal(platformOf('openai', router.profile('groq-free').baseURL), 'groq');
+  assert.equal(platformOf('openai', router.profile('openrouter-free').baseURL), 'openrouter');
 });
 
 test('extractUsage lee usage_metadata sin inventar un conteo que el proveedor no mandó', () => {
