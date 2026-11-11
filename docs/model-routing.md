@@ -411,3 +411,28 @@ hasta que haya una llave real o un modelo gratis que demuestre completar `code.s
 confiable — no alcanza con que escriba código razonable si nunca puede probarlo él mismo, ya que el
 contrato del motor exige evidencia verificada, no solo descrita.
 
+### `complex` (revisión financiera) probado y asignado — único éxito limpio de la ronda
+
+Fecha: 2026-11-10. Última pieza rota: `complex`, usado solo por `review`+`finance.investment-research`
+y `review`+`finance.budget` (dinero, el de más riesgo de los cinco). Prueba con `finance-review`
+(revisor independiente, departamento finanzas) sobre una entrega que afirmaba con certeza que el
+presupuesto de marketing podía subir 30% en Q4 sin afectar caja, respaldada solo por "el equipo
+comercial se ve optimista" — sin una sola cifra real de ingresos, gastos fijos o caja disponible.
+
+Resultado al primer intento, sin ningún error de formato: rechazó los dos criterios
+(`accepted: false`), señalando con precisión que una percepción verbal del equipo comercial no es
+un dato contable ni de tesorería, y que la entrega concluyó con certeza en vez de declarar la
+limitación por falta de cifras reales — exactamente la falla que la prueba buscaba detectar. 16.1 s,
+4,483/1,243 tokens, costo 0.
+
+A diferencia de `deepseek-code`, esta prueba no involucra ninguna herramienta real de por medio
+(sin ronda de `bindTools`) y el esquema de salida (`ReviewReply`, un arreglo plano de evaluaciones)
+es más simple que el de `WorkerReply` — probablemente la razón de que saliera limpio al primer
+intento, no una garantía de que toda tarea financiera vaya a comportarse igual.
+
+**Decisión: `complex` se repunta a `openrouter-free`** en `config/models.active.json`, mismo molde
+que `routine`/`analysis`/`review` (se quita `reasoningEffort`, específico de OpenAI). Con esto, las
+cinco piezas rotas de la política quedan resueltas: cuatro reasignadas (`routine`, `analysis`,
+`review`, `complex`) y una (`deepseek-code`) deliberadamente sin tocar hasta que un modelo gratis
+demuestre completar la verificación de código que su contrato exige.
+

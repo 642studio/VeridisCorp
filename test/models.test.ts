@@ -271,11 +271,16 @@ test('la política activa elige versiones y complejidad sin acoplarlas al puesto
   assert.equal(router.profile('analysis').apiKeyEnv, 'OPENROUTER_API_KEY');
   assert.equal(router.profile('review').apiKeyEnv, 'OPENROUTER_API_KEY');
   assert.equal(router.profile('review').structuredOutputMethod, 'jsonMode');
-  // deepseek-code (implementación de software) y complex (revisión financiera de alto riesgo) se
-  // dejaron sin tocar a propósito: ninguna tarea de código ni de finanzas se probó todavía con el
-  // modelo gratis — quedan rotas hasta esa validación específica, no se asumió que generalizara.
+  // deepseek-code (implementación de software) se dejó sin tocar a propósito: probado en vivo el
+  // 2026-11-10 con development/software.implement y 0 de 3 intentos completó la verificación real
+  // en code.sandbox (2 con JSON mal anidado, 1 con código correcto pero sin verificar) — no se
+  // asumió que generalizara solo por haber funcionado en capacidades sin herramientas.
   assert.equal(router.profile('deepseek-code').apiKeyEnv, 'DEEPSEEK_API_KEY');
-  assert.equal(router.profile('complex').apiKeyEnv, 'OPENAI_API_KEY');
+  // complex (revisión financiera de alto riesgo) sí se probó en vivo el 2026-11-10 con
+  // finance-review/finance.budget sobre una afirmación de caja sin respaldo real: rechazó ambos
+  // criterios con explicaciones precisas, sin herramientas de por medio y sin error de formato.
+  assert.equal(router.profile('complex').apiKeyEnv, 'OPENROUTER_API_KEY');
+  assert.equal(router.profile('complex').structuredOutputMethod, 'jsonMode');
   // groq-free/openrouter-free: perfiles de respaldo con nombre propio, sin asignar a ningún agente
   // (igual que gemini-flash) — ver docs/model-routing.md.
   assert.equal(router.profile('groq-free').baseURL, 'https://api.groq.com/openai/v1');

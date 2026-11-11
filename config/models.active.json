@@ -45,13 +45,13 @@
     },
     "complex": {
       "provider": "openai",
-      "modelEnv": "OPENAI_COMPLEX_MODEL",
-      "apiKeyEnv": "OPENAI_API_KEY",
+      "baseURL": "https://openrouter.ai/api/v1",
+      "modelEnv": "OPENROUTER_MODEL",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
       "maxOutputTokens": 6000,
       "timeoutMs": 120000,
       "maxRetries": 0,
-      "structuredOutputMethod": "functionCalling",
-      "reasoningEffort": "medium"
+      "structuredOutputMethod": "jsonMode"
     },
     "gemini-flash": {
       "provider": "google",
