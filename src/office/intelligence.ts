@@ -546,8 +546,9 @@ cada dato estable, decisión, regla o preferencia que un asistente necesite reco
   "EN DESARROLLO:", "VISIÓN:" o "POR CONFIRMAR:". Nunca conviertas una visión en un hecho ni una propuesta en una decisión.
 - kind: "decision" (algo decidido o una regla adoptada), "fact" (un dato), "preference" (cómo prefiere trabajar o que le hablen
   alguien o la empresa), "question" (algo que el texto dice explícitamente que falta verificar).
-- entityType: company, division, client, brand, project, contract, person, product, decision o process (un proceso o procedimiento
-  de la empresa: pasos, responsables, criterios). entityId nombra ESE conocimiento
+- entityType: company, division, client, brand, project, contract, person, product, decision, integration (una conexión externa:
+  servidor MCP, API, cuenta de un proveedor) o process (un proceso o procedimiento de la empresa: pasos, responsables, criterios).
+  entityId nombra ESE conocimiento
   con su tema, en minúsculas con guiones (p. ej. "642-news-regla-editorial", "veridis-core-fuente-de-verdad"), nunca solo la empresa.
 - Si algo ya está en "existing" con el mismo sentido, no lo repitas. Si lo actualiza, reutiliza su entityType y entityId.
   Si lo contradice, pon su "id" en "contradicts"; si no, null.
