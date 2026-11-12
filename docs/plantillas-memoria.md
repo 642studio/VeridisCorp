@@ -14,11 +14,39 @@ Once tipos de entidad válidos (`entityType`): `company`, `division`, `client`, 
 - **Un encabezado abre sección.** Markdown (`#`…`######`), subnumeración (`4.1. Título`) o un
   título numerado TODO EN MAYÚSCULAS (`4. ESTRUCTURA DEL ECOSISTEMA`). Una lista numerada normal
   (`1. Hacer esto.`) **no** cuenta — a propósito, para no partir una lista a la mitad.
-- **~1800 caracteres por sección** es el tamaño cómodo (ahí corta en el siguiente encabezado).
-  Si un bloque sin encabezado pasa de 3500, corta en el siguiente párrafo en blanco — deja líneas
-  en blanco entre párrafos para que, si corta, corte limpio. Tope duro: 6000 por sección.
+- **Cada bloque bajo un encabezado necesita ~1800 caracteres propios para quedar solo en su
+  llamada.** El partidor NO corta en cada encabezado — solo corta ANTES de uno nuevo si lo ya
+  acumulado llega a 1800. Un bloque más corto se queda pegado al siguiente (y al siguiente, y al
+  siguiente) hasta que la suma llegue a 1800; recién ahí el próximo encabezado sí abre llamada
+  aparte. Probado en vivo: un documento con 17 encabezados de ~1300-1450 caracteres cada uno
+  terminó en solo 7 llamadas reales, de dos temas cada una — nunca un tema solo.
+  - Si quieres que un tema sea su propia llamada (más control, más predecible, memorias con
+    `provenance` apuntando solo a ese tema): desarróllalo hasta rondar 1800 caracteres —
+    contexto, ejemplos y fuentes incluidos, no relleno artificial.
+  - Si no te importa que 2-3 temas relacionados se combinen en una llamada, no hace falta ajustar
+    nada — probado en vivo con un documento real de 17 encabezados (7 llamadas, 2 temas cada
+    una): salieron 77 memorias, cada una con el `entityType`/`kind` que le tocaba por su
+    contenido real, no por el tipo "oficial" del encabezado bajo el que cayó (una frase sobre un
+    proceso dentro de un encabezado "Proyecto:" salió como `process`, no `project` — correcto).
+  - La etiqueta de sección que devuelve la API muestra como máximo 3 encabezados unidos con
+    " · " aunque se hayan combinado más — es solo el nombre mostrado; el texto completo (con
+    todos los encabezados y su contenido) sí llega íntegro al archivista.
+  - Si un bloque sin encabezado nuevo pasa de 3500 caracteres seguidos, corta en el siguiente
+    párrafo en blanco — deja líneas en blanco entre párrafos para que, si corta ahí, corte
+    limpio. Tope duro: 6000 por llamada (más allá, se parte a lo bruto por tamaño).
 - **Cada sección se manda sola al modelo**, sin el resto del documento. Nunca escribas "como se
   mencionó arriba" ni dejes un pronombre sin antecedente dentro de la misma sección.
+- **No repitas la misma frase de apertura genérica basada en fecha en temas distintos.** El
+  archivista nombra el `entityId` a partir de lo que lee en ESA sección nada más; si dos secciones
+  no relacionadas abren igual ("La entrega del 5 de noviembre de 2026 registra...") puede ponerles
+  el mismo `entityId` genérico, y el motor versiona automáticamente cualquier `entityId` repetido
+  (v1, v2…) aunque el contenido no tenga relación — visto en vivo: dos hechos sin ninguna relación
+  (un dashboard publicado vs. una compilación con pruebas) quedaron como v1/v2 de
+  `642-core-entrega-5-noviembre-2026` solo por compartir esa apertura. No se pierde información
+  (la búsqueda sigue encontrando ambas versiones por separado, nunca solo "la última"), pero quien
+  revise memorias puede confundirlas creyendo que una actualiza a la otra. Nombra cada tema por
+  **qué** es, no por **cuándo** pasó: `642-core-dashboard-finance-publicado` y
+  `642-core-build-ddc5a10-pruebas`, no dos veces "entrega del 5 de noviembre".
 - **Nombres propios, cifras, fechas, dominios y URLs exactos**, en prosa natural — el archivista
   los conserva literalmente, y la búsqueda es híbrida (semántica + léxica exacta en español):
   texto vago en viñetas sueltas da memorias vagas e imposibles de encontrar por nombre después.
