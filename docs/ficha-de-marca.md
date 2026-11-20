@@ -2,7 +2,9 @@
 
 # Plantilla: ficha de marca
 
-La ficha de marca es la fuente de datos que los agentes consultan antes de proponer contenido, campañas o investigaciones para una marca. Los documentos de knowledge de cada agente explican el oficio; la ficha dice cómo es esta marca en particular.
+La ficha de marca es la fuente de datos que los agentes consultan antes de proponer contenido, campañas o investigaciones para una marca. Los documentos de knowledge de cada agente explican el oficio; la ficha dice cómo es esta marca en particular. Para planear el semestre, sus dos trimestres y los meses de contenido de esta marca, usa `docs/plan-semestral-marca.md` una vez que esta ficha esté llena.
+
+**El borrador lleno de una marca real nunca se comitea a este repositorio** — suele traer datos de negocio sensibles (clientes, ingresos, contactos). Redáctalo fuera del repositorio (notas locales, un documento aparte) e impórtalo directo a la memoria corporativa (MEMORIA → + IMPORTAR TEXTO); solo la plantilla en blanco vive aquí.
 
 ## Cómo usarla
 

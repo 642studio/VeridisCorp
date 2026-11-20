@@ -2,6 +2,16 @@
 
 # Plan de marketing y de campaña
 
+## Ciclo de planeación: semestre → trimestre → mes
+
+Este documento describe **un trimestre**, no el ciclo completo. La cascada completa tiene tres niveles, y cada uno se fija antes de bajar al siguiente:
+
+1. **Semestre (H1 enero-junio, H2 julio-diciembre).** El CMO fija 2-3 objetivos de negocio medibles por semestre, derivados de la ficha de marca y de sus metas actuales — no un objetivo nuevo inventado cada vez. Se documentan en `docs/plan-semestral-marca.md`, una ficha por marca por semestre.
+2. **Trimestre (cada semestre tiene 2).** Cada objetivo semestral baja a **una campaña central del trimestre**: ahí entra el resto de este documento (resumen ejecutivo, diagnóstico, público, posicionamiento, oferta, canales, mensajes y el calendario de 12 semanas de abajo). El objetivo de negocio no se vuelve a inventar cada trimestre: se hereda del semestral y aquí solo se decide la táctica para avanzarlo.
+3. **Mes (cada trimestre tiene 3).** Dentro de la campaña trimestral ya aprobada, `content`/`cm` bajan a un calendario mensual de piezas (`cm/knowledge/contenido-social.md`) y `campaigns` a la estructura de pauta del mes (`campaigns/knowledge/anuncios-pagados.md`). No se fija oferta ni público nuevos en este nivel: se ejecuta lo que ya decidió el trimestre.
+
+Antes de fijar o renovar cualquier nivel, refresca investigación de `market-research`: competencia (`competidores-y-clientes.md`) y tendencias (`tendencias-de-mercado.md`). No se planea un trimestre nuevo con datos de hace más de un trimestre sin revisar. Un humano aprueba cada nivel antes de pasar al siguiente: el objetivo semestral antes de armar la campaña trimestral, y la campaña trimestral antes de calendarizar el mes.
+
 ## Antes de empezar
 Busca primero en la memoria corporativa y en la ficha de marca; pide solo lo que falte:
 - Giro, qué vende y ticket promedio.

@@ -29,6 +29,11 @@
       "id": "kb-prospeccion-local-responsable",
       "title": "Prospección local responsable",
       "path": "prospeccion-local-responsable.md"
+    },
+    {
+      "id": "mkt-tendencias-de-mercado",
+      "title": "Tendencias de mercado",
+      "path": "tendencias-de-mercado.md"
     }
   ]
 }

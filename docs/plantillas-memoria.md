@@ -99,6 +99,10 @@ POR CONFIRMAR / EN DESARROLLO: <lo que aún no está cerrado>.
 *Ejemplo real:* el criterio de éxito de MOHOVERI, redactado como una lista de condiciones
 verificables ("exista dirección editorial...", "se publiquen los entregables...").
 
+*También aplica a una campaña trimestral de marketing* (ver `docs/plan-semestral-marca.md`): el
+objetivo es el avance concreto que busca ese trimestre, el alcance es el tema de campaña, la
+oferta, el canal y el presupuesto, y el criterio de éxito es el KPI con número y fecha.
+
 ## `person` — Persona
 
 ```markdown
@@ -195,6 +199,11 @@ Motivo: <por qué, en una frase — opcional pero valioso>.
 ```
 *Ejemplo real:* el modelo automático de memoria desde 2026-10-31, "decisión de Adrián, tomando
 como referencia la app madre" (ver `docs/competitive-strategy.md`).
+
+*También aplica al objetivo semestral de marketing* que fija el CMO para una marca (ver
+`docs/plan-semestral-marca.md`): qué se decidió es el objetivo de negocio medible, el alcance es
+el semestre y los canales, y el motivo conecta con la ficha de marca o el resultado del semestre
+anterior.
 
 ## `integration` — Conexión externa (servidor MCP, API, cuenta de proveedor)
 
