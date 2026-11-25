@@ -30,7 +30,8 @@
     "runtime:local-delivery": "node scripts/local-delivery-receiver.mjs",
     "test:postgres": "node scripts/test-postgres.mjs",
     "runtime:smoke:live": "node scripts/test-postgres.mjs --live-models",
-    "office:smoke:live": "tsx scripts/live-office-smoke.ts"
+    "office:smoke:live": "tsx scripts/live-office-smoke.ts",
+    "contract:check:core": "node scripts/contract-check-core.mjs"
   },
   "keywords": [],
   "author": "",
